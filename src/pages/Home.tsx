@@ -5,7 +5,7 @@ import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
 import { supabase } from '../lib/supabase'
-import { PLACEMENT_COLORS } from '../lib/constants'
+import { PLACEMENT_COLORS, formatDate } from '../lib/constants'
 import type { GameNight, Player } from '../types'
 
 interface YearStats {
@@ -175,7 +175,7 @@ export default function Home() {
             <div>
               <p className="text-nin-red text-sm font-extrabold uppercase tracking-wider">Live Game Night</p>
               <p className="text-2xl font-black mt-1">Night #{activeNight.night_number}</p>
-              <p className="text-midnight-400 text-sm font-semibold">{activeNight.date}</p>
+              <p className="text-midnight-400 text-sm font-semibold">{formatDate(activeNight.date)}</p>
             </div>
             <div className="flex items-center gap-2">
               <Gamepad2 className="w-9 h-9 text-nin-red" />

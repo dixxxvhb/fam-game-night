@@ -5,7 +5,7 @@ import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
 import { supabase } from '../lib/supabase'
-import { PLACEMENT_LABELS, PLACEMENT_COLORS } from '../lib/constants'
+import { PLACEMENT_LABELS, PLACEMENT_COLORS, formatDate } from '../lib/constants'
 import type { Player } from '../types'
 
 export default function NightSummary() {
@@ -108,7 +108,7 @@ export default function NightSummary() {
   return (
     <div className="p-4 space-y-4">
       <div className="text-center py-4">
-        <p className="text-midnight-400 text-sm font-bold">Night #{nightNumber} - {date}</p>
+        <p className="text-midnight-400 text-sm font-bold">Night #{nightNumber} - {formatDate(date)}</p>
         {sorted[0] && (
           <>
             <Crown className="w-8 h-8 text-gold-400 mx-auto mt-2" />

@@ -6,7 +6,7 @@ import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
 import { supabase } from '../lib/supabase'
 import { LoadingSpinner } from '../components/common/LoadingSpinner'
-import { PLACEMENT_LABELS, PLACEMENT_COLORS } from '../lib/constants'
+import { PLACEMENT_LABELS, PLACEMENT_COLORS, formatDate } from '../lib/constants'
 import type { Player, Game } from '../types'
 
 interface GameResult {
@@ -90,7 +90,7 @@ export default function HistoryDetail() {
     <div className="p-4 space-y-4">
       <div className="text-center py-2">
         <p className="text-midnight-400 text-sm font-bold">Night #{nightNumber}</p>
-        <p className="text-lg font-black">{date}</p>
+        <p className="text-lg font-black">{formatDate(date)}</p>
       </div>
 
       <Card>

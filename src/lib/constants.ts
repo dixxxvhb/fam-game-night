@@ -11,6 +11,12 @@ export const DEFAULT_APP_NAME = 'FAM GAME NIGHT'
 
 export const PLACEMENT_LABELS = ['1st', '2nd', '3rd', '4th', '5th', '6th'] as const
 
+export function formatDate(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
 export const PLACEMENT_COLORS = [
   '#ffd700', // gold - 1st
   '#b0c4de', // silver-blue - 2nd

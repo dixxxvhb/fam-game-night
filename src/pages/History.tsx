@@ -4,6 +4,7 @@ import { Card } from '../components/common/Card'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
 import { supabase } from '../lib/supabase'
 import { LoadingSpinner } from '../components/common/LoadingSpinner'
+import { formatDate } from '../lib/constants'
 import type { Player } from '../types'
 
 interface NightSummary {
@@ -120,7 +121,7 @@ export default function History() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-midnight-400 font-bold">Night #{night.night_number}</p>
-                <p className="font-bold">{night.date}</p>
+                <p className="font-bold">{formatDate(night.date)}</p>
                 <p className="text-xs text-midnight-500 mt-1 font-semibold">{night.gameCount} games</p>
               </div>
               {night.winner && (
