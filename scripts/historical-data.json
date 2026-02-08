@@ -1,0 +1,5561 @@
+[
+  {
+    "label": "1st Night",
+    "table_name": "June 4, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Game 1",
+        "original_name": "Game 1",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 8,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 4,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 2",
+        "original_name": "Game 2",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 8,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 4,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 3",
+        "original_name": "Game 3",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 7,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 3,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 1,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 4",
+        "original_name": "Game 4",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 7,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 3,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 1,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 5",
+        "original_name": "Game 5",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 7,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 3,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 1,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 6",
+        "original_name": "Game 6",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 7",
+        "original_name": "Game 7",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 8,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 4,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 8",
+        "original_name": "Game 8",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 8,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 4,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "2nd Night",
+    "table_name": "June 6, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Game 1",
+        "original_name": "Game 1",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 11,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 7,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 3,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 2",
+        "original_name": "Game 2",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 8,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 3",
+        "original_name": "Game 3",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 7,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 3,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 1,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 4",
+        "original_name": "Game 4",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 7,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 3,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 1,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 5",
+        "original_name": "Game 5",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 6",
+        "original_name": "Game 6",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 8,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 4,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "3rd Night",
+    "table_name": "June 7, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Game 1",
+        "original_name": "Game 1",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 11,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 7,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 2",
+        "original_name": "Game 2",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 3",
+        "original_name": "Game 3",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 4",
+        "original_name": "Game 4",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 8,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 4,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 5",
+        "original_name": "Game 5",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 6",
+        "original_name": "Game 6",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "4th Night",
+    "table_name": "June 10, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Game 1",
+        "original_name": "Game 1",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 11,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 7,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 3,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 2",
+        "original_name": "Game 2",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 3",
+        "original_name": "Game 3",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 4",
+        "original_name": "Game 4",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 5",
+        "original_name": "Game 5",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 6",
+        "original_name": "Game 6",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 11,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 7,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 3,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 7",
+        "original_name": "Game 7",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 8",
+        "original_name": "Game 8",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "5th Night",
+    "table_name": "June 16, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Game 1",
+        "original_name": "Game 1",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 8,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 4,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 2",
+        "original_name": "Game 2",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 3",
+        "original_name": "Game 3",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 25,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 4",
+        "original_name": "Game 4",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "6th Night",
+    "table_name": "June 19, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Game 1",
+        "original_name": "Game 1",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 25,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 2",
+        "original_name": "Game 2",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Game 3",
+        "original_name": "Game 3",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "7th Night",
+    "table_name": "June 21, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 25,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "8th Night",
+    "table_name": "June 23, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 25,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Trivia",
+        "original_name": "Trivia",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 25,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "9th Night",
+    "table_name": "July 15, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "10th Night",
+    "table_name": "August 3, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "11th Night",
+    "table_name": "September 7, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "12th Night",
+    "table_name": "September 14, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart (Baby Park)",
+        "original_name": "Mario Kart (Baby Park)",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "13th Night",
+    "table_name": "September 21, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart (Baby Park)",
+        "original_name": "Mario Kart (Baby Park)",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "14th Night",
+    "table_name": "September 25, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Murder Party",
+        "original_name": "Murder Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 14,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 6,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 2,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "15th Night",
+    "table_name": "September 26, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "15th Night",
+    "table_name": "September 28, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Murder Party",
+        "original_name": "Murder Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "16th Night",
+    "table_name": "October 5, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "16th Night",
+    "table_name": "October 13, 2024 (John\u2019s Birthday)",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "17th Night",
+    "table_name": "November 25, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart (break tie)",
+        "is_tiebreaker": true,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 2,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 1,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 0,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 0,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "18th Night",
+    "table_name": "November 26, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Trivia",
+        "original_name": "Trivia",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "19th Night",
+    "table_name": "November 29, 2024",
+    "year": "2024",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Fortnite",
+        "original_name": "Fortnite",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 9,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 6,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 3,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 1,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "1st Night",
+    "table_name": "June 3, 2025",
+    "year": "2025",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggravation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Trivia Party",
+        "original_name": "Trivia Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Jenga",
+        "original_name": "Jenga",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "2nd Night",
+    "table_name": "June 4, 2025",
+    "year": "2025",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Jenga",
+        "original_name": "Jenga",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "3rd Night",
+    "table_name": "June 5, 2025",
+    "year": "2025",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx",
+      "Maddi",
+      "Lexie"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 30,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 25,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 3
+          },
+          {
+            "player": "Maddi",
+            "points": 15,
+            "placement": 4
+          },
+          {
+            "player": "Lexie",
+            "points": 10,
+            "placement": 5
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 6
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 30,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 25,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 3
+          },
+          {
+            "player": "Maddi",
+            "points": 15,
+            "placement": 4
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 5
+          },
+          {
+            "player": "Lexie",
+            "points": 5,
+            "placement": 6
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 30,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 25,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 3
+          },
+          {
+            "player": "Lexie",
+            "points": 15,
+            "placement": 4
+          },
+          {
+            "player": "Maddi",
+            "points": 10,
+            "placement": 5
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 6
+          }
+        ]
+      },
+      {
+        "name": "Murder Party",
+        "original_name": "Murder Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 30,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 25,
+            "placement": 2
+          },
+          {
+            "player": "Maddi",
+            "points": 25,
+            "placement": 3
+          },
+          {
+            "player": "Lexie",
+            "points": 25,
+            "placement": 4
+          },
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 5
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 6
+          }
+        ]
+      },
+      {
+        "name": "Spoons",
+        "original_name": "Spoons",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 30,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 25,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 4
+          },
+          {
+            "player": "Maddi",
+            "points": 10,
+            "placement": 5
+          },
+          {
+            "player": "Lexie",
+            "points": 5,
+            "placement": 6
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 30,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 30,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 25,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 25,
+            "placement": 4
+          },
+          {
+            "player": "Maddi",
+            "points": 15,
+            "placement": 5
+          },
+          {
+            "player": "Lexie",
+            "points": 15,
+            "placement": 6
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 30,
+            "placement": 1
+          },
+          {
+            "player": "Lexie",
+            "points": 25,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 4
+          },
+          {
+            "player": "Maddi",
+            "points": 10,
+            "placement": 5
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 6
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "4th Night",
+    "table_name": "June 14, 2025",
+    "year": "2025",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Jenga",
+        "original_name": "Jenga",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart World (Knockout)",
+        "original_name": "Mario Kart World (Knockout)",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "5th Night",
+    "table_name": "June 15, 2025",
+    "year": "2025",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Jenga ",
+        "original_name": "Jenga ",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Trash",
+        "original_name": "Trash",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Murder Party",
+        "original_name": "Murder Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "6th Night",
+    "table_name": "July 10, 2025",
+    "year": "2025",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Trash",
+        "original_name": "Trash",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8 Deluxe",
+        "original_name": "Mario Kart 8 Deluxe",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "6th Night",
+    "table_name": "August 21, 2025",
+    "year": "2025",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party (Classic)",
+        "original_name": "Mario Party (Classic)",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "12th Night",
+    "table_name": "October 10, 2025",
+    "year": "2025",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Mario Party Superstars",
+        "original_name": "Mario Party Superstars (Birthday Cake)",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Kart 8",
+        "original_name": "Mario Kart 8",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Murder Party",
+        "original_name": "Murder Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Jamboree",
+        "original_name": "Mario Party Jamboree",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "1st Game Night",
+    "table_name": "January 12, 2025 (Dixon\u2019s Bdayyyyy!)",
+    "year": "2026",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Mario Party Jamboree",
+        "original_name": "Mario Party Jamboree",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Wii Bowling",
+        "original_name": "Wii Bowling",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Wii Bowling",
+        "original_name": "Wii Bowling",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "2nd Game Night",
+    "table_name": "January 16, 2025",
+    "year": "2026",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Mario Party Jamboree",
+        "original_name": "Mario Party Jamboree",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Dixxx",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Malikk",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Wii Bowling",
+        "original_name": "Wii Bowling",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Torii",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Dixxx",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Murder Party",
+        "original_name": "Murder Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Tie Breaker (Phase 10)",
+        "is_tiebreaker": true,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 5,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 0,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 0,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 0,
+            "placement": 4
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "label": "3rd Game Night",
+    "table_name": "January 19, 2025",
+    "year": "2026",
+    "players": [
+      "Malikk",
+      "Johnnyboy",
+      "Torii",
+      "Dixxx"
+    ],
+    "games": [
+      {
+        "name": "Mario Party Jamboree",
+        "original_name": "Mario Party Jamboree",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Guesspionage",
+        "original_name": "Guesspionage",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Aggravation",
+        "original_name": "Aggrevation",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 1
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 3
+          },
+          {
+            "player": "Dixxx",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Phase 10",
+        "original_name": "Phase 10",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Malikk",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Wii Bowling",
+        "original_name": "Wii Bowling",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Dixxx",
+            "points": 20,
+            "placement": 1
+          },
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 2
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 3
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 4
+          }
+        ]
+      },
+      {
+        "name": "Murder Party",
+        "original_name": "Murder Party",
+        "is_tiebreaker": false,
+        "placements": [
+          {
+            "player": "Johnnyboy",
+            "points": 15,
+            "placement": 1
+          },
+          {
+            "player": "Malikk",
+            "points": 10,
+            "placement": 2
+          },
+          {
+            "player": "Torii",
+            "points": 5,
+            "placement": 3
+          }
+        ]
+      }
+    ]
+  }
+]

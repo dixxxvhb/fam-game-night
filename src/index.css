@@ -1,0 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Nintendo-inspired palette - vibrant, bold, playful */
+  --color-nin-red: #e60012;
+  --color-nin-red-dark: #c4000f;
+  --color-nin-blue: #0ab5f5;
+  --color-nin-green: #00c853;
+  --color-nin-yellow: #ffca28;
+  --color-nin-orange: #ff6d00;
+  --color-nin-purple: #aa00ff;
+
+  /* Background layers - deep navy with purple tint */
+  --color-midnight-50: #eef0ff;
+  --color-midnight-100: #e0e3ff;
+  --color-midnight-200: #c7ccfe;
+  --color-midnight-300: #b4b4d0;
+  --color-midnight-400: #8888b0;
+  --color-midnight-500: #6060a0;
+  --color-midnight-600: #4545a0;
+  --color-midnight-700: #2e2e6e;
+  --color-midnight-800: #222252;
+  --color-midnight-900: #1a1a40;
+  --color-midnight-950: #121230;
+
+  /* Gold/accent - warm Nintendo coin gold */
+  --color-gold-50: #fffde7;
+  --color-gold-100: #fff9c4;
+  --color-gold-200: #fff59d;
+  --color-gold-300: #fff176;
+  --color-gold-400: #ffca28;
+  --color-gold-500: #ffb300;
+  --color-gold-600: #ff8f00;
+
+  /* Placement colors */
+  --color-placement-1st: #ffd700;
+  --color-placement-2nd: #b0c4de;
+  --color-placement-3rd: #cd853f;
+  --color-placement-4th: #7a7a9e;
+}
+
+html, body, #root {
+  height: 100%;
+  background-color: var(--color-midnight-950);
+}
+
+body {
+  margin: 0;
+  font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+  color: #ffffff;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-midnight-600);
+  border-radius: 3px;
+}
+
+/* Nintendo-style animations */
+@keyframes bounce-in {
+  0% { transform: scale(0.85); opacity: 0.5; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.3s ease-out;
+}
+
+/* Gold glow pulse for winners */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 202, 40, 0.3); }
+  50% { box-shadow: 0 0 24px rgba(255, 202, 40, 0.6); }
+}
+
+.glow-gold {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Shimmer text for champions */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.text-shimmer-gold {
+  background: linear-gradient(90deg, #ffd700, #fff9c4, #ffd700, #ffca28);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
