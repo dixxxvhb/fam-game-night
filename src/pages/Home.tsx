@@ -146,8 +146,13 @@ export default function Home() {
 
   async function cancelNight() {
     if (!activeNight) return
-    await supabase.from('game_nights').delete().eq('id', activeNight.id)
-    setActiveNight(null)
+    const { error } = await supabase.from('game_nights').delete().eq('id', activeNight.id)
+    if (error) {
+      console.error('Failed to delete game night:', error)
+      alert(`Delete failed: ${error.message}`)
+    } else {
+      setActiveNight(null)
+    }
   }
 
   if (loading) {
