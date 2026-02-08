@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Crown } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
 import { supabase } from '../lib/supabase'
@@ -97,15 +98,16 @@ export default function History() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      {/* Year pills */}
+      <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
         {years.map(year => (
           <button
             key={year}
             onClick={() => setSelectedYear(year)}
-            className={`px-5 py-2 rounded-xl text-sm font-bold transition-all duration-150 active:scale-95 whitespace-nowrap border-2 ${
+            className={`px-5 py-2 rounded-xl text-sm font-display transition-all duration-150 active:scale-95 whitespace-nowrap ${
               selectedYear === year
-                ? 'bg-nin-red text-white border-red-400/30 shadow-lg shadow-nin-red/20'
-                : 'bg-midnight-800 text-midnight-300 border-midnight-600/40 hover:bg-midnight-700'
+                ? 'bg-nin-red text-white shadow-[0_3px_0_0_#9a000d,0_0_16px_rgba(230,0,18,0.3)]'
+                : 'bg-midnight-800 text-midnight-300 border border-midnight-600/40 hover:bg-midnight-700'
             }`}
           >
             {year}
@@ -116,28 +118,60 @@ export default function History() {
       {filtered.length === 0 ? (
         <p className="text-center text-midnight-400 py-8 font-semibold">No game nights recorded yet</p>
       ) : (
-        filtered.map(night => (
-          <Card key={night.id} onClick={() => navigate(`/history/${night.id}`)}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-midnight-400 font-bold">Night #{night.night_number}</p>
-                <p className="font-bold">{formatDate(night.date)}</p>
-                <p className="text-xs text-midnight-500 mt-1 font-semibold">{night.gameCount} games</p>
-              </div>
-              {night.winner && (
-                <div className="flex items-center gap-2">
-                  <div className="text-right">
-                    <p className="text-sm font-black" style={{ color: night.winner.color }}>
-                      {night.winner.display_name}
-                    </p>
-                    <p className="text-xs text-gold-400 font-bold">{night.winnerPoints} pts</p>
+        /* Timeline layout */
+        <div className="relative">
+          {/* Vertical timeline line */}
+          <div className="absolute left-[19px] top-4 bottom-4 w-[2px] bg-midnight-700/60" />
+
+          <div className="space-y-3">
+            {filtered.map((night, idx) => (
+              <div key={night.id} className="animate-slide-up relative" style={{ animationDelay: `${idx * 60}ms` }}>
+                {/* Timeline dot */}
+                <div
+                  className="absolute left-[14px] top-5 w-3 h-3 rounded-full border-2 border-midnight-950 z-10"
+                  style={{ backgroundColor: night.winner?.color || '#7a7a9e' }}
+                />
+
+                <div className="pl-10">
+                  <div className="flex rounded-2xl overflow-hidden">
+                    {/* Left accent bar in winner color */}
+                    <div
+                      className="w-1 shrink-0"
+                      style={{ backgroundColor: night.winner?.color || '#7a7a9e' }}
+                    />
+                    <div className="flex-1">
+                      <Card className="rounded-l-none border-l-0" onClick={() => navigate(`/history/${night.id}`)}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-midnight-400 font-display uppercase tracking-wider">
+                              Night #{night.night_number}
+                            </p>
+                            <p className="font-display text-base mt-0.5">{formatDate(night.date)}</p>
+                            <p className="text-xs text-midnight-500 mt-1 font-semibold">{night.gameCount} games</p>
+                          </div>
+                          {night.winner && (
+                            <div className="flex items-center gap-2">
+                              <div className="text-right">
+                                <div className="flex items-center gap-1 justify-end">
+                                  <Crown className="w-3.5 h-3.5 text-gold-400" />
+                                  <p className="text-sm font-display" style={{ color: night.winner.color }}>
+                                    {night.winner.display_name}
+                                  </p>
+                                </div>
+                                <p className="text-xs text-gold-400 font-display">{night.winnerPoints} pts</p>
+                              </div>
+                              <PlayerAvatar name={night.winner.name} color={night.winner.color} size="sm" />
+                            </div>
+                          )}
+                        </div>
+                      </Card>
+                    </div>
                   </div>
-                  <PlayerAvatar name={night.winner.name} color={night.winner.color} size="sm" />
                 </div>
-              )}
-            </div>
-          </Card>
-        ))
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

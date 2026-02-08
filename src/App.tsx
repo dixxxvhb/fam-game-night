@@ -14,7 +14,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-full bg-midnight-950 text-white">
       <Header />
-      <main className="flex-1 overflow-y-auto pb-20">
+      <main className="flex-1 overflow-y-auto pb-[88px]">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/history" element={<History />} />

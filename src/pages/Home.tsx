@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Gamepad2, X, ChevronDown, ChevronUp, Trophy, Calendar, ShieldCheck, Crown } from 'lucide-react'
+import { Gamepad2, X, ChevronDown, ChevronUp, Trophy, Calendar, ShieldCheck, Crown } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
@@ -158,160 +158,173 @@ export default function Home() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="w-10 h-10 border-4 border-midnight-600 border-t-nin-red rounded-full animate-spin" />
+        <Gamepad2 className="w-10 h-10 text-nin-red animate-pulse" />
       </div>
     )
   }
 
   return (
     <div className="p-4 space-y-4">
-      {/* Active Night or Start Button */}
+      {/* Active Night — Glowing Red Card */}
       {activeNight ? (
-        <Card
-          className="border-nin-red/40 bg-nin-red/10"
-          onClick={() => navigate(`/night/${activeNight.id}`)}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-nin-red text-sm font-extrabold uppercase tracking-wider">Live Game Night</p>
-              <p className="text-2xl font-black mt-1">Night #{activeNight.night_number}</p>
-              <p className="text-midnight-400 text-sm font-semibold">{formatDate(activeNight.date)}</p>
+        <div className="animate-slide-up">
+          <Card
+            variant="active"
+            onClick={() => navigate(`/night/${activeNight.id}`)}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-nin-red animate-pulse-dot" />
+                  <p className="text-nin-red text-sm font-extrabold uppercase tracking-wider">Live Game Night</p>
+                </div>
+                <p className="text-2xl font-display mt-1">Night #{activeNight.night_number}</p>
+                <p className="text-midnight-400 text-sm font-semibold">{formatDate(activeNight.date)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Gamepad2 className="w-9 h-9 text-nin-red drop-shadow-[0_0_12px_rgba(230,0,18,0.5)]" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); cancelNight() }}
+                  className="text-midnight-500 hover:text-red-400 transition-colors p-2 rounded-xl hover:bg-midnight-700/50"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Gamepad2 className="w-9 h-9 text-nin-red" />
-              <button
-                onClick={(e) => { e.stopPropagation(); cancelNight() }}
-                className="text-midnight-500 hover:text-red-400 transition-colors p-1.5 rounded-xl hover:bg-midnight-700/50"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       ) : (
-        <Button onClick={startNewNight} size="lg" className="w-full flex items-center justify-center gap-2 text-lg">
-          <Plus className="w-6 h-6" />
-          Start Game Night
-        </Button>
+        <div className="animate-slide-up">
+          <Button onClick={startNewNight} variant="glow" size="lg" className="w-full flex items-center justify-center gap-3 text-lg">
+            <Gamepad2 className="w-6 h-6" />
+            Start Game Night
+          </Button>
+        </div>
       )}
 
       {/* Pending Approval Night */}
       {pendingNight && (
-        <Card
-          className="border-gold-400/30 bg-gold-400/5"
-          onClick={() => navigate(`/night/${pendingNight.id}/summary`)}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-gold-400" />
-                <p className="text-gold-400 text-sm font-extrabold uppercase tracking-wider">Pending Approval</p>
+        <div className="animate-slide-up" style={{ animationDelay: '80ms' }}>
+          <Card
+            variant="highlight"
+            onClick={() => navigate(`/night/${pendingNight.id}/summary`)}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-gold-400" />
+                  <p className="text-gold-400 text-sm font-extrabold uppercase tracking-wider">Pending Approval</p>
+                </div>
+                <p className="text-xl font-display mt-1">Night #{pendingNight.night_number}</p>
+                <p className="text-midnight-400 text-sm font-semibold">Tap to review and approve</p>
               </div>
-              <p className="text-xl font-black mt-1">Night #{pendingNight.night_number}</p>
-              <p className="text-midnight-400 text-sm font-semibold">Tap to review and approve</p>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </div>
       )}
 
       {/* All-Time Leader Widget */}
       {allTime.length > 0 && (
-        <Card className="cursor-pointer" onClick={() => navigate('/leaderboard')}>
-          <div className="flex items-center gap-2 mb-4">
-            <Trophy className="w-6 h-6 text-gold-400" />
-            <p className="font-black text-sm uppercase tracking-wider text-gold-400">All-Time Leaderboard</p>
-          </div>
-          <div className="space-y-3">
-            {allTime.map((e, i) => (
-              <div key={e.player.id} className={`flex items-center gap-3 ${i === 0 ? 'py-1' : ''}`}>
-                <span
-                  className="text-lg font-black w-8 text-center"
-                  style={{ color: PLACEMENT_COLORS[i] || '#7a7a9e' }}
-                >
-                  {i === 0 ? '' : `#${i + 1}`}
-                </span>
-                {i === 0 && <Crown className="w-6 h-6 text-gold-400 -mr-1" />}
-                <PlayerAvatar name={e.player.name} color={e.player.color} size={i === 0 ? 'md' : 'sm'} />
-                <span className={`font-bold flex-1 ${i === 0 ? 'text-lg' : ''}`}>{e.player.display_name}</span>
-                <span className={`font-black ${i === 0 ? 'text-2xl text-shimmer-gold' : 'text-xl text-white'}`}>
-                  {e.totalPoints}
-                </span>
-                <span className="text-xs text-midnight-400 font-bold">pts</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+        <div className="animate-slide-up" style={{ animationDelay: '160ms' }}>
+          <Card onClick={() => navigate('/leaderboard')}>
+            <div className="flex items-center gap-2 mb-4">
+              <Trophy className="w-6 h-6 text-gold-400 drop-shadow-[0_0_8px_rgba(255,202,40,0.4)]" />
+              <p className="font-display text-sm uppercase tracking-wider text-gold-400">All-Time Leaderboard</p>
+            </div>
+            <div className="space-y-3">
+              {allTime.map((e, i) => (
+                <div key={e.player.id} className={`flex items-center gap-3 ${i === 0 ? 'py-1' : ''}`}>
+                  <span
+                    className="text-lg font-black w-8 text-center"
+                    style={{ color: PLACEMENT_COLORS[i] || '#7a7a9e' }}
+                  >
+                    {i === 0 ? '' : `#${i + 1}`}
+                  </span>
+                  {i === 0 && <Crown className="w-6 h-6 text-gold-400 animate-crown-bounce -mr-1 drop-shadow-[0_0_8px_rgba(255,202,40,0.5)]" />}
+                  <PlayerAvatar name={e.player.name} color={e.player.color} size={i === 0 ? 'md' : 'sm'} glow={i === 0} />
+                  <span className={`font-bold flex-1 ${i === 0 ? 'text-lg font-display' : ''}`}>{e.player.display_name}</span>
+                  <span className={`font-black ${i === 0 ? 'text-2xl text-shimmer-gold' : 'text-xl text-white'}`}>
+                    {e.totalPoints}
+                  </span>
+                  <span className="text-xs text-midnight-400 font-bold">pts</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       )}
 
       {/* Year-by-Year Standings */}
-      {yearStats.map(ys => {
+      {yearStats.map((ys, yIdx) => {
         const isExpanded = expandedYear === ys.year
 
         return (
-          <Card key={ys.year}>
-            <button
-              className="w-full text-left"
-              onClick={() => setExpandedYear(isExpanded ? null : ys.year)}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-nin-blue" />
-                  <span className="font-black text-xl">{ys.year}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-midnight-400 text-sm font-bold">{ys.nightsPlayed} nights</span>
-                  {isExpanded
-                    ? <ChevronUp className="w-4 h-4 text-midnight-400" />
-                    : <ChevronDown className="w-4 h-4 text-midnight-400" />
-                  }
-                </div>
-              </div>
-
-              <div className="space-y-2.5">
-                {ys.standings.map((s, i) => (
-                  <div key={s.player.id} className="flex items-center gap-3">
-                    <span
-                      className="text-sm font-black w-7 text-center"
-                      style={{ color: PLACEMENT_COLORS[i] || '#7a7a9e' }}
-                    >
-                      #{i + 1}
-                    </span>
-                    <PlayerAvatar name={s.player.name} color={s.player.color} size="sm" />
-                    <span className="text-sm font-bold flex-1">{s.player.display_name}</span>
-                    <span className="text-lg font-black">{s.points}</span>
-                    <span className="text-xs text-midnight-400 font-bold w-7">pts</span>
-                    <span className="text-sm font-black text-gold-400">{s.wins}W</span>
+          <div key={ys.year} className="animate-slide-up" style={{ animationDelay: `${240 + yIdx * 80}ms` }}>
+            <Card>
+              <button
+                className="w-full text-left"
+                onClick={() => setExpandedYear(isExpanded ? null : ys.year)}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-5 h-5 text-nin-blue" />
+                    <span className="font-display text-xl">{ys.year}</span>
                   </div>
-                ))}
-              </div>
-            </button>
+                  <div className="flex items-center gap-2">
+                    <span className="text-midnight-400 text-sm font-bold">{ys.nightsPlayed} nights</span>
+                    {isExpanded
+                      ? <ChevronUp className="w-4 h-4 text-midnight-400" />
+                      : <ChevronDown className="w-4 h-4 text-midnight-400" />
+                    }
+                  </div>
+                </div>
 
-            {isExpanded && (
-              <div className="mt-4 pt-4 border-t-2 border-midnight-600/40">
-                <p className="text-xs text-midnight-400 uppercase tracking-wider font-extrabold mb-3">Season Breakdown</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {ys.standings.map((s) => (
-                    <div key={s.player.id} className="bg-midnight-700/40 border-2 border-midnight-600/30 rounded-2xl p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <PlayerAvatar name={s.player.name} color={s.player.color} size="sm" />
-                        <span className="text-sm font-black">{s.player.display_name}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-1 text-center">
-                        <div>
-                          <p className="text-xl font-black">{s.points}</p>
-                          <p className="text-[10px] text-midnight-400 font-bold">Points</p>
-                        </div>
-                        <div>
-                          <p className="text-xl font-black text-gold-400">{s.wins}</p>
-                          <p className="text-[10px] text-midnight-400 font-bold">Wins</p>
-                        </div>
-                      </div>
+                <div className="space-y-2.5">
+                  {ys.standings.map((s, i) => (
+                    <div key={s.player.id} className="flex items-center gap-3">
+                      <span
+                        className="text-sm font-black w-7 text-center"
+                        style={{ color: PLACEMENT_COLORS[i] || '#7a7a9e' }}
+                      >
+                        #{i + 1}
+                      </span>
+                      <PlayerAvatar name={s.player.name} color={s.player.color} size="sm" />
+                      <span className="text-sm font-bold flex-1">{s.player.display_name}</span>
+                      <span className="text-lg font-black">{s.points}</span>
+                      <span className="text-xs text-midnight-400 font-bold w-7">pts</span>
+                      <span className="text-sm font-black text-gold-400">{s.wins}W</span>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </Card>
+              </button>
+
+              {isExpanded && (
+                <div className="mt-4 pt-4 border-t border-midnight-600/30">
+                  <p className="text-xs text-midnight-400 uppercase tracking-wider font-extrabold mb-3">Season Breakdown</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {ys.standings.map((s) => (
+                      <div key={s.player.id} className="bg-midnight-700/30 border border-midnight-600/20 rounded-2xl p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <PlayerAvatar name={s.player.name} color={s.player.color} size="sm" />
+                          <span className="text-sm font-display">{s.player.display_name}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-center">
+                          <div>
+                            <p className="text-xl font-black">{s.points}</p>
+                            <p className="text-[10px] text-midnight-400 font-bold uppercase">Points</p>
+                          </div>
+                          <div>
+                            <p className="text-xl font-black text-gold-400">{s.wins}</p>
+                            <p className="text-[10px] text-midnight-400 font-bold uppercase">Wins</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          </div>
         )
       })}
     </div>

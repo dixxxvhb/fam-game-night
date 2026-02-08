@@ -25,3 +25,10 @@ export const PLACEMENT_COLORS = [
   '#5a5a7e', // darker - 5th
   '#3a3a5e', // darkest - 6th
 ]
+
+export const PLAYER_GLOW_COLORS: Record<string, string> = {
+  Johnnyboy: 'rgba(59, 130, 246, 0.4)',
+  Dixxx: 'rgba(34, 197, 94, 0.4)',
+  Torii: 'rgba(168, 85, 247, 0.4)',
+  Malikk: 'rgba(100, 100, 100, 0.4)',
+}

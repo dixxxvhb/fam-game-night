@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Trophy, Crown, Flame, Star } from 'lucide-react'
+import { Trophy, Crown, Flame, Star, Percent } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
 import { supabase } from '../lib/supabase'
@@ -104,63 +104,136 @@ export default function Leaderboard() {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="text-center py-3">
-        <Trophy className="w-10 h-10 text-gold-400 mx-auto mb-2" />
-        <h1 className="text-2xl font-black">All-Time Leaderboard</h1>
+      {/* Header */}
+      <div className="text-center py-3 animate-slide-up">
+        <Trophy className="w-10 h-10 text-gold-400 mx-auto mb-2 drop-shadow-[0_0_12px_rgba(255,202,40,0.5)]" />
+        <h1 className="text-2xl font-display">All-Time Leaderboard</h1>
         <p className="text-midnight-400 text-sm font-semibold">Total points across all game nights</p>
       </div>
 
-      {entries.map((entry, idx) => (
-        <Card
-          key={entry.player.id}
-          className={idx === 0 ? 'border-gold-400/40 bg-gold-400/5 glow-gold' : ''}
-        >
-          <div className="flex items-center gap-3">
-            <span
-              className="text-2xl font-black w-10 text-center"
-              style={{ color: PLACEMENT_COLORS[idx] || '#7a7a9e' }}
-            >
-              {idx === 0 ? '' : `#${idx + 1}`}
-            </span>
-            {idx === 0 && <Crown className="w-8 h-8 text-gold-400" />}
-            <PlayerAvatar name={entry.player.name} color={entry.player.color} size="lg" />
-            <div className="flex-1">
-              <p className={`font-black ${idx === 0 ? 'text-xl' : 'text-lg'}`}>{entry.player.display_name}</p>
-              <p className="text-sm text-midnight-400 font-semibold">
-                {entry.nightsPlayed} nights | {entry.totalWins} wins
-              </p>
+      {/* Champion Card (#1) */}
+      {entries[0] && (
+        <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <Card variant="winner">
+            <div className="flex items-center gap-3">
+              <Crown className="w-8 h-8 text-gold-400 animate-crown-bounce drop-shadow-[0_0_10px_rgba(255,202,40,0.5)]" />
+              <PlayerAvatar name={entries[0].player.name} color={entries[0].player.color} size="lg" glow />
+              <div className="flex-1">
+                <p className="text-xl font-display">{entries[0].player.display_name}</p>
+                <p className="text-sm text-midnight-300 font-semibold">
+                  {entries[0].nightsPlayed} nights | {entries[0].totalWins} wins
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-4xl font-display text-shimmer-gold">
+                  {entries[0].totalPoints}
+                </p>
+                <p className="text-xs text-midnight-400 font-bold">total pts</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className={`font-black ${idx === 0 ? 'text-4xl text-shimmer-gold' : 'text-3xl text-gold-400'}`}>
-                {entry.totalPoints}
-              </p>
-              <p className="text-xs text-midnight-400 font-bold">total pts</p>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t-2 border-midnight-600/40">
-            <div className="text-center bg-midnight-700/30 rounded-xl py-2">
-              <div className="flex items-center justify-center gap-1">
-                <Star className="w-4 h-4 text-gold-400" />
-                <p className="text-xl font-black">{entry.totalWins}</p>
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-midnight-600/30">
+              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5">
+                <div className="flex items-center justify-center gap-1">
+                  <Star className="w-4 h-4 text-gold-400" />
+                  <p className="text-xl font-display">{entries[0].totalWins}</p>
+                </div>
+                <p className="text-xs text-midnight-400 font-bold">Wins</p>
               </div>
-              <p className="text-xs text-midnight-400 font-bold">Wins</p>
-            </div>
-            <div className="text-center bg-midnight-700/30 rounded-xl py-2">
-              <p className="text-xl font-black">
-                {entry.nightsPlayed > 0 ? Math.round((entry.totalWins / entry.nightsPlayed) * 100) : 0}%
-              </p>
-              <p className="text-xs text-midnight-400 font-bold">Win Rate</p>
-            </div>
-            <div className="text-center bg-midnight-700/30 rounded-xl py-2">
-              <div className="flex items-center justify-center gap-1">
-                <Flame className="w-4 h-4 text-nin-orange" />
-                <p className="text-xl font-black">{entry.bestStreak}</p>
+              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5">
+                <div className="flex items-center justify-center gap-1">
+                  <Percent className="w-3.5 h-3.5 text-nin-blue" />
+                  <p className="text-xl font-display">
+                    {entries[0].nightsPlayed > 0 ? Math.round((entries[0].totalWins / entries[0].nightsPlayed) * 100) : 0}%
+                  </p>
+                </div>
+                <p className="text-xs text-midnight-400 font-bold">Win Rate</p>
               </div>
-              <p className="text-xs text-midnight-400 font-bold">Best Streak</p>
+              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5">
+                <div className="flex items-center justify-center gap-1">
+                  <Flame className="w-4 h-4 text-nin-orange" />
+                  <p className="text-xl font-display">{entries[0].bestStreak}</p>
+                </div>
+                <p className="text-xs text-midnight-400 font-bold">Best Streak</p>
+              </div>
+            </div>
+
+            {entries[0].currentStreak >= 2 && (
+              <div className="mt-3 flex items-center justify-center gap-2 py-2 bg-nin-orange/10 rounded-xl border border-nin-orange/20">
+                <Flame className="w-4 h-4 text-nin-orange animate-pulse" />
+                <span className="text-sm font-display text-nin-orange">{entries[0].currentStreak}-Night Win Streak!</span>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Players #2-4 */}
+      {entries.slice(1).map((entry, idx) => (
+        <div key={entry.player.id} className="animate-slide-up" style={{ animationDelay: `${200 + idx * 80}ms` }}>
+          <div className="flex rounded-2xl overflow-hidden">
+            {/* Left accent bar */}
+            <div className="w-1.5 shrink-0" style={{ backgroundColor: PLACEMENT_COLORS[idx + 1] || '#7a7a9e' }} />
+            <div className="flex-1">
+              <Card className="rounded-l-none border-l-0">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="text-2xl font-display w-10 text-center"
+                    style={{ color: PLACEMENT_COLORS[idx + 1] || '#7a7a9e' }}
+                  >
+                    #{idx + 2}
+                  </span>
+                  <PlayerAvatar name={entry.player.name} color={entry.player.color} size="md" />
+                  <div className="flex-1">
+                    <p className="text-lg font-display">{entry.player.display_name}</p>
+                    <p className="text-sm text-midnight-400 font-semibold">
+                      {entry.nightsPlayed} nights | {entry.totalWins} wins
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-display text-gold-400">
+                      {entry.totalPoints}
+                    </p>
+                    <p className="text-xs text-midnight-400 font-bold">total pts</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-midnight-600/30">
+                  <div className="text-center bg-midnight-700/30 rounded-xl py-2">
+                    <div className="flex items-center justify-center gap-1">
+                      <Star className="w-3.5 h-3.5 text-gold-400" />
+                      <p className="text-lg font-display">{entry.totalWins}</p>
+                    </div>
+                    <p className="text-xs text-midnight-400 font-bold">Wins</p>
+                  </div>
+                  <div className="text-center bg-midnight-700/30 rounded-xl py-2">
+                    <div className="flex items-center justify-center gap-1">
+                      <Percent className="w-3 h-3 text-nin-blue" />
+                      <p className="text-lg font-display">
+                        {entry.nightsPlayed > 0 ? Math.round((entry.totalWins / entry.nightsPlayed) * 100) : 0}%
+                      </p>
+                    </div>
+                    <p className="text-xs text-midnight-400 font-bold">Win Rate</p>
+                  </div>
+                  <div className="text-center bg-midnight-700/30 rounded-xl py-2">
+                    <div className="flex items-center justify-center gap-1">
+                      <Flame className="w-3.5 h-3.5 text-nin-orange" />
+                      <p className="text-lg font-display">{entry.bestStreak}</p>
+                    </div>
+                    <p className="text-xs text-midnight-400 font-bold">Best Streak</p>
+                  </div>
+                </div>
+
+                {entry.currentStreak >= 2 && (
+                  <div className="mt-3 flex items-center justify-center gap-2 py-1.5 bg-nin-orange/10 rounded-xl border border-nin-orange/20">
+                    <Flame className="w-3.5 h-3.5 text-nin-orange animate-pulse" />
+                    <span className="text-xs font-display text-nin-orange">{entry.currentStreak}-Night Streak!</span>
+                  </div>
+                )}
+              </Card>
             </div>
           </div>
-        </Card>
+        </div>
       ))}
 
       {entries.length === 0 && (

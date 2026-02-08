@@ -1,33 +1,65 @@
 import { PLAYER_COLORS } from '../../lib/constants'
+import { PLAYER_ICONS } from './PlayerIcon'
 
 interface PlayerAvatarProps {
   name: string
   color?: string
   size?: 'sm' | 'md' | 'lg'
+  glow?: boolean
 }
 
 const sizeClasses = {
-  sm: 'w-8 h-8 text-xs',
-  md: 'w-10 h-10 text-sm',
-  lg: 'w-14 h-14 text-lg',
+  sm: 'w-9 h-9',
+  md: 'w-11 h-11',
+  lg: 'w-16 h-16',
 }
 
-export function PlayerAvatar({ name, color, size = 'md' }: PlayerAvatarProps) {
+const iconSizes = {
+  sm: 'w-4 h-4',
+  md: 'w-5 h-5',
+  lg: 'w-8 h-8',
+}
+
+const initialSizes = {
+  sm: 'text-xs',
+  md: 'text-sm',
+  lg: 'text-xl',
+}
+
+export function PlayerAvatar({ name, color, size = 'md', glow = false }: PlayerAvatarProps) {
   const bgColor = color || PLAYER_COLORS[name] || '#6b7280'
-  const initial = name.charAt(0).toUpperCase()
-  const textColor = bgColor === '#171717' ? '#ffffff' : isLightColor(bgColor) ? '#000000' : '#ffffff'
+  const Icon = PLAYER_ICONS[name]
+  const iconColor = bgColor === '#171717' ? '#ffffff' : isLightColor(bgColor) ? '#000000' : '#ffffff'
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-xl flex items-center justify-center font-black shrink-0 border-2 shadow-md`}
+      className={`${sizeClasses[size]} rounded-2xl flex items-center justify-center font-black shrink-0 relative overflow-hidden`}
       style={{
         backgroundColor: bgColor,
-        color: textColor,
-        borderColor: bgColor === '#171717' ? '#505050' : adjustBrightness(bgColor, -30),
-        boxShadow: `0 3px 8px ${bgColor}40`,
+        color: iconColor,
+        boxShadow: glow
+          ? `0 0 16px ${bgColor}60, 0 4px 12px ${bgColor}30`
+          : `0 4px 8px ${bgColor}30`,
+        border: `2px solid ${bgColor === '#171717' ? '#404040' : adjustBrightness(bgColor, 30)}`,
       }}
     >
-      {initial}
+      {/* Top-light gradient overlay */}
+      <div
+        className="absolute inset-0 rounded-2xl"
+        style={{
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 50%)',
+        }}
+      />
+      {/* Icon or initial fallback */}
+      <div className="relative z-10">
+        {Icon ? (
+          <Icon className={iconSizes[size]} />
+        ) : (
+          <span className={`${initialSizes[size]} font-black`}>
+            {name.charAt(0).toUpperCase()}
+          </span>
+        )}
+      </div>
     </div>
   )
 }
