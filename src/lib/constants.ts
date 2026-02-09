@@ -2,12 +2,12 @@ export const PLAYER_COLORS: Record<string, string> = {
   Johnnyboy: '#3b82f6',
   Dixxx: '#22c55e',
   Torii: '#a855f7',
-  Malikk: '#171717',
+  Malikk: '#f97316',
 }
 
 export const CORE_PLAYERS = ['Johnnyboy', 'Dixxx', 'Torii', 'Malikk'] as const
 
-export const DEFAULT_APP_NAME = 'FAM GAME NIGHT'
+export const DEFAULT_APP_NAME = 'VHBUN FAM GAME NIGHT'
 
 export const PLACEMENT_LABELS = ['1st', '2nd', '3rd', '4th', '5th', '6th'] as const
 
@@ -30,5 +30,5 @@ export const PLAYER_GLOW_COLORS: Record<string, string> = {
   Johnnyboy: 'rgba(59, 130, 246, 0.4)',
   Dixxx: 'rgba(34, 197, 94, 0.4)',
   Torii: 'rgba(168, 85, 247, 0.4)',
-  Malikk: 'rgba(100, 100, 100, 0.4)',
+  Malikk: 'rgba(249, 115, 22, 0.4)',
 }

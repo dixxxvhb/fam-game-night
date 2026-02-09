@@ -29,7 +29,7 @@ const initialSizes = {
 export function PlayerAvatar({ name, color, size = 'md', glow = false }: PlayerAvatarProps) {
   const bgColor = color || PLAYER_COLORS[name] || '#6b7280'
   const Icon = PLAYER_ICONS[name]
-  const iconColor = bgColor === '#171717' ? '#ffffff' : isLightColor(bgColor) ? '#000000' : '#ffffff'
+  const iconColor = isLightColor(bgColor) ? '#000000' : '#ffffff'
 
   return (
     <div
@@ -40,7 +40,7 @@ export function PlayerAvatar({ name, color, size = 'md', glow = false }: PlayerA
         boxShadow: glow
           ? `0 0 16px ${bgColor}60, 0 4px 12px ${bgColor}30`
           : `0 4px 8px ${bgColor}30`,
-        border: `2px solid ${bgColor === '#171717' ? '#404040' : adjustBrightness(bgColor, 30)}`,
+        border: `2px solid ${adjustBrightness(bgColor, 30)}`,
       }}
     >
       {/* Top-light gradient overlay */}

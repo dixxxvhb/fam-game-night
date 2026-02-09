@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { Shuffle, Dices, Hash, Users, Gamepad2, ChevronDown, ChevronUp, Lock, Unlock } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
@@ -24,7 +24,9 @@ const tools: ToolSection[] = [
 
 export default function Randomizer() {
   const { id: nightId } = useParams<{ id: string }>()
-  const [openTool, setOpenTool] = useState<string | null>('game-order')
+  const [searchParams] = useSearchParams()
+  const toolParam = searchParams.get('tool')
+  const [openTool, setOpenTool] = useState<string | null>(toolParam && tools.some(t => t.id === toolParam) ? toolParam : 'game-order')
   const [games, setGames] = useState<Game[]>([])
   const [players, setPlayers] = useState<Player[]>([])
 

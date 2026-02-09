@@ -39,12 +39,12 @@ export function Header() {
 
 function getPageTitle(path: string): string {
   if (path.startsWith('/night/') && path.endsWith('/summary')) return 'Night Summary'
-  if (path.startsWith('/night/') && path.endsWith('/randomizer')) return 'Randomizer'
+  if (path.startsWith('/night/') && path.endsWith('/randomizer')) return 'Tools'
   if (path.startsWith('/night/')) return 'Game Night'
   if (path.startsWith('/history/')) return 'Game Night Details'
   if (path === '/history') return 'History'
   if (path === '/leaderboard') return 'Leaderboard'
-  if (path === '/randomizer') return 'Randomizer'
+  if (path === '/randomizer') return 'Tools'
   if (path === '/settings') return 'Settings'
   return DEFAULT_APP_NAME
 }

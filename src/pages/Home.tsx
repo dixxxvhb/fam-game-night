@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Gamepad2, X, ChevronDown, ChevronUp, Trophy, Calendar, ShieldCheck, Crown } from 'lucide-react'
+import { Gamepad2, X, ChevronDown, ChevronUp, Trophy, Calendar, ShieldCheck, Crown, Shuffle, Hash, Dices, Users, Wrench } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
@@ -254,12 +254,46 @@ export default function Home() {
         </div>
       )}
 
+      {/* Quick Tools */}
+      <div className="animate-slide-up" style={{ animationDelay: '240ms' }}>
+        <div className="flex items-center gap-2 mb-3">
+          <Wrench className="w-5 h-5 text-midnight-400" />
+          <p className="font-display text-sm uppercase tracking-wider text-midnight-400">Quick Tools</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: 'game-order', label: 'Game Order', icon: Shuffle, color: '#3b82f6' },
+            { id: 'game-pick', label: 'Game Pick', icon: Gamepad2, color: '#e60012' },
+            { id: 'number', label: 'Number', icon: Hash, color: '#22c55e' },
+            { id: 'dice', label: 'Dice Roll', icon: Dices, color: '#f59e0b' },
+            { id: 'player-order', label: 'Player Order', icon: Users, color: '#a855f7' },
+          ].map(tool => {
+            const Icon = tool.icon
+            return (
+              <button
+                key={tool.id}
+                onClick={() => navigate(`/randomizer?tool=${tool.id}`)}
+                className="flex flex-col items-center gap-2 py-4 px-2 rounded-2xl bg-surface-card border border-midnight-600/20 hover:bg-surface-card-hover transition-all duration-150 active:scale-95"
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: tool.color + '20' }}
+                >
+                  <Icon className="w-5 h-5" style={{ color: tool.color }} />
+                </div>
+                <span className="text-[11px] font-bold text-midnight-300">{tool.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Year-by-Year Standings */}
       {yearStats.map((ys, yIdx) => {
         const isExpanded = expandedYear === ys.year
 
         return (
-          <div key={ys.year} className="animate-slide-up" style={{ animationDelay: `${240 + yIdx * 80}ms` }}>
+          <div key={ys.year} className="animate-slide-up" style={{ animationDelay: `${320 + yIdx * 80}ms` }}>
             <Card>
               <button
                 className="w-full text-left"

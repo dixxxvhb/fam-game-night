@@ -11,7 +11,7 @@ export default function Settings() {
   const [players, setPlayers] = useState<Player[]>([])
   const [newGameName, setNewGameName] = useState('')
   const [newPlayerName, setNewPlayerName] = useState('')
-  const [appName, setAppName] = useState('FAM GAME NIGHT')
+  const [appName, setAppName] = useState('VHBUN FAM GAME NIGHT')
   const [proposedName, setProposedName] = useState('')
 
   useEffect(() => {
