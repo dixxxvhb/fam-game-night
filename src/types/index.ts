@@ -25,7 +25,7 @@ export interface GameNight {
   night_number: number
   label: string | null
   date: string
-  status: 'active' | 'completed'
+  status: 'active' | 'pending_approval' | 'completed'
   created_at: string
   completed_at: string | null
 }
