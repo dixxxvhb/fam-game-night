@@ -28,7 +28,7 @@ export function calculateLeaderboard(
     for (const night of completedNights) {
       const participated = night.players.some(p => p.id === player.id)
       if (!participated) {
-        tempStreak = 0
+        // Don't break streak for nights the player wasn't part of
         continue
       }
 

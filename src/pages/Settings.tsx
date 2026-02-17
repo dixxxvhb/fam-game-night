@@ -3,6 +3,8 @@ import { Plus, Trash2, Gamepad2, Users, Type } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
+import { ConfirmDialog } from '../components/common/ConfirmDialog'
+import { useToast } from '../components/common/Toast'
 import { supabase } from '../lib/supabase'
 import type { Game, Player } from '../types'
 
@@ -13,6 +15,11 @@ export default function Settings() {
   const [newPlayerName, setNewPlayerName] = useState('')
   const [appName, setAppName] = useState('VHBUN FAM GAME NIGHT')
   const [proposedName, setProposedName] = useState('')
+  const [addingGame, setAddingGame] = useState(false)
+  const [deletingGameId, setDeletingGameId] = useState<string | null>(null)
+  const [addingPlayer, setAddingPlayer] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<Game | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
     loadSettings()
@@ -34,32 +41,65 @@ export default function Settings() {
     const name = newGameName.trim()
     if (!name) return
 
-    const { error } = await supabase.from('games').insert({ name })
-    if (!error) {
-      setNewGameName('')
-      loadSettings()
+    setAddingGame(true)
+    try {
+      const { error } = await supabase.from('games').insert({ name })
+      if (error) {
+        toast(error.message, 'error')
+      } else {
+        setNewGameName('')
+        toast(`${name} added`)
+        loadSettings()
+      }
+    } catch {
+      toast('Failed to add game', 'error')
+    } finally {
+      setAddingGame(false)
     }
   }
 
-  async function deleteGame(id: string) {
-    await supabase.from('games').delete().eq('id', id)
-    loadSettings()
+  async function deleteGame(game: Game) {
+    setDeletingGameId(game.id)
+    try {
+      const { error } = await supabase.from('games').delete().eq('id', game.id)
+      if (error) {
+        toast(error.message, 'error')
+      } else {
+        toast(`${game.name} removed`)
+        loadSettings()
+      }
+    } catch {
+      toast('Failed to delete game', 'error')
+    } finally {
+      setDeletingGameId(null)
+      setConfirmDelete(null)
+    }
   }
 
   async function addGuestPlayer() {
     const name = newPlayerName.trim()
     if (!name) return
 
-    const { error } = await supabase.from('players').insert({
-      name,
-      display_name: name,
-      is_core: false,
-      color: '#6b7280',
-    })
+    setAddingPlayer(true)
+    try {
+      const { error } = await supabase.from('players').insert({
+        name,
+        display_name: name,
+        is_core: false,
+        color: '#6b7280',
+      })
 
-    if (!error) {
-      setNewPlayerName('')
-      loadSettings()
+      if (error) {
+        toast(error.message, 'error')
+      } else {
+        setNewPlayerName('')
+        toast(`${name} added as guest`)
+        loadSettings()
+      }
+    } catch {
+      toast('Failed to add player', 'error')
+    } finally {
+      setAddingPlayer(false)
     }
   }
 
@@ -90,8 +130,10 @@ export default function Settings() {
               <div key={game.id} className="flex items-center justify-between py-1.5">
                 <span className="text-sm font-bold">{game.name}</span>
                 <button
-                  onClick={() => deleteGame(game.id)}
-                  className="text-midnight-500 hover:text-red-400 transition-colors p-1.5 rounded-xl hover:bg-midnight-700/50"
+                  onClick={() => setConfirmDelete(game)}
+                  disabled={deletingGameId === game.id}
+                  aria-label={`Delete ${game.name}`}
+                  className="text-midnight-500 hover:text-red-400 transition-colors p-1.5 rounded-xl hover:bg-midnight-700/50 disabled:opacity-50"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -107,7 +149,7 @@ export default function Settings() {
               placeholder="New game name..."
               className="flex-1 bg-midnight-900 border border-midnight-600/40 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:border-nin-red/50 focus:shadow-[0_0_0_3px_rgba(230,0,18,0.1)] transition-all"
             />
-            <Button onClick={addGame} size="sm">
+            <Button onClick={addGame} size="sm" disabled={addingGame}>
               <Plus className="w-4 h-4" />
             </Button>
           </div>
@@ -141,7 +183,7 @@ export default function Settings() {
               placeholder="Add guest player..."
               className="flex-1 bg-midnight-900 border border-midnight-600/40 rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:border-nin-blue/50 focus:shadow-[0_0_0_3px_rgba(0,120,215,0.1)] transition-all"
             />
-            <Button onClick={addGuestPlayer} size="sm" variant="secondary">
+            <Button onClick={addGuestPlayer} size="sm" variant="secondary" disabled={addingPlayer}>
               <Plus className="w-4 h-4" />
             </Button>
           </div>
@@ -172,6 +214,17 @@ export default function Settings() {
           </div>
         </Card>
       </div>
+
+      {/* Confirm Delete Dialog */}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete Game"
+          message={`Remove "${confirmDelete.name}" from the game list? This won't affect past game night records.`}
+          confirmLabel="Delete"
+          onConfirm={() => deleteGame(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   )
 }

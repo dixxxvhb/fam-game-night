@@ -4,7 +4,9 @@ import { Shuffle, Dices, Hash, Users, Gamepad2, ChevronDown, ChevronUp, Lock, Un
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
+import { useToast } from '../components/common/Toast'
 import { supabase } from '../lib/supabase'
+import { fisherYatesShuffle } from '../lib/shuffle'
 import type { Game, Player } from '../types'
 
 interface ToolSection {
@@ -12,6 +14,10 @@ interface ToolSection {
   title: string
   icon: React.ComponentType<{ className?: string }>
   color: string
+}
+
+interface GameNightPlayerRow {
+  players: Player | null
 }
 
 const tools: ToolSection[] = [
@@ -29,6 +35,7 @@ export default function Randomizer() {
   const [openTool, setOpenTool] = useState<string | null>(toolParam && tools.some(t => t.id === toolParam) ? toolParam : 'game-order')
   const [games, setGames] = useState<Game[]>([])
   const [players, setPlayers] = useState<Player[]>([])
+  const { toast } = useToast()
 
   // Game Order state
   const [selectedGames, setSelectedGames] = useState<Game[]>([])
@@ -75,8 +82,8 @@ export default function Randomizer() {
     }
     if (playersData) {
       const pList = nightId
-        ? playersData.map((p: any) => p.players).filter(Boolean)
-        : playersData
+        ? (playersData as GameNightPlayerRow[]).map(p => p.players).filter((p): p is Player => p !== null)
+        : (playersData as Player[])
       setPlayers(pList)
     }
   }
@@ -101,30 +108,32 @@ export default function Randomizer() {
     setIsShuffling(true)
     for (let i = 0; i < 8; i++) {
       const temp = [...locked]
-      const shuffledUnlocked = [...unlocked].sort(() => Math.random() - 0.5)
+      const shuffledUnlocked = fisherYatesShuffle(unlocked)
       let ui = 0
       for (let j = 0; j < temp.length; j++) {
         if (!temp[j]) temp[j] = shuffledUnlocked[ui++]
       }
-      setShuffledGames(temp as Game[])
+      setShuffledGames(temp.filter((g): g is Game => g !== null))
       await new Promise(r => setTimeout(r, 80 + i * 20))
     }
 
-    const finalUnlocked = [...unlocked].sort(() => Math.random() - 0.5)
+    const finalUnlocked = fisherYatesShuffle(unlocked)
     const final = [...locked]
     let ui = 0
     for (let j = 0; j < final.length; j++) {
       if (!final[j]) final[j] = finalUnlocked[ui++]
     }
-    setShuffledGames(final as Game[])
+    const finalGames = final.filter((g): g is Game => g !== null)
+    setShuffledGames(finalGames)
     setIsShuffling(false)
 
     if (nightId) {
-      await supabase.from('random_results').insert({
+      const { error } = await supabase.from('random_results').insert({
         game_night_id: nightId,
         type: 'game_order',
-        result: { order: (final as Game[]).map(g => g!.name) },
+        result: { order: finalGames.map(g => g.name) },
       })
+      if (error) toast('Failed to save game order result', 'error')
     }
   }
 
@@ -149,15 +158,29 @@ export default function Randomizer() {
     setIsPicking(false)
 
     if (nightId) {
-      await supabase.from('random_results').insert({
+      const { error } = await supabase.from('random_results').insert({
         game_night_id: nightId,
         type: 'game_pick',
         result: { game: final.name },
       })
+      if (error) toast('Failed to save game pick result', 'error')
     }
   }
 
+  function handleNumMinChange(raw: string) {
+    const parsed = parseInt(raw, 10)
+    if (Number.isNaN(parsed)) return
+    setNumMin(parsed)
+  }
+
+  function handleNumMaxChange(raw: string) {
+    const parsed = parseInt(raw, 10)
+    if (Number.isNaN(parsed)) return
+    setNumMax(parsed)
+  }
+
   async function rollNumber() {
+    if (numMin >= numMax) return
     setIsRollingNumber(true)
     for (let i = 0; i < 10; i++) {
       setRandomNumber(Math.floor(Math.random() * (numMax - numMin + 1)) + numMin)
@@ -168,11 +191,12 @@ export default function Randomizer() {
     setIsRollingNumber(false)
 
     if (nightId) {
-      await supabase.from('random_results').insert({
+      const { error } = await supabase.from('random_results').insert({
         game_night_id: nightId,
         type: 'number',
         result: { number: final, min: numMin, max: numMax },
       })
+      if (error) toast('Failed to save number result', 'error')
     }
   }
 
@@ -187,11 +211,12 @@ export default function Randomizer() {
     setIsRollingDice(false)
 
     if (nightId) {
-      await supabase.from('random_results').insert({
+      const { error } = await supabase.from('random_results').insert({
         game_night_id: nightId,
         type: 'dice',
         result: { value: final, sides: diceType },
       })
+      if (error) toast('Failed to save dice result', 'error')
     }
   }
 
@@ -199,23 +224,25 @@ export default function Randomizer() {
     if (players.length < 2) return
     setIsShufflingPlayers(true)
     for (let i = 0; i < 8; i++) {
-      setShuffledPlayers([...players].sort(() => Math.random() - 0.5))
+      setShuffledPlayers(fisherYatesShuffle(players))
       await new Promise(r => setTimeout(r, 80 + i * 20))
     }
-    const final = [...players].sort(() => Math.random() - 0.5)
+    const final = fisherYatesShuffle(players)
     setShuffledPlayers(final)
     setIsShufflingPlayers(false)
 
     if (nightId) {
-      await supabase.from('random_results').insert({
+      const { error } = await supabase.from('random_results').insert({
         game_night_id: nightId,
         type: 'player_order',
         result: { order: final.map(p => p.name) },
       })
+      if (error) toast('Failed to save player order result', 'error')
     }
   }
 
   const diceTypes = [4, 6, 8, 10, 12, 20]
+  const numberValidationError = numMin >= numMax ? 'Min must be less than max' : null
 
   return (
     <div className="p-4 space-y-3">
@@ -236,6 +263,8 @@ export default function Randomizer() {
                   <button
                     onClick={() => toggleTool(tool.id)}
                     className="flex items-center gap-3 w-full text-left"
+                    aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${tool.title}`}
+                    aria-expanded={isOpen}
                   >
                     <div
                       className="w-9 h-9 rounded-xl flex items-center justify-center"
@@ -253,7 +282,7 @@ export default function Randomizer() {
                   </button>
 
                   {isOpen && tool.id === 'game-order' && (
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-4 space-y-3" role="region" aria-label="Game Order tool">
                       <p className="text-xs text-midnight-400 font-bold">Select games, then shuffle the order</p>
                       <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto" style={{ scrollbarWidth: 'none' }}>
                         {games.map(game => (
@@ -301,7 +330,7 @@ export default function Randomizer() {
                   )}
 
                   {isOpen && tool.id === 'game-pick' && (
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-4 space-y-3" role="region" aria-label="Random Game tool">
                       <p className="text-xs text-midnight-400 font-bold">Randomly pick the next game</p>
 
                       {pickedGame && (
@@ -328,14 +357,15 @@ export default function Randomizer() {
                   )}
 
                   {isOpen && tool.id === 'number' && (
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-4 space-y-3" role="region" aria-label="Number generator tool">
                       <div className="flex items-center gap-3">
                         <div className="flex-1">
                           <label className="text-xs text-midnight-400 block mb-1 font-bold">Min</label>
                           <input
                             type="number"
                             value={numMin}
-                            onChange={e => setNumMin(Number(e.target.value))}
+                            onChange={e => handleNumMinChange(e.target.value)}
+                            aria-label="Minimum number"
                             className="w-full bg-midnight-900 border border-midnight-600/40 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#22c55e]/50 focus:shadow-[0_0_0_3px_rgba(34,197,94,0.1)] transition-all"
                           />
                         </div>
@@ -344,11 +374,16 @@ export default function Randomizer() {
                           <input
                             type="number"
                             value={numMax}
-                            onChange={e => setNumMax(Number(e.target.value))}
+                            onChange={e => handleNumMaxChange(e.target.value)}
+                            aria-label="Maximum number"
                             className="w-full bg-midnight-900 border border-midnight-600/40 rounded-xl px-3 py-2 text-sm font-bold outline-none focus:border-[#22c55e]/50 focus:shadow-[0_0_0_3px_rgba(34,197,94,0.1)] transition-all"
                           />
                         </div>
                       </div>
+
+                      {numberValidationError && (
+                        <p className="text-xs text-nin-red font-bold">{numberValidationError}</p>
+                      )}
 
                       {randomNumber !== null && (
                         <div className={`text-center py-5 rounded-2xl border transition-all ${
@@ -374,12 +409,14 @@ export default function Randomizer() {
                   )}
 
                   {isOpen && tool.id === 'dice' && (
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-4 space-y-3" role="region" aria-label="Dice Roll tool">
                       <div className="flex gap-2 flex-wrap">
                         {diceTypes.map(d => (
                           <button
                             key={d}
                             onClick={() => setDiceType(d)}
+                            aria-label={`Select ${d}-sided die`}
+                            aria-pressed={diceType === d}
                             className={`px-3.5 py-2 rounded-xl text-xs font-display transition-all duration-150 active:scale-95 ${
                               diceType === d
                                 ? 'bg-[#f59e0b] text-midnight-950 shadow-[0_3px_0_0_#b87a00,0_0_12px_rgba(245,158,11,0.3)]'
@@ -416,7 +453,7 @@ export default function Randomizer() {
                   )}
 
                   {isOpen && tool.id === 'player-order' && (
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-4 space-y-3" role="region" aria-label="Player Order tool">
                       <p className="text-xs text-midnight-400 font-bold">Shuffle who goes first</p>
 
                       {shuffledPlayers.length > 0 && (

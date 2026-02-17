@@ -39,14 +39,32 @@ export function calculateNightTotals(
   return totals
 }
 
+/**
+ * Returns the winner of a night, or null if no players / tied at top.
+ * When there's a tie for 1st, returns null (no winner) so the UI can handle it.
+ */
 export function getNightWinner(totals: Record<string, number>): string | null {
-  let winnerId: string | null = null
-  let maxPoints = -1
-  for (const [playerId, points] of Object.entries(totals)) {
-    if (points > maxPoints) {
-      maxPoints = points
-      winnerId = playerId
-    }
-  }
-  return winnerId
+  const entries = Object.entries(totals)
+  if (entries.length === 0) return null
+
+  entries.sort(([, a], [, b]) => b - a)
+  const [topId, topPts] = entries[0]
+
+  // If second place ties first, it's a draw — no winner
+  if (entries.length > 1 && entries[1][1] === topPts) return null
+
+  return topId
+}
+
+/**
+ * Returns all player IDs tied for the lead (for tie UI display).
+ */
+export function getNightTiedLeaders(totals: Record<string, number>): string[] {
+  const entries = Object.entries(totals)
+  if (entries.length === 0) return []
+
+  const maxPoints = Math.max(...entries.map(([, pts]) => pts))
+  const leaders = entries.filter(([, pts]) => pts === maxPoints)
+
+  return leaders.length > 1 ? leaders.map(([id]) => id) : []
 }

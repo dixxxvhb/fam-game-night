@@ -40,8 +40,13 @@ export function Confetti({ trigger, duration = 4000 }: ConfettiProps) {
     if (trigger) {
       setParticles(generateParticles())
       setVisible(true)
-      const timer = setTimeout(() => setVisible(false), duration)
+      const timer = setTimeout(() => {
+        setVisible(false)
+        setParticles([])
+      }, duration)
       return () => clearTimeout(timer)
+    } else {
+      setParticles([])
     }
   }, [trigger, duration])
 

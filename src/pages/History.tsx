@@ -50,12 +50,13 @@ export default function History() {
       if (!data) return
 
       const allYears = new Set<number>()
-      const summaries: NightSummary[] = data.map((night: any) => {
+      const summaries: NightSummary[] = data.map((night) => {
         allYears.add(new Date(night.date).getFullYear())
 
         const totals: Record<string, number> = {}
         let gameCount = 0
-        for (const game of night.game_night_games || []) {
+        const nightGames = (night as Record<string, unknown>).game_night_games as { id: string; placements: { player_id: string; points: number }[] }[] | undefined
+        for (const game of nightGames || []) {
           gameCount++
           for (const p of game.placements || []) {
             totals[p.player_id] = (totals[p.player_id] || 0) + p.points
@@ -63,8 +64,9 @@ export default function History() {
         }
 
         const winnerId = Object.entries(totals).sort(([, a], [, b]) => b - a)[0]?.[0]
-        const winnerPlayer = night.game_night_players?.find(
-          (np: any) => np.player_id === winnerId
+        const nightPlayers = (night as Record<string, unknown>).game_night_players as { player_id: string; players: Player }[] | undefined
+        const winnerPlayer = nightPlayers?.find(
+          (np) => np.player_id === winnerId
         )?.players
 
         return {
@@ -99,10 +101,12 @@ export default function History() {
   return (
     <div className="p-4 space-y-4">
       {/* Year pills */}
-      <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }} role="tablist" aria-label="Filter by year">
         {years.map(year => (
           <button
             key={year}
+            role="tab"
+            aria-selected={selectedYear === year}
             onClick={() => setSelectedYear(year)}
             className={`px-5 py-2 rounded-xl text-sm font-display transition-all duration-150 active:scale-95 whitespace-nowrap ${
               selectedYear === year

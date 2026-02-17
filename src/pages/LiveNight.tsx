@@ -4,6 +4,8 @@ import { Plus, Shuffle, X, Trophy, Flame, Undo2 } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
+import { ConfirmDialog } from '../components/common/ConfirmDialog'
+import { useToast } from '../components/common/Toast'
 import { supabase } from '../lib/supabase'
 import { getPointsForGame, getPointsForPlacement } from '../lib/points'
 import { getOnFirePlayers } from '../lib/stats'
@@ -27,6 +29,7 @@ interface UndoAction {
 export default function LiveNight() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [players, setPlayers] = useState<Player[]>([])
   const [allGames, setAllGames] = useState<Game[]>([])
   const [nightGames, setNightGames] = useState<GameWithPlacements[]>([])
@@ -34,16 +37,19 @@ export default function LiveNight() {
   const [showGamePicker, setShowGamePicker] = useState(false)
   const [nightNumber, setNightNumber] = useState(0)
   const [undoStack, setUndoStack] = useState<UndoAction[]>([])
+  const [isEnding, setIsEnding] = useState(false)
+  const [confirmRemoveGameId, setConfirmRemoveGameId] = useState<string | null>(null)
+  const [showEndConfirm, setShowEndConfirm] = useState(false)
 
   const loadNight = useCallback(async () => {
     if (!id) return
 
     const [
-      { data: nightData },
-      { data: nightPlayers },
-      { data: games },
-      { data: nightGamesData },
-      { data: scalesData },
+      { data: nightData, error: nightError },
+      { data: nightPlayers, error: playersError },
+      { data: games, error: gamesError },
+      { data: nightGamesData, error: nightGamesError },
+      { data: scalesData, error: scalesError },
     ] = await Promise.all([
       supabase.from('game_nights').select('*').eq('id', id).single(),
       supabase.from('game_night_players').select('player_id, players(*)').eq('game_night_id', id),
@@ -56,20 +62,35 @@ export default function LiveNight() {
       supabase.from('point_scales').select('*'),
     ])
 
+    if (nightError || playersError || gamesError || nightGamesError || scalesError) {
+      toast('Failed to load night data', 'error')
+      return
+    }
+
     if (nightData) setNightNumber(nightData.night_number)
     if (nightPlayers) {
-      setPlayers(nightPlayers.map((np: any) => np.players).filter(Boolean))
+      const mapped = (nightPlayers as unknown as { player_id: string; players: Player }[])
+        .map(np => np.players)
+        .filter((p): p is Player => p !== null)
+      setPlayers(mapped)
     }
     if (games) setAllGames(games)
     if (nightGamesData) {
-      setNightGames(nightGamesData.map((ng: any) => ({
-        ...ng,
-        game: ng.games,
-        placements: ng.placements || [],
-      })))
+      setNightGames(
+        (nightGamesData as (GameNightGame & { games: Game; placements: (Placement & { players?: Player })[] })[]).map(
+          ng => ({
+            ...ng,
+            game: ng.games,
+            placements: (ng.placements || []).map(p => ({
+              ...p,
+              player: p.players,
+            })),
+          })
+        )
+      )
     }
     if (scalesData) setScales(scalesData)
-  }, [id])
+  }, [id, toast])
 
   useEffect(() => {
     loadNight()
@@ -78,6 +99,12 @@ export default function LiveNight() {
   useEffect(() => {
     if (!id) return
 
+    // NOTE: The placements subscription is unfiltered because placements don't have
+    // a direct game_night_id column — they reference game_night_games. Supabase
+    // realtime filters only support top-level columns, so we can't filter by the
+    // parent night. This means we'll reload on ANY placement change across all nights.
+    // This is an acceptable tradeoff for simplicity; the reload is cheap and nights
+    // rarely overlap.
     const channel = supabase
       .channel(`night-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'placements' }, () => loadNight())
@@ -111,19 +138,31 @@ export default function LiveNight() {
     if (!id) return
     const nextOrder = nightGames.length + 1
 
-    await supabase.from('game_night_games').insert({
+    const { error } = await supabase.from('game_night_games').insert({
       game_night_id: id,
       game_id: game.id,
       game_order: nextOrder,
       is_tiebreaker: false,
     })
 
+    if (error) {
+      toast('Failed to add game', 'error')
+      return
+    }
+
     setShowGamePicker(false)
     loadNight()
   }
 
   async function removeGame(gameNightGameId: string) {
-    await supabase.from('game_night_games').delete().eq('id', gameNightGameId)
+    const { error } = await supabase.from('game_night_games').delete().eq('id', gameNightGameId)
+
+    if (error) {
+      toast('Failed to remove game', 'error')
+      return
+    }
+
+    toast('Game removed')
     loadNight()
   }
 
@@ -146,7 +185,12 @@ export default function LiveNight() {
         previousPlacement: existing.placement,
         previousPoints: existing.points,
       }])
-      await supabase.from('placements').delete().eq('id', existing.id)
+      const { error } = await supabase.from('placements').delete().eq('id', existing.id)
+      if (error) {
+        toast('Failed to update placement', 'error')
+        setUndoStack(prev => prev.slice(0, -1))
+        return
+      }
     } else if (existing) {
       // Updating — save undo as "update"
       setUndoStack(prev => [...prev.slice(-9), {
@@ -157,7 +201,12 @@ export default function LiveNight() {
         previousPlacement: existing.placement,
         previousPoints: existing.points,
       }])
-      await supabase.from('placements').update({ placement, points }).eq('id', existing.id)
+      const { error } = await supabase.from('placements').update({ placement, points }).eq('id', existing.id)
+      if (error) {
+        toast('Failed to update placement', 'error')
+        setUndoStack(prev => prev.slice(0, -1))
+        return
+      }
     } else {
       // New placement — save undo as "set" (undo would delete it)
       setUndoStack(prev => [...prev.slice(-9), {
@@ -165,12 +214,17 @@ export default function LiveNight() {
         gameNightGameId,
         playerId,
       }])
-      await supabase.from('placements').insert({
+      const { error } = await supabase.from('placements').insert({
         game_night_game_id: gameNightGameId,
         player_id: playerId,
         placement,
         points,
       })
+      if (error) {
+        toast('Failed to set placement', 'error')
+        setUndoStack(prev => prev.slice(0, -1))
+        return
+      }
     }
 
     loadNight()
@@ -187,41 +241,72 @@ export default function LiveNight() {
       const game = nightGames.find(g => g.id === action.gameNightGameId)
       const placement = game?.placements.find(p => p.player_id === action.playerId)
       if (placement) {
-        await supabase.from('placements').delete().eq('id', placement.id)
+        const { error } = await supabase.from('placements').delete().eq('id', placement.id)
+        if (error) {
+          toast('Undo failed', 'error')
+          return
+        }
       }
     } else if (action.type === 'update' && action.placementId) {
       // Was an update — restore previous values
-      await supabase.from('placements').update({
+      const { error } = await supabase.from('placements').update({
         placement: action.previousPlacement,
         points: action.previousPoints,
       }).eq('id', action.placementId)
+      if (error) {
+        toast('Undo failed', 'error')
+        return
+      }
     } else if (action.type === 'delete' && action.previousPlacement !== undefined) {
       // Was a delete (toggle off) — re-insert
-      await supabase.from('placements').insert({
+      const { error } = await supabase.from('placements').insert({
         game_night_game_id: action.gameNightGameId,
         player_id: action.playerId,
         placement: action.previousPlacement,
         points: action.previousPoints,
       })
+      if (error) {
+        toast('Undo failed', 'error')
+        return
+      }
     }
 
     loadNight()
   }
 
   async function endNight() {
-    if (!id) return
-    await supabase
-      .from('game_nights')
-      .update({ status: 'pending_approval' })
-      .eq('id', id)
+    if (!id || isEnding) return
+    setIsEnding(true)
 
-    await supabase.from('app_settings').upsert({
-      key: `approvals_${id}`,
-      value: JSON.stringify([]),
-    }, { onConflict: 'key' })
+    try {
+      const { error: updateError } = await supabase
+        .from('game_nights')
+        .update({ status: 'pending_approval' })
+        .eq('id', id)
 
-    navigate(`/night/${id}/summary`)
+      if (updateError) {
+        toast('Failed to end night', 'error')
+        return
+      }
+
+      const { error: settingsError } = await supabase.from('app_settings').upsert({
+        key: `approvals_${id}`,
+        value: JSON.stringify([]),
+      }, { onConflict: 'key' })
+
+      if (settingsError) {
+        toast('Night ended but approval tracking failed', 'warning')
+      }
+
+      navigate(`/night/${id}/summary`)
+    } finally {
+      setIsEnding(false)
+    }
   }
+
+  const gameToRemove = confirmRemoveGameId
+    ? nightGames.find(ng => ng.id === confirmRemoveGameId)
+    : null
 
   return (
     <div className="p-4 space-y-4">
@@ -277,7 +362,8 @@ export default function LiveNight() {
                 <h3 className="font-display text-base">{ng.game.name}</h3>
               </div>
               <button
-                onClick={() => removeGame(ng.id)}
+                onClick={() => setConfirmRemoveGameId(ng.id)}
+                aria-label={`Remove ${ng.game.name}`}
                 className="text-midnight-500 hover:text-red-400 transition-colors p-2 rounded-xl hover:bg-midnight-700/50"
               >
                 <X className="w-4 h-4" />
@@ -303,6 +389,7 @@ export default function LiveNight() {
                           <button
                             key={pos}
                             onClick={() => setPlacement(ng.id, player.id, pos)}
+                            aria-label={`${PLACEMENT_LABELS[i]} place for ${player.display_name} in ${ng.game.name} (${pts} pts)`}
                             className={`w-11 h-11 rounded-xl text-xs font-black transition-all duration-100 ${
                               isSelected
                                 ? 'shadow-[0_3px_0_0_rgba(0,0,0,0.3)] translate-y-0'
@@ -372,9 +459,43 @@ export default function LiveNight() {
 
       {/* End Night — dramatic gold button */}
       {nightGames.length > 0 && (
-        <Button onClick={endNight} variant="glow" size="lg" className="w-full flex items-center justify-center gap-2">
-          <Trophy className="w-5 h-5" /> End Night
+        <Button
+          onClick={() => setShowEndConfirm(true)}
+          disabled={isEnding}
+          variant="glow"
+          size="lg"
+          className="w-full flex items-center justify-center gap-2"
+        >
+          <Trophy className="w-5 h-5" /> {isEnding ? 'Ending...' : 'End Night'}
         </Button>
+      )}
+
+      {/* Confirm remove game dialog */}
+      {confirmRemoveGameId && gameToRemove && (
+        <ConfirmDialog
+          title="Remove Game"
+          message={`Remove "${gameToRemove.game.name}" and all its placements from this night?`}
+          confirmLabel="Remove"
+          onConfirm={() => {
+            removeGame(confirmRemoveGameId)
+            setConfirmRemoveGameId(null)
+          }}
+          onCancel={() => setConfirmRemoveGameId(null)}
+        />
+      )}
+
+      {/* Confirm end night dialog */}
+      {showEndConfirm && (
+        <ConfirmDialog
+          title="End Night"
+          message="Lock in all scores and move to the summary screen? This can't be undone."
+          confirmLabel="End Night"
+          onConfirm={() => {
+            setShowEndConfirm(false)
+            endNight()
+          }}
+          onCancel={() => setShowEndConfirm(false)}
+        />
       )}
     </div>
   )

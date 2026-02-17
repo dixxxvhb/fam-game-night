@@ -1,18 +1,40 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Check, ShieldCheck, Undo2, Crown, RotateCcw } from 'lucide-react'
+import { Check, ShieldCheck, Undo2, Crown, RotateCcw, Clock } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
 import { CountUp } from '../components/common/CountUp'
 import { Confetti } from '../components/common/Confetti'
+import { useToast } from '../components/common/Toast'
 import { supabase } from '../lib/supabase'
+import { quickRematch } from '../lib/quickRematch'
 import { formatDate } from '../lib/constants'
-import type { Player } from '../types'
+import type { Player, Placement } from '../types'
+
+const MAJORITY_THRESHOLD = 3
+const AUTO_APPROVE_MS = 4 * 60 * 60 * 1000 // 4 hours
+
+interface NightGameWithPlacements {
+  id: string
+  game_night_id: string
+  game_id: string
+  game_order: number
+  is_tiebreaker: boolean
+  created_at: string
+  placements: Pick<Placement, 'player_id' | 'points'>[]
+}
+
+interface NightPlayerJoin {
+  player_id: string
+  players: Player
+}
 
 export default function NightSummary() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { toast } = useToast()
+
   const [players, setPlayers] = useState<Player[]>([])
   const [corePlayers, setCorePlayers] = useState<Player[]>([])
   const [totals, setTotals] = useState<Record<string, number>>({})
@@ -23,7 +45,10 @@ export default function NightSummary() {
   const [showApproveAs, setShowApproveAs] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [revealStage, setRevealStage] = useState(0) // 0=hidden, 1=title, 2=crown, 3=name, 4=points
+  const [loading, setLoading] = useState(false)
+
   const prevStatus = useRef(status)
+  const hasRevealed = useRef(false)
 
   const loadSummary = useCallback(async () => {
     if (!id) return
@@ -42,13 +67,15 @@ export default function NightSummary() {
       setStatus(night.status)
     }
 
-    const playerList = nightPlayers?.map((np: any) => np.players).filter(Boolean) || []
+    const playerList = (nightPlayers as unknown as NightPlayerJoin[] | null)
+      ?.map(np => np.players)
+      .filter(Boolean) || []
     setPlayers(playerList)
     if (core) setCorePlayers(core)
 
     const t: Record<string, number> = {}
-    for (const game of nightGames || []) {
-      for (const p of (game as any).placements || []) {
+    for (const game of (nightGames as unknown as NightGameWithPlacements[] | null) || []) {
+      for (const p of game.placements || []) {
         t[p.player_id] = (t[p.player_id] || 0) + p.points
       }
     }
@@ -63,9 +90,12 @@ export default function NightSummary() {
     loadSummary()
   }, [loadSummary])
 
-  // Staged reveal animation on mount
+  // Staged reveal animation — runs once when totals first populate
   useEffect(() => {
     if (Object.keys(totals).length === 0) return
+    if (hasRevealed.current) return
+    hasRevealed.current = true
+
     const timers = [
       setTimeout(() => setRevealStage(1), 200),
       setTimeout(() => setRevealStage(2), 500),
@@ -74,7 +104,7 @@ export default function NightSummary() {
       setTimeout(() => setShowConfetti(true), 1200),
     ]
     return () => timers.forEach(clearTimeout)
-  }, [Object.keys(totals).length > 0]) // eslint-disable-line
+  }, [totals])
 
   // Confetti when night gets completed
   useEffect(() => {
@@ -84,6 +114,14 @@ export default function NightSummary() {
     prevStatus.current = status
   }, [status])
 
+  // Clear confetti particles when hidden
+  useEffect(() => {
+    if (!showConfetti) return
+    const timer = setTimeout(() => setShowConfetti(false), 5000)
+    return () => clearTimeout(timer)
+  }, [showConfetti])
+
+  // Realtime subscription for approvals and night status changes
   useEffect(() => {
     if (!id) return
     const channel = supabase
@@ -94,6 +132,31 @@ export default function NightSummary() {
 
     return () => { supabase.removeChannel(channel) }
   }, [id, loadSummary])
+
+  // 4-hour auto-approve: if pending_approval for 4+ hours, auto-complete
+  useEffect(() => {
+    if (status !== 'pending_approval' || !id) return
+
+    const timer = setTimeout(async () => {
+      await supabase.from('game_nights').update({
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      }).eq('id', id)
+      setStatus('completed')
+      toast('Night auto-approved after 4 hours', 'success')
+    }, AUTO_APPROVE_MS)
+
+    return () => clearTimeout(timer)
+  }, [status, id, toast])
+
+  async function completeNight() {
+    if (!id) return
+    await supabase.from('game_nights').update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+    }).eq('id', id)
+    setStatus('completed')
+  }
 
   async function approve(playerName: string) {
     if (!id || approvals.includes(playerName)) return
@@ -107,77 +170,48 @@ export default function NightSummary() {
       value: JSON.stringify(updated),
     }, { onConflict: 'key' })
 
-    const coreNames = corePlayers.map(p => p.name)
-    const allApproved = coreNames.every(name => updated.includes(name))
+    toast(`${playerName} approved`, 'success')
 
-    if (allApproved) {
-      await supabase.from('game_nights').update({
-        status: 'completed',
-        completed_at: new Date().toISOString(),
-      }).eq('id', id)
-      setStatus('completed')
+    // Majority override: 3 of 4 core players = auto-complete
+    const coreNames = corePlayers.map(p => p.name)
+    const approvedCount = coreNames.filter(name => updated.includes(name)).length
+
+    if (approvedCount >= MAJORITY_THRESHOLD) {
+      await completeNight()
     }
   }
 
   async function reopenNight() {
-    if (!id) return
-    await supabase.from('game_nights').update({ status: 'active' }).eq('id', id)
-    await supabase.from('app_settings').delete().eq('key', `approvals_${id}`)
-    navigate(`/night/${id}`)
+    if (!id || loading) return
+    setLoading(true)
+    try {
+      await supabase.from('game_nights').update({ status: 'active' }).eq('id', id)
+      await supabase.from('app_settings').delete().eq('key', `approvals_${id}`)
+      toast('Night reopened', 'warning')
+      navigate(`/night/${id}`)
+    } catch {
+      toast('Failed to reopen night', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  async function quickRematch() {
-    if (!id) return
-    // Get the games from this night
-    const { data: nightGames } = await supabase
-      .from('game_night_games')
-      .select('game_id, game_order')
-      .eq('game_night_id', id)
-      .order('game_order')
-
-    // Get next night number
-    const { data: existing } = await supabase
-      .from('game_nights')
-      .select('night_number')
-      .order('night_number', { ascending: false })
-      .limit(1)
-
-    const nextNumber = (existing?.[0]?.night_number || 0) + 1
-
-    // Create new night
-    const { data: newNight } = await supabase
-      .from('game_nights')
-      .insert({
-        night_number: nextNumber,
-        date: new Date().toISOString().split('T')[0],
-        status: 'active',
-      })
-      .select()
-      .single()
-
-    if (!newNight) return
-
-    // Add same players
-    const { data: corePlayers } = await supabase.from('players').select('id').eq('is_core', true)
-    if (corePlayers) {
-      await supabase.from('game_night_players').insert(
-        corePlayers.map(p => ({ game_night_id: newNight.id, player_id: p.id }))
-      )
+  async function handleQuickRematch() {
+    if (!id || loading) return
+    setLoading(true)
+    try {
+      const newId = await quickRematch(id)
+      if (newId) {
+        toast('Rematch created', 'success')
+        navigate('/night/' + newId)
+      } else {
+        toast('Failed to create rematch', 'error')
+      }
+    } catch {
+      toast('Failed to create rematch', 'error')
+    } finally {
+      setLoading(false)
     }
-
-    // Add same games (no placements)
-    if (nightGames) {
-      await supabase.from('game_night_games').insert(
-        nightGames.map(g => ({
-          game_night_id: newNight.id,
-          game_id: g.game_id,
-          game_order: g.game_order,
-          is_tiebreaker: false,
-        }))
-      )
-    }
-
-    navigate(`/night/${newNight.id}`)
   }
 
   const sorted = [...players].sort((a, b) => (totals[b.id] || 0) - (totals[a.id] || 0))
@@ -268,8 +302,12 @@ export default function NightSummary() {
                 Waiting for Approval ({approvals.length}/4)
               </p>
             </div>
-            <p className="text-sm text-midnight-300 mb-4 font-semibold">
-              All 4 players must approve to make it official
+            <p className="text-sm text-midnight-300 mb-2 font-semibold">
+              {MAJORITY_THRESHOLD} of 4 players must approve to make it official
+            </p>
+            <p className="text-xs text-midnight-500 mb-4 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              Auto-approves after 4 hours if not completed
             </p>
 
             <div className="space-y-2.5 mb-4">
@@ -299,6 +337,7 @@ export default function NightSummary() {
                     <button
                       key={player.id}
                       onClick={() => approve(player.name)}
+                      aria-label={`Approve as ${player.display_name}`}
                       className="flex items-center gap-2 px-3 py-2.5 bg-midnight-700/40 border border-midnight-600/30 rounded-xl hover:bg-midnight-600/40 hover:border-midnight-500/30 transition-all active:scale-95"
                     >
                       <PlayerAvatar name={player.name} color={player.color} size="sm" />
@@ -308,6 +347,7 @@ export default function NightSummary() {
                 </div>
                 <button
                   onClick={() => setShowApproveAs(false)}
+                  aria-label="Cancel approval"
                   className="text-sm text-midnight-400 hover:text-midnight-300 mt-1 font-bold"
                 >
                   Cancel
@@ -315,7 +355,12 @@ export default function NightSummary() {
               </div>
             ) : (
               unapprovedCore.length > 0 && (
-                <Button onClick={() => setShowApproveAs(true)} size="lg" className="w-full flex items-center justify-center gap-2">
+                <Button
+                  onClick={() => setShowApproveAs(true)}
+                  size="lg"
+                  className="w-full flex items-center justify-center gap-2"
+                  aria-label="Open approval selection"
+                >
                   <Check className="w-5 h-5" /> Approve Results
                 </Button>
               )
@@ -328,7 +373,9 @@ export default function NightSummary() {
         <Card>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-nin-green drop-shadow-[0_0_8px_rgba(0,200,83,0.4)]" />
-            <p className="text-sm font-display text-nin-green">Official — All 4 Approved</p>
+            <p className="text-sm font-display text-nin-green">
+              Official — {approvals.length >= corePlayers.length ? 'All' : `${approvals.length} of ${corePlayers.length}`} Approved
+            </p>
           </div>
         </Card>
       )}
@@ -336,12 +383,24 @@ export default function NightSummary() {
       {/* Actions */}
       <div className="flex gap-3">
         {isPending && (
-          <Button onClick={reopenNight} variant="ghost" className="flex-1 flex items-center justify-center gap-2">
+          <Button
+            onClick={reopenNight}
+            variant="ghost"
+            className="flex-1 flex items-center justify-center gap-2"
+            disabled={loading}
+            aria-label="Reopen this game night"
+          >
             <Undo2 className="w-4 h-4" /> Reopen Night
           </Button>
         )}
         {isCompleted && (
-          <Button onClick={quickRematch} variant="secondary" className="flex-1 flex items-center justify-center gap-2">
+          <Button
+            onClick={handleQuickRematch}
+            variant="secondary"
+            className="flex-1 flex items-center justify-center gap-2"
+            disabled={loading}
+            aria-label="Start a quick rematch with same games"
+          >
             <RotateCcw className="w-4 h-4" /> Quick Rematch
           </Button>
         )}

@@ -4,9 +4,22 @@ import { Gamepad2, X, ChevronDown, ChevronUp, Trophy, Calendar, ShieldCheck, Cro
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
+import { useToast } from '../components/common/Toast'
+import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { supabase } from '../lib/supabase'
 import { PLACEMENT_COLORS, formatDate } from '../lib/constants'
 import type { GameNight, Player } from '../types'
+
+interface NightWithGames {
+  id: string
+  date: string
+  status: string
+  game_night_players: { player_id: string }[]
+  game_night_games: {
+    id: string
+    placements: { player_id: string; points: number }[]
+  }[]
+}
 
 interface YearStats {
   year: number
@@ -21,12 +34,15 @@ interface AllTimeEntry {
 
 export default function Home() {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [activeNight, setActiveNight] = useState<GameNight | null>(null)
   const [pendingNight, setPendingNight] = useState<GameNight | null>(null)
   const [yearStats, setYearStats] = useState<YearStats[]>([])
   const [allTime, setAllTime] = useState<AllTimeEntry[]>([])
   const [expandedYear, setExpandedYear] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isStarting, setIsStarting] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -50,9 +66,11 @@ export default function Home() {
 
       if (!players || !nights) return
 
-      const yearMap: Record<number, typeof nights> = {}
-      for (const n of nights) {
-        const y = new Date((n as any).date).getFullYear()
+      const typedNights = nights as NightWithGames[]
+
+      const yearMap: Record<number, NightWithGames[]> = {}
+      for (const n of typedNights) {
+        const y = new Date(n.date).getFullYear()
         if (!yearMap[y]) yearMap[y] = []
         yearMap[y].push(n)
       }
@@ -69,7 +87,8 @@ export default function Home() {
 
         for (const night of yearNights) {
           const nightTotals: Record<string, number> = {}
-          for (const game of (night as any).game_night_games || []) {
+          const games = night.game_night_games ?? []
+          for (const game of games) {
             for (const p of game.placements || []) {
               nightTotals[p.player_id] = (nightTotals[p.player_id] || 0) + p.points
             }
@@ -110,6 +129,8 @@ export default function Home() {
   }
 
   async function startNewNight() {
+    if (isStarting) return
+    setIsStarting(true)
     try {
       const { data: existing } = await supabase
         .from('game_nights')
@@ -140,7 +161,10 @@ export default function Home() {
         navigate(`/night/${night.id}`)
       }
     } catch (err) {
-      console.error('Failed to start game night:', err)
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      toast(`Failed to start game night: ${message}`, 'error')
+    } finally {
+      setIsStarting(false)
     }
   }
 
@@ -148,10 +172,10 @@ export default function Home() {
     if (!activeNight) return
     const { error } = await supabase.from('game_nights').delete().eq('id', activeNight.id)
     if (error) {
-      console.error('Failed to delete game night:', error)
-      alert(`Delete failed: ${error.message}`)
+      toast(`Failed to cancel game night: ${error.message}`, 'error')
     } else {
       setActiveNight(null)
+      setShowCancelConfirm(false)
     }
   }
 
@@ -165,6 +189,16 @@ export default function Home() {
 
   return (
     <div className="p-4 space-y-4">
+      {showCancelConfirm && (
+        <ConfirmDialog
+          title="Cancel Game Night"
+          message="Are you sure you want to cancel this game night? All progress will be lost."
+          confirmLabel="Cancel Night"
+          onConfirm={cancelNight}
+          onCancel={() => setShowCancelConfirm(false)}
+        />
+      )}
+
       {/* Active Night — Glowing Red Card */}
       {activeNight ? (
         <div className="animate-slide-up">
@@ -184,7 +218,8 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <Gamepad2 className="w-9 h-9 text-nin-red drop-shadow-[0_0_12px_rgba(230,0,18,0.5)]" />
                 <button
-                  onClick={(e) => { e.stopPropagation(); cancelNight() }}
+                  aria-label="Cancel game night"
+                  onClick={(e) => { e.stopPropagation(); setShowCancelConfirm(true) }}
                   className="text-midnight-500 hover:text-red-400 transition-colors p-2 rounded-xl hover:bg-midnight-700/50"
                 >
                   <X className="w-5 h-5" />
@@ -195,9 +230,9 @@ export default function Home() {
         </div>
       ) : (
         <div className="animate-slide-up">
-          <Button onClick={startNewNight} variant="glow" size="lg" className="w-full flex items-center justify-center gap-3 text-lg">
+          <Button onClick={startNewNight} disabled={isStarting} variant="glow" size="lg" className="w-full flex items-center justify-center gap-3 text-lg">
             <Gamepad2 className="w-6 h-6" />
-            Start Game Night
+            {isStarting ? 'Starting...' : 'Start Game Night'}
           </Button>
         </div>
       )}

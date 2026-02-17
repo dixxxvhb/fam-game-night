@@ -33,7 +33,7 @@ CREATE TABLE game_nights (
   night_number INT NOT NULL,
   label TEXT,
   date DATE NOT NULL,
-  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed')),
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'pending_approval', 'completed')),
   created_at TIMESTAMPTZ DEFAULT now(),
   completed_at TIMESTAMPTZ
 );

@@ -1,7 +1,7 @@
 // Service Worker for FAM GAME NIGHT PWA
 // Provides app shell caching for installability while keeping API calls network-only
 
-const CACHE_NAME = 'fgn-v1'
+const CACHE_NAME = 'fgn-v2'
 
 // Cache app shell assets on install
 self.addEventListener('install', (event) => {
@@ -21,7 +21,7 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-// Network-first strategy: always try network, fall back to cache for app shell
+// Network-first for everything, cache as fallback for static assets
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
 
@@ -31,22 +31,24 @@ self.addEventListener('fetch', (event) => {
   // Never cache POST/PUT/DELETE
   if (event.request.method !== 'GET') return
 
-  // For navigation requests, always go to network
+  // For navigation requests, always go to network (no cache)
   if (event.request.mode === 'navigate') return
 
-  // For static assets (JS, CSS, images), use stale-while-revalidate
+  // For static assets: network-first with cache fallback
+  // Vite hashes filenames, so old entries won't be served for new builds
   if (url.pathname.match(/\.(js|css|png|svg|woff2?)$/)) {
     event.respondWith(
-      caches.open(CACHE_NAME).then((cache) =>
-        cache.match(event.request).then((cached) => {
-          const fetched = fetch(event.request).then((response) => {
-            if (response.ok) cache.put(event.request, response.clone())
-            return response
-          }).catch(() => cached)
-
-          return cached || fetched
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone))
+          }
+          return response
         })
-      )
+        .catch(() =>
+          caches.open(CACHE_NAME).then((cache) => cache.match(event.request))
+        )
     )
   }
 })

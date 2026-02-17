@@ -7,6 +7,28 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner'
 import { PLACEMENT_COLORS } from '../lib/constants'
 import type { Player } from '../types'
 
+interface NightPlayer {
+  player_id: string
+}
+
+interface NightPlacement {
+  player_id: string
+  points: number
+}
+
+interface NightGame {
+  id: string
+  placements: NightPlacement[]
+}
+
+interface NightRow {
+  id: string
+  date: string
+  status: string
+  game_night_players: NightPlayer[]
+  game_night_games: NightGame[]
+}
+
 interface ChampEntry {
   player: Player
   totalPoints: number
@@ -39,20 +61,22 @@ export default function Leaderboard() {
 
       if (!players || !nights) return
 
+      const typedNights = nights as NightRow[]
+
       const stats: Record<string, { points: number; wins: number; nights: number; streak: number; bestStreak: number }> = {}
       for (const p of players) {
         stats[p.id] = { points: 0, wins: 0, nights: 0, streak: 0, bestStreak: 0 }
       }
 
-      const sorted = [...nights].sort((a: any, b: any) =>
+      const sorted = [...typedNights].sort((a, b) =>
         new Date(a.date).getTime() - new Date(b.date).getTime()
       )
 
       for (const night of sorted) {
         const nightTotals: Record<string, number> = {}
-        const nightPlayerIds = new Set((night as any).game_night_players?.map((np: any) => np.player_id) || [])
+        const nightPlayerIds = new Set(night.game_night_players?.map(np => np.player_id) || [])
 
-        for (const game of (night as any).game_night_games || []) {
+        for (const game of night.game_night_games || []) {
           for (const p of game.placements || []) {
             nightTotals[p.player_id] = (nightTotals[p.player_id] || 0) + p.points
           }
@@ -66,7 +90,7 @@ export default function Leaderboard() {
 
         for (const pid of Object.keys(stats)) {
           if (!nightPlayerIds.has(pid)) {
-            stats[pid].streak = 0
+            // Don't break streak for nights the player wasn't part of
             continue
           }
           stats[pid].points += nightTotals[pid] || 0
@@ -106,7 +130,7 @@ export default function Leaderboard() {
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="text-center py-3 animate-slide-up">
-        <Trophy className="w-10 h-10 text-gold-400 mx-auto mb-2 drop-shadow-[0_0_12px_rgba(255,202,40,0.5)]" />
+        <Trophy className="w-10 h-10 text-gold-400 mx-auto mb-2 drop-shadow-[0_0_12px_rgba(255,202,40,0.5)]" aria-hidden="true" />
         <h1 className="text-2xl font-display">All-Time Leaderboard</h1>
         <p className="text-midnight-400 text-sm font-semibold">Total points across all game nights</p>
       </div>
@@ -116,7 +140,7 @@ export default function Leaderboard() {
         <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
           <Card variant="winner">
             <div className="flex items-center gap-3">
-              <Crown className="w-8 h-8 text-gold-400 animate-crown-bounce drop-shadow-[0_0_10px_rgba(255,202,40,0.5)]" />
+              <Crown className="w-8 h-8 text-gold-400 animate-crown-bounce drop-shadow-[0_0_10px_rgba(255,202,40,0.5)]" aria-hidden="true" />
               <PlayerAvatar name={entries[0].player.name} color={entries[0].player.color} size="lg" glow />
               <div className="flex-1">
                 <p className="text-xl font-display">{entries[0].player.display_name}</p>
@@ -125,33 +149,33 @@ export default function Leaderboard() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-4xl font-display text-shimmer-gold">
+                <p className="text-4xl font-display text-shimmer-gold" aria-label={`${entries[0].totalPoints} total points`}>
                   {entries[0].totalPoints}
                 </p>
                 <p className="text-xs text-midnight-400 font-bold">total pts</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-midnight-600/30">
-              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5">
+            <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-midnight-600/30" role="list" aria-label="Champion stats">
+              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5" role="listitem">
                 <div className="flex items-center justify-center gap-1">
-                  <Star className="w-4 h-4 text-gold-400" />
+                  <Star className="w-4 h-4 text-gold-400" aria-hidden="true" />
                   <p className="text-xl font-display">{entries[0].totalWins}</p>
                 </div>
                 <p className="text-xs text-midnight-400 font-bold">Wins</p>
               </div>
-              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5">
+              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5" role="listitem">
                 <div className="flex items-center justify-center gap-1">
-                  <Percent className="w-3.5 h-3.5 text-nin-blue" />
+                  <Percent className="w-3.5 h-3.5 text-nin-blue" aria-hidden="true" />
                   <p className="text-xl font-display">
                     {entries[0].nightsPlayed > 0 ? Math.round((entries[0].totalWins / entries[0].nightsPlayed) * 100) : 0}%
                   </p>
                 </div>
                 <p className="text-xs text-midnight-400 font-bold">Win Rate</p>
               </div>
-              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5">
+              <div className="text-center bg-midnight-800/40 rounded-xl py-2.5" role="listitem">
                 <div className="flex items-center justify-center gap-1">
-                  <Flame className="w-4 h-4 text-nin-orange" />
+                  <Flame className="w-4 h-4 text-nin-orange" aria-hidden="true" />
                   <p className="text-xl font-display">{entries[0].bestStreak}</p>
                 </div>
                 <p className="text-xs text-midnight-400 font-bold">Best Streak</p>
@@ -159,8 +183,8 @@ export default function Leaderboard() {
             </div>
 
             {entries[0].currentStreak >= 2 && (
-              <div className="mt-3 flex items-center justify-center gap-2 py-2 bg-nin-orange/10 rounded-xl border border-nin-orange/20">
-                <Flame className="w-4 h-4 text-nin-orange animate-pulse" />
+              <div className="mt-3 flex items-center justify-center gap-2 py-2 bg-nin-orange/10 rounded-xl border border-nin-orange/20" aria-label={`${entries[0].currentStreak}-night win streak`}>
+                <Flame className="w-4 h-4 text-nin-orange animate-pulse" aria-hidden="true" />
                 <span className="text-sm font-display text-nin-orange">{entries[0].currentStreak}-Night Win Streak!</span>
               </div>
             )}
@@ -180,6 +204,7 @@ export default function Leaderboard() {
                   <span
                     className="text-2xl font-display w-10 text-center"
                     style={{ color: PLACEMENT_COLORS[idx + 1] || '#7a7a9e' }}
+                    aria-label={`Rank ${idx + 2}`}
                   >
                     #{idx + 2}
                   </span>
@@ -191,33 +216,33 @@ export default function Leaderboard() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-3xl font-display text-gold-400">
+                    <p className="text-3xl font-display text-gold-400" aria-label={`${entry.totalPoints} total points`}>
                       {entry.totalPoints}
                     </p>
                     <p className="text-xs text-midnight-400 font-bold">total pts</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-midnight-600/30">
-                  <div className="text-center bg-midnight-700/30 rounded-xl py-2">
+                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-midnight-600/30" role="list" aria-label={`${entry.player.display_name} stats`}>
+                  <div className="text-center bg-midnight-700/30 rounded-xl py-2" role="listitem">
                     <div className="flex items-center justify-center gap-1">
-                      <Star className="w-3.5 h-3.5 text-gold-400" />
+                      <Star className="w-3.5 h-3.5 text-gold-400" aria-hidden="true" />
                       <p className="text-lg font-display">{entry.totalWins}</p>
                     </div>
                     <p className="text-xs text-midnight-400 font-bold">Wins</p>
                   </div>
-                  <div className="text-center bg-midnight-700/30 rounded-xl py-2">
+                  <div className="text-center bg-midnight-700/30 rounded-xl py-2" role="listitem">
                     <div className="flex items-center justify-center gap-1">
-                      <Percent className="w-3 h-3 text-nin-blue" />
+                      <Percent className="w-3 h-3 text-nin-blue" aria-hidden="true" />
                       <p className="text-lg font-display">
                         {entry.nightsPlayed > 0 ? Math.round((entry.totalWins / entry.nightsPlayed) * 100) : 0}%
                       </p>
                     </div>
                     <p className="text-xs text-midnight-400 font-bold">Win Rate</p>
                   </div>
-                  <div className="text-center bg-midnight-700/30 rounded-xl py-2">
+                  <div className="text-center bg-midnight-700/30 rounded-xl py-2" role="listitem">
                     <div className="flex items-center justify-center gap-1">
-                      <Flame className="w-3.5 h-3.5 text-nin-orange" />
+                      <Flame className="w-3.5 h-3.5 text-nin-orange" aria-hidden="true" />
                       <p className="text-lg font-display">{entry.bestStreak}</p>
                     </div>
                     <p className="text-xs text-midnight-400 font-bold">Best Streak</p>
@@ -225,8 +250,8 @@ export default function Leaderboard() {
                 </div>
 
                 {entry.currentStreak >= 2 && (
-                  <div className="mt-3 flex items-center justify-center gap-2 py-1.5 bg-nin-orange/10 rounded-xl border border-nin-orange/20">
-                    <Flame className="w-3.5 h-3.5 text-nin-orange animate-pulse" />
+                  <div className="mt-3 flex items-center justify-center gap-2 py-1.5 bg-nin-orange/10 rounded-xl border border-nin-orange/20" aria-label={`${entry.currentStreak}-night win streak`}>
+                    <Flame className="w-3.5 h-3.5 text-nin-orange animate-pulse" aria-hidden="true" />
                     <span className="text-xs font-display text-nin-orange">{entry.currentStreak}-Night Streak!</span>
                   </div>
                 )}

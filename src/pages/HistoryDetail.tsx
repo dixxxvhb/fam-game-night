@@ -4,7 +4,10 @@ import { Pencil, Trash2, Crown, RotateCcw } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
+import { ConfirmDialog } from '../components/common/ConfirmDialog'
+import { useToast } from '../components/common/Toast'
 import { supabase } from '../lib/supabase'
+import { quickRematch } from '../lib/quickRematch'
 import { LoadingSpinner } from '../components/common/LoadingSpinner'
 import { PLACEMENT_LABELS, PLACEMENT_COLORS, formatDate } from '../lib/constants'
 import type { Player, Game } from '../types'
@@ -16,9 +19,29 @@ interface GameResult {
   placements: { player: Player; placement: number; points: number }[]
 }
 
+interface NightPlayerRow {
+  player_id: string
+  players: Player | null
+}
+
+interface PlacementRow {
+  player_id: string
+  placement: number
+  points: number
+  players: Player | null
+}
+
+interface NightGameRow {
+  game_order: number
+  is_tiebreaker: boolean
+  games: Game | null
+  placements: PlacementRow[] | null
+}
+
 export default function HistoryDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [nightNumber, setNightNumber] = useState(0)
   const [date, setDate] = useState('')
   const [players, setPlayers] = useState<Player[]>([])
@@ -26,6 +49,7 @@ export default function HistoryDetail() {
   const [totals, setTotals] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [showConfirmDelete, setShowConfirmDelete] = useState(false)
+  const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
     loadDetail()
@@ -45,20 +69,23 @@ export default function HistoryDetail() {
       setDate(night.date)
     }
 
-    const playerList = nightPlayers?.map((np: any) => np.players).filter(Boolean) || []
+    const playerList = (nightPlayers as NightPlayerRow[] | null)
+      ?.map(np => np.players)
+      .filter((p): p is Player => p !== null) || []
     setPlayers(playerList)
 
     const t: Record<string, number> = {}
-    const gameResults: GameResult[] = (nightGames || []).map((ng: any) => {
+    const gameResults: GameResult[] = ((nightGames as NightGameRow[] | null) || []).map(ng => {
       const placements = (ng.placements || [])
-        .map((p: any) => {
+        .filter((p): p is PlacementRow & { players: Player } => p.players !== null)
+        .map(p => {
           t[p.player_id] = (t[p.player_id] || 0) + p.points
           return { player: p.players, placement: p.placement, points: p.points }
         })
-        .sort((a: any, b: any) => a.placement - b.placement)
+        .sort((a, b) => a.placement - b.placement)
 
       return {
-        game: ng.games,
+        game: ng.games!,
         game_order: ng.game_order,
         is_tiebreaker: ng.is_tiebreaker,
         placements,
@@ -70,65 +97,51 @@ export default function HistoryDetail() {
     setLoading(false)
   }
 
-  async function editNight() {
-    if (!id) return
-    await supabase.from('game_nights').update({ status: 'active', completed_at: null }).eq('id', id)
-    navigate(`/night/${id}`)
+  async function handleEditNight() {
+    if (!id || actionLoading) return
+    setActionLoading(true)
+    try {
+      const { error } = await supabase.from('game_nights').update({ status: 'active', completed_at: null }).eq('id', id)
+      if (error) {
+        toast('Failed to reopen game night', 'error')
+        return
+      }
+      navigate(`/night/${id}`)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
-  async function deleteNight() {
-    if (!id) return
-    await supabase.from('game_nights').delete().eq('id', id)
-    navigate('/history')
+  async function handleDeleteNight() {
+    if (!id || actionLoading) return
+    setActionLoading(true)
+    try {
+      const { error } = await supabase.from('game_nights').delete().eq('id', id)
+      if (error) {
+        toast('Failed to delete game night', 'error')
+        return
+      }
+      toast('Game night deleted', 'success')
+      navigate('/history')
+    } finally {
+      setActionLoading(false)
+      setShowConfirmDelete(false)
+    }
   }
 
-  async function quickRematch() {
-    if (!id) return
-    const { data: nightGamesData } = await supabase
-      .from('game_night_games')
-      .select('game_id, game_order')
-      .eq('game_night_id', id)
-      .order('game_order')
-
-    const { data: existing } = await supabase
-      .from('game_nights')
-      .select('night_number')
-      .order('night_number', { ascending: false })
-      .limit(1)
-
-    const nextNumber = (existing?.[0]?.night_number || 0) + 1
-
-    const { data: newNight } = await supabase
-      .from('game_nights')
-      .insert({
-        night_number: nextNumber,
-        date: new Date().toISOString().split('T')[0],
-        status: 'active',
-      })
-      .select()
-      .single()
-
-    if (!newNight) return
-
-    const { data: corePlayers } = await supabase.from('players').select('id').eq('is_core', true)
-    if (corePlayers) {
-      await supabase.from('game_night_players').insert(
-        corePlayers.map(p => ({ game_night_id: newNight.id, player_id: p.id }))
-      )
+  async function handleQuickRematch() {
+    if (!id || actionLoading) return
+    setActionLoading(true)
+    try {
+      const newId = await quickRematch(id)
+      if (newId) {
+        navigate('/night/' + newId)
+      } else {
+        toast('Failed to create rematch', 'error')
+      }
+    } finally {
+      setActionLoading(false)
     }
-
-    if (nightGamesData) {
-      await supabase.from('game_night_games').insert(
-        nightGamesData.map(g => ({
-          game_night_id: newNight.id,
-          game_id: g.game_id,
-          game_order: g.game_order,
-          is_tiebreaker: false,
-        }))
-      )
-    }
-
-    navigate(`/night/${newNight.id}`)
   }
 
   const sortedPlayers = [...players].sort((a, b) => (totals[b.id] || 0) - (totals[a.id] || 0))
@@ -143,7 +156,7 @@ export default function HistoryDetail() {
         <p className="text-xl font-display mt-1">{formatDate(date)}</p>
       </div>
 
-      {/* Final Standings — Report card style */}
+      {/* Final Standings -- Report card style */}
       <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
         <Card>
           {/* Report card header stripe */}
@@ -184,24 +197,29 @@ export default function HistoryDetail() {
 
       {/* Actions */}
       <div className="flex gap-2 animate-slide-up" style={{ animationDelay: '160ms' }}>
-        <Button onClick={quickRematch} variant="secondary" className="flex-1 flex items-center justify-center gap-2">
+        <Button onClick={handleQuickRematch} variant="secondary" disabled={actionLoading} className="flex-1 flex items-center justify-center gap-2">
           <RotateCcw className="w-4 h-4" /> Rematch
         </Button>
-        <Button onClick={editNight} variant="ghost" className="flex items-center justify-center gap-2">
+        <Button onClick={handleEditNight} variant="ghost" disabled={actionLoading} className="flex items-center justify-center gap-2" aria-label="Edit game night">
           <Pencil className="w-4 h-4" />
         </Button>
-        {!showConfirmDelete ? (
-          <Button onClick={() => setShowConfirmDelete(true)} variant="ghost" className="flex items-center gap-2 text-red-400">
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        ) : (
-          <Button onClick={deleteNight} variant="danger" className="flex items-center gap-2">
-            Confirm Delete
-          </Button>
-        )}
+        <Button onClick={() => setShowConfirmDelete(true)} variant="ghost" disabled={actionLoading} className="flex items-center gap-2 text-red-400" aria-label="Delete game night">
+          <Trash2 className="w-4 h-4" />
+        </Button>
       </div>
 
-      {/* Game Cards — Numbered gradient headers */}
+      {/* Confirm delete modal */}
+      {showConfirmDelete && (
+        <ConfirmDialog
+          title="Delete Game Night"
+          message={`Are you sure you want to delete Night #${nightNumber}? This action cannot be undone.`}
+          confirmLabel="Delete"
+          onConfirm={handleDeleteNight}
+          onCancel={() => setShowConfirmDelete(false)}
+        />
+      )}
+
+      {/* Game Cards -- Numbered gradient headers */}
       {games.map((game, idx) => (
         <div key={idx} className="animate-slide-up" style={{ animationDelay: `${220 + idx * 60}ms` }}>
           <Card>
