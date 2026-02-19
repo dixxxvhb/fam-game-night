@@ -1,12 +1,24 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Gamepad2, Users, Type } from 'lucide-react'
+import { Plus, Trash2, Gamepad2, Users, Type, ChevronDown, ChevronUp } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
 import { ConfirmDialog } from '../components/common/ConfirmDialog'
 import { useToast } from '../components/common/Toast'
 import { supabase } from '../lib/supabase'
+import { AVAILABLE_ICONS, getIconKey, setPlayerIconOverrides } from '../components/common/PlayerIcon'
 import type { Game, Player } from '../types'
+
+const PRESET_COLORS = [
+  '#3b82f6', // blue
+  '#22c55e', // green
+  '#a855f7', // purple
+  '#f97316', // orange
+  '#ef4444', // red
+  '#eab308', // yellow
+  '#ec4899', // pink
+  '#14b8a6', // teal
+]
 
 export default function Settings() {
   const [games, setGames] = useState<Game[]>([])
@@ -19,6 +31,8 @@ export default function Settings() {
   const [deletingGameId, setDeletingGameId] = useState<string | null>(null)
   const [addingPlayer, setAddingPlayer] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Game | null>(null)
+  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null)
+  const [playerIcons, setPlayerIcons] = useState<Record<string, string>>({})
   const { toast } = useToast()
 
   useEffect(() => {
@@ -26,15 +40,23 @@ export default function Settings() {
   }, [])
 
   async function loadSettings() {
-    const [{ data: gamesData }, { data: playersData }, { data: settings }] = await Promise.all([
+    const [{ data: gamesData }, { data: playersData }, { data: settings }, { data: iconSettings }] = await Promise.all([
       supabase.from('games').select('*').order('name'),
       supabase.from('players').select('*').order('is_core', { ascending: false }),
       supabase.from('app_settings').select('*').eq('key', 'app_name').single(),
+      supabase.from('app_settings').select('value').eq('key', 'player_icons').single(),
     ])
 
     if (gamesData) setGames(gamesData)
     if (playersData) setPlayers(playersData)
     if (settings) setAppName(settings.value)
+    if (iconSettings?.value) {
+      try {
+        const icons = JSON.parse(iconSettings.value)
+        setPlayerIcons(icons)
+        setPlayerIconOverrides(icons)
+      } catch { /* keep defaults */ }
+    }
   }
 
   async function addGame() {
@@ -103,6 +125,23 @@ export default function Settings() {
     }
   }
 
+  async function updatePlayerColor(player: Player, color: string) {
+    setPlayers(prev => prev.map(p => p.id === player.id ? { ...p, color } : p))
+    await supabase.from('players').update({ color }).eq('id', player.id)
+    toast('Color updated', 'success')
+  }
+
+  async function updatePlayerIcon(player: Player, iconKey: string) {
+    const updated = { ...playerIcons, [player.name]: iconKey }
+    setPlayerIcons(updated)
+    setPlayerIconOverrides(updated)
+    await supabase.from('app_settings').upsert({
+      key: 'player_icons',
+      value: JSON.stringify(updated),
+    }, { onConflict: 'key' })
+    toast('Icon updated', 'success')
+  }
+
   async function proposeNameChange() {
     const name = proposedName.trim()
     if (!name) return
@@ -115,6 +154,8 @@ export default function Settings() {
 
     setProposedName('')
   }
+
+  const iconKeys = Object.keys(AVAILABLE_ICONS)
 
   return (
     <div className="p-4 space-y-6">
@@ -163,16 +204,82 @@ export default function Settings() {
           <h2 className="text-sm font-display text-midnight-300 uppercase tracking-wider">Players</h2>
         </div>
         <Card>
-          <div className="space-y-2.5 mb-4">
-            {players.map(player => (
-              <div key={player.id} className="flex items-center gap-2.5 py-1">
-                <PlayerAvatar name={player.name} color={player.color} size="sm" />
-                <span className="text-sm flex-1 font-bold">{player.display_name}</span>
-                {player.is_core && (
-                  <span className="text-xs text-gold-400 font-display bg-gold-400/10 px-2 py-0.5 rounded-lg">Core</span>
-                )}
-              </div>
-            ))}
+          <div className="space-y-1 mb-4">
+            {players.map(player => {
+              const isExpanded = expandedPlayerId === player.id
+              const currentIconKey = playerIcons[player.name] ?? getIconKey(player.name)
+
+              return (
+                <div key={player.id}>
+                  {/* Player row */}
+                  <button
+                    onClick={() => setExpandedPlayerId(isExpanded ? null : player.id)}
+                    className="w-full flex items-center gap-2.5 py-2 px-1 rounded-xl hover:bg-midnight-700/30 transition-all"
+                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${player.display_name} settings`}
+                  >
+                    <PlayerAvatar name={player.name} color={player.color} size="sm" />
+                    <span className="text-sm flex-1 text-left font-bold">{player.display_name}</span>
+                    {player.is_core && (
+                      <span className="text-xs text-gold-400 font-display bg-gold-400/10 px-2 py-0.5 rounded-lg">Core</span>
+                    )}
+                    {isExpanded
+                      ? <ChevronUp className="w-4 h-4 text-midnight-400" />
+                      : <ChevronDown className="w-4 h-4 text-midnight-500" />
+                    }
+                  </button>
+
+                  {/* Expanded picker */}
+                  {isExpanded && (
+                    <div className="ml-11 mb-3 space-y-3">
+                      {/* Color picker */}
+                      <div>
+                        <p className="text-xs text-midnight-400 font-bold mb-2">Color</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {PRESET_COLORS.map(color => (
+                            <button
+                              key={color}
+                              onClick={() => updatePlayerColor(player, color)}
+                              aria-label={`Set color to ${color}`}
+                              className="w-8 h-8 rounded-xl transition-all active:scale-90"
+                              style={{
+                                backgroundColor: color,
+                                outline: player.color === color ? `3px solid white` : '3px solid transparent',
+                                outlineOffset: '1px',
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Icon picker */}
+                      <div>
+                        <p className="text-xs text-midnight-400 font-bold mb-2">Icon</p>
+                        <div className="flex gap-2 flex-wrap">
+                          {iconKeys.map(key => {
+                            const Icon = AVAILABLE_ICONS[key]
+                            const isSelected = currentIconKey === key
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => updatePlayerIcon(player, key)}
+                                aria-label={`Set icon to ${key}`}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 ${
+                                  isSelected
+                                    ? 'bg-midnight-600 border-2 border-white/40'
+                                    : 'bg-midnight-800 border-2 border-midnight-600/30 opacity-50 hover:opacity-80'
+                                }`}
+                              >
+                                <Icon className="w-5 h-5 text-white" />
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
           <div className="flex gap-2">
             <input

@@ -10,6 +10,7 @@ import { useToast } from '../components/common/Toast'
 import { supabase } from '../lib/supabase'
 import { quickRematch } from '../lib/quickRematch'
 import { formatDate } from '../lib/constants'
+import { scorePredictions } from '../lib/points'
 import type { Player, Placement } from '../types'
 
 const MAJORITY_THRESHOLD = 3
@@ -46,6 +47,7 @@ export default function NightSummary() {
   const [showConfetti, setShowConfetti] = useState(false)
   const [revealStage, setRevealStage] = useState(0) // 0=hidden, 1=title, 2=crown, 3=name, 4=points
   const [loading, setLoading] = useState(false)
+  const [predictions, setPredictions] = useState<Record<string, string[]>>({})
 
   const prevStatus = useRef(status)
   const hasRevealed = useRef(false)
@@ -53,12 +55,13 @@ export default function NightSummary() {
   const loadSummary = useCallback(async () => {
     if (!id) return
 
-    const [{ data: night }, { data: nightPlayers }, { data: nightGames }, { data: core }, { data: approvalData }] = await Promise.all([
+    const [{ data: night }, { data: nightPlayers }, { data: nightGames }, { data: core }, { data: approvalData }, { data: predData }] = await Promise.all([
       supabase.from('game_nights').select('*').eq('id', id).single(),
       supabase.from('game_night_players').select('player_id, players(*)').eq('game_night_id', id),
       supabase.from('game_night_games').select('*, placements(player_id, points)').eq('game_night_id', id),
       supabase.from('players').select('*').eq('is_core', true),
-      supabase.from('app_settings').select('value').eq('key', `approvals_${id}`).single(),
+      supabase.from('app_settings').select('key').like('key', `approval_${id}_%`),
+      supabase.from('app_settings').select('value').eq('key', `predictions_${id}`).single(),
     ])
 
     if (night) {
@@ -81,9 +84,16 @@ export default function NightSummary() {
     }
     setTotals(t)
 
-    if (approvalData?.value) {
-      try { setApprovals(JSON.parse(approvalData.value)) } catch { setApprovals([]) }
+    if (predData?.value) {
+      try { setPredictions(JSON.parse(predData.value)) } catch { setPredictions({}) }
     }
+
+    // Each approved player has their own row: key = approval_${id}_${playerName}
+    const prefix = `approval_${id}_`
+    const approvedNames = (approvalData as { key: string }[] | null)
+      ?.map(row => row.key.slice(prefix.length))
+      .filter(Boolean) || []
+    setApprovals(approvedNames)
   }, [id])
 
   useEffect(() => {
@@ -120,6 +130,15 @@ export default function NightSummary() {
     const timer = setTimeout(() => setShowConfetti(false), 5000)
     return () => clearTimeout(timer)
   }, [showConfetti])
+
+  // Re-fetch when app comes back to foreground (iOS PWA drops WS connections)
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState === 'visible') loadSummary()
+    }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [loadSummary])
 
   // Realtime subscription for approvals and night status changes
   useEffect(() => {
@@ -161,20 +180,21 @@ export default function NightSummary() {
   async function approve(playerName: string) {
     if (!id || approvals.includes(playerName)) return
 
-    const updated = [...approvals, playerName]
-    setApprovals(updated)
+    setApprovals(prev => [...prev, playerName])
     setShowApproveAs(false)
 
+    // Each player writes only their own row — no read-modify-write, no concurrent conflicts
     await supabase.from('app_settings').upsert({
-      key: `approvals_${id}`,
-      value: JSON.stringify(updated),
+      key: `approval_${id}_${playerName}`,
+      value: 'true',
     }, { onConflict: 'key' })
 
     toast(`${playerName} approved`, 'success')
 
     // Majority override: 3 of 4 core players = auto-complete
     const coreNames = corePlayers.map(p => p.name)
-    const approvedCount = coreNames.filter(name => updated.includes(name)).length
+    const updatedApprovals = [...approvals, playerName]
+    const approvedCount = coreNames.filter(name => updatedApprovals.includes(name)).length
 
     if (approvedCount >= MAJORITY_THRESHOLD) {
       await completeNight()
@@ -186,7 +206,7 @@ export default function NightSummary() {
     setLoading(true)
     try {
       await supabase.from('game_nights').update({ status: 'active' }).eq('id', id)
-      await supabase.from('app_settings').delete().eq('key', `approvals_${id}`)
+      await supabase.from('app_settings').delete().like('key', `approval_${id}_%`)
       toast('Night reopened', 'warning')
       navigate(`/night/${id}`)
     } catch {
@@ -378,6 +398,57 @@ export default function NightSummary() {
             </p>
           </div>
         </Card>
+      )}
+
+      {/* Prediction Results */}
+      {Object.keys(predictions).length > 0 && (
+        <div className="animate-slide-up" style={{ animationDelay: '1600ms' }}>
+          <Card>
+            <div className="flex items-center gap-2 mb-3">
+              <p className="text-xs font-display text-nin-blue uppercase tracking-wider">Prediction Results</p>
+            </div>
+            {(() => {
+              const actualOrder = sorted.map(p => p.name)
+              const scored = Object.entries(predictions).map(([playerName, predicted]) => ({
+                playerName,
+                ...scorePredictions(predicted, actualOrder),
+              })).sort((a, b) => b.score - a.score)
+
+              const topScore = scored[0]?.score ?? 0
+
+              return (
+                <div className="space-y-2.5">
+                  {scored.map(({ playerName, score, exactMatches, offByOne, perfectBonus }) => {
+                    const player = players.find(p => p.name === playerName)
+                    if (!player) return null
+                    const isTopPredictor = score === topScore && score > 0
+
+                    return (
+                      <div key={playerName} className={`flex items-center gap-3 py-1 px-2 rounded-xl ${isTopPredictor ? 'bg-nin-blue/10' : ''}`}>
+                        <PlayerAvatar name={player.name} color={player.color} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold">{player.display_name}</span>
+                            {isTopPredictor && (
+                              <span className="text-[10px] font-display text-nin-blue bg-nin-blue/20 px-1.5 py-0.5 rounded-md">Best Predictor</span>
+                            )}
+                            {perfectBonus && (
+                              <span className="text-[10px] font-display text-gold-400 bg-gold-400/10 px-1.5 py-0.5 rounded-md">Perfect!</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-midnight-400 font-semibold">
+                            {exactMatches} exact · {offByOne} close{perfectBonus ? ' · +5 bonus' : ''}
+                          </p>
+                        </div>
+                        <span className="text-lg font-display text-nin-blue">+{score}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+          </Card>
+        </div>
       )}
 
       {/* Actions */}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, Shuffle, X, Trophy, Flame, Undo2 } from 'lucide-react'
+import { Plus, Shuffle, X, Trophy, Flame, Undo2, Lock, ChevronRight } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
@@ -40,6 +40,11 @@ export default function LiveNight() {
   const [isEnding, setIsEnding] = useState(false)
   const [confirmRemoveGameId, setConfirmRemoveGameId] = useState<string | null>(null)
   const [showEndConfirm, setShowEndConfirm] = useState(false)
+  // Predictions
+  const [predictionPhase, setPredictionPhase] = useState<'predictions' | 'playing'>('predictions')
+  const [allPredictions, setAllPredictions] = useState<Record<string, string[]>>({}) // playerName → predicted order (names)
+  const [activePredictingPlayer, setActivePredictingPlayer] = useState<Player | null>(null)
+  const [draftOrder, setDraftOrder] = useState<string[]>([]) // names in predicted order being built
 
   const loadNight = useCallback(async () => {
     if (!id) return
@@ -50,6 +55,7 @@ export default function LiveNight() {
       { data: games, error: gamesError },
       { data: nightGamesData, error: nightGamesError },
       { data: scalesData, error: scalesError },
+      { data: predictionsData },
     ] = await Promise.all([
       supabase.from('game_nights').select('*').eq('id', id).single(),
       supabase.from('game_night_players').select('player_id, players(*)').eq('game_night_id', id),
@@ -60,6 +66,7 @@ export default function LiveNight() {
         .eq('game_night_id', id)
         .order('game_order'),
       supabase.from('point_scales').select('*'),
+      supabase.from('app_settings').select('value').eq('key', `predictions_${id}`).single(),
     ])
 
     if (nightError || playersError || gamesError || nightGamesError || scalesError) {
@@ -90,6 +97,15 @@ export default function LiveNight() {
       )
     }
     if (scalesData) setScales(scalesData)
+
+    // Load existing predictions and determine phase
+    if (predictionsData?.value) {
+      try {
+        const parsed = JSON.parse(predictionsData.value) as Record<string, string[]>
+        setAllPredictions(parsed)
+        setPredictionPhase('playing')
+      } catch { /* no predictions yet */ }
+    }
   }, [id, toast])
 
   useEffect(() => {
@@ -122,6 +138,16 @@ export default function LiveNight() {
     return () => document.removeEventListener('visibilitychange', handler)
   }, [loadNight])
 
+  // Subscribe to prediction updates so all devices see who has predicted
+  useEffect(() => {
+    if (!id) return
+    const channel = supabase
+      .channel(`predictions-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings', filter: `key=eq.predictions_${id}` }, () => loadNight())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [id, loadNight])
+
   const totals: Record<string, number> = {}
   for (const game of nightGames) {
     for (const p of game.placements) {
@@ -129,10 +155,46 @@ export default function LiveNight() {
     }
   }
 
+  const completedGames = nightGames.filter(ng => ng.placements.length > 0)
+  const scoresHidden = completedGames.length < 5
   const sortedPlayers = [...players].sort((a, b) => (totals[b.id] || 0) - (totals[a.id] || 0))
+  const lastPlacePlayer = scoresHidden ? null : sortedPlayers[sortedPlayers.length - 1] ?? null
+  const showGame6Banner = completedGames.length === 5
 
   // On-fire detection
   const onFirePlayers = getOnFirePlayers(nightGames)
+
+  function startPredicting(player: Player) {
+    setActivePredictingPlayer(player)
+    setDraftOrder([])
+  }
+
+  function toggleDraftPick(playerName: string) {
+    setDraftOrder(prev => {
+      if (prev.includes(playerName)) return prev.filter(n => n !== playerName)
+      return [...prev, playerName]
+    })
+  }
+
+  async function lockInPrediction() {
+    if (!id || !activePredictingPlayer || draftOrder.length !== players.length) return
+
+    const updated = { ...allPredictions, [activePredictingPlayer.name]: draftOrder }
+    setAllPredictions(updated)
+    setActivePredictingPlayer(null)
+    setDraftOrder([])
+
+    await supabase.from('app_settings').upsert({
+      key: `predictions_${id}`,
+      value: JSON.stringify(updated),
+    }, { onConflict: 'key' })
+
+    toast(`${activePredictingPlayer.display_name} locked in`, 'success')
+  }
+
+  function skipPredictions() {
+    setPredictionPhase('playing')
+  }
 
   async function addGame(game: Game) {
     if (!id) return
@@ -289,15 +351,6 @@ export default function LiveNight() {
         return
       }
 
-      const { error: settingsError } = await supabase.from('app_settings').upsert({
-        key: `approvals_${id}`,
-        value: JSON.stringify([]),
-      }, { onConflict: 'key' })
-
-      if (settingsError) {
-        toast('Night ended but approval tracking failed', 'warning')
-      }
-
       navigate(`/night/${id}/summary`)
     } finally {
       setIsEnding(false)
@@ -308,19 +361,125 @@ export default function LiveNight() {
     ? nightGames.find(ng => ng.id === confirmRemoveGameId)
     : null
 
+  const corePlayers = players.filter(p => p.is_core)
+  const predictedNames = Object.keys(allPredictions)
+  const waitingOn = corePlayers.filter(p => !predictedNames.includes(p.name))
+
   return (
     <div className="p-4 space-y-4">
+      {/* Predictions Phase */}
+      {predictionPhase === 'predictions' && (
+        <Card variant="highlight">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-nin-blue animate-pulse-dot" />
+            <p className="text-xs font-display text-nin-blue uppercase tracking-wider">Predictions</p>
+          </div>
+
+          {activePredictingPlayer ? (
+            /* Draft order picker for one player */
+            <div>
+              <p className="text-sm font-bold mb-1">
+                <span style={{ color: activePredictingPlayer.color }}>{activePredictingPlayer.display_name}</span>
+                {' — '}pick your predicted order
+              </p>
+              <p className="text-xs text-midnight-400 mb-3 font-semibold">Tap players in order: 1st place first, last place last</p>
+
+              <div className="space-y-2 mb-4">
+                {players.map(player => {
+                  const rank = draftOrder.indexOf(player.name)
+                  const isPicked = rank !== -1
+                  return (
+                    <button
+                      key={player.id}
+                      onClick={() => toggleDraftPick(player.name)}
+                      disabled={player.id === activePredictingPlayer.id}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all active:scale-95 ${
+                        player.id === activePredictingPlayer.id
+                          ? 'opacity-30 cursor-default bg-midnight-800/40'
+                          : isPicked
+                          ? 'bg-midnight-600/60 border border-midnight-500/40'
+                          : 'bg-midnight-800/40 border border-midnight-700/30 hover:bg-midnight-700/40'
+                      }`}
+                    >
+                      <PlayerAvatar name={player.name} color={player.color} size="sm" />
+                      <span className="text-sm font-bold flex-1 text-left">{player.display_name}</span>
+                      {player.id === activePredictingPlayer.id && (
+                        <span className="text-xs text-midnight-500 font-bold">You</span>
+                      )}
+                      {isPicked && (
+                        <span className="text-sm font-display text-gold-400 w-6 text-center">{rank + 1}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={lockInPrediction}
+                  disabled={draftOrder.length !== players.length}
+                  className="flex-1 flex items-center justify-center gap-2"
+                >
+                  <Lock className="w-4 h-4" /> Lock In
+                </Button>
+                <Button onClick={() => setActivePredictingPlayer(null)} variant="ghost" className="flex-1">
+                  Back
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* Show who still needs to predict */
+            <div>
+              <div className="space-y-2 mb-4">
+                {corePlayers.map(player => {
+                  const hasPredicted = predictedNames.includes(player.name)
+                  return (
+                    <div key={player.id} className="flex items-center gap-3">
+                      <PlayerAvatar name={player.name} color={player.color} size="sm" />
+                      <span className="text-sm flex-1 font-bold">{player.display_name}</span>
+                      {hasPredicted ? (
+                        <span className="text-xs font-extrabold text-nin-green">Locked In</span>
+                      ) : (
+                        <button
+                          onClick={() => startPredicting(player)}
+                          className="flex items-center gap-1 text-xs font-bold text-midnight-300 hover:text-white transition-colors"
+                        >
+                          Predict <ChevronRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {waitingOn.length === 0 ? (
+                <Button onClick={() => setPredictionPhase('playing')} className="w-full flex items-center justify-center gap-2">
+                  <Trophy className="w-4 h-4" /> Start Playing
+                </Button>
+              ) : (
+                <button
+                  onClick={skipPredictions}
+                  className="w-full text-sm text-midnight-500 hover:text-midnight-300 font-bold py-2 transition-colors"
+                >
+                  Skip Predictions
+                </button>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Running Totals Scoreboard */}
       <Card variant="active">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-2 h-2 rounded-full bg-nin-red animate-pulse-dot" />
           <p className="text-xs font-display text-nin-red uppercase tracking-wider">
-            Night #{nightNumber} — Live Scores
+            Night #{nightNumber} — {scoresHidden ? `Scores hidden until game 5 (${completedGames.length}/5)` : 'Live Scores'}
           </p>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
           {sortedPlayers.map((player, idx) => {
-            const isLeader = idx === 0 && Object.keys(totals).length > 0
+            const isLeader = !scoresHidden && idx === 0 && Object.keys(totals).length > 0
             const isOnFire = onFirePlayers.has(player.id)
 
             return (
@@ -337,8 +496,8 @@ export default function LiveNight() {
                   )}
                 </div>
                 <span className="text-[11px] mt-1.5 text-midnight-300 truncate max-w-[72px] font-bold">{player.display_name}</span>
-                <span className={`text-2xl font-display ${isLeader ? 'text-gold-400' : 'text-white'}`}>
-                  {totals[player.id] || 0}
+                <span className={`text-2xl font-display ${isLeader ? 'text-gold-400' : scoresHidden ? 'text-midnight-500' : 'text-white'}`}>
+                  {scoresHidden ? '?' : (totals[player.id] || 0)}
                 </span>
                 {isOnFire && (
                   <span className="text-[9px] text-nin-orange font-display mt-0.5">ON FIRE</span>
@@ -348,6 +507,22 @@ export default function LiveNight() {
           })}
         </div>
       </Card>
+
+      {/* Game 6 pick banner — shown after game 5 results are entered */}
+      {showGame6Banner && lastPlacePlayer && (
+        <Card>
+          <div className="flex items-center gap-3">
+            <PlayerAvatar name={lastPlacePlayer.name} color={lastPlacePlayer.color} size="sm" />
+            <div>
+              <p className="text-xs font-display text-gold-400 uppercase tracking-wider">Scores Revealed</p>
+              <p className="text-sm font-bold">
+                <span style={{ color: lastPlacePlayer.color }}>{lastPlacePlayer.display_name}</span>
+                {' '}picks Game 6
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Game Cards with Numbered Headers */}
       {nightGames.map((ng, gameIdx) => (

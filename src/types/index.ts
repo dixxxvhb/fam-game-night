@@ -66,6 +66,11 @@ export interface GameNightWithDetails extends GameNight {
   winner?: Player
 }
 
+export interface PredictionEntry {
+  playerName: string
+  predictedOrder: string[] // player names, 1st → last
+}
+
 export interface LeaderboardEntry {
   player: Player
   totalWins: number

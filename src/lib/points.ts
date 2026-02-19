@@ -68,3 +68,37 @@ export function getNightTiedLeaders(totals: Record<string, number>): string[] {
 
   return leaders.length > 1 ? leaders.map(([id]) => id) : []
 }
+
+/**
+ * Score a single player's prediction against the actual final order.
+ * Both arrays contain player names ordered 1st → last.
+ * Points: exact position match = 3pts, off by 1 = 1pt
+ * Bonus: perfect full order = +5pts
+ */
+export function scorePredictions(
+  predicted: string[],
+  actual: string[]
+): { score: number; exactMatches: number; offByOne: number; perfectBonus: boolean } {
+  let score = 0
+  let exactMatches = 0
+  let offByOne = 0
+
+  for (let i = 0; i < actual.length; i++) {
+    const predictedIdx = predicted.indexOf(actual[i])
+    if (predictedIdx === -1) continue
+
+    const diff = Math.abs(predictedIdx - i)
+    if (diff === 0) {
+      score += 3
+      exactMatches++
+    } else if (diff === 1) {
+      score += 1
+      offByOne++
+    }
+  }
+
+  const perfectBonus = exactMatches === actual.length && actual.length > 0
+  if (perfectBonus) score += 5
+
+  return { score, exactMatches, offByOne, perfectBonus }
+}
