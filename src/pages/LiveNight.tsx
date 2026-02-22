@@ -392,11 +392,8 @@ export default function LiveNight() {
                     <button
                       key={player.id}
                       onClick={() => toggleDraftPick(player.name)}
-                      disabled={player.id === activePredictingPlayer.id}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all active:scale-95 ${
-                        player.id === activePredictingPlayer.id
-                          ? 'opacity-30 cursor-default bg-midnight-800/40'
-                          : isPicked
+                        isPicked
                           ? 'bg-midnight-600/60 border border-midnight-500/40'
                           : 'bg-midnight-800/40 border border-midnight-700/30 hover:bg-midnight-700/40'
                       }`}
