@@ -258,6 +258,21 @@ export default function Home() {
         </div>
       )}
 
+      {/* Fortnite Quick Play */}
+      <div className="animate-slide-up" style={{ animationDelay: '120ms' }}>
+        <Card onClick={() => navigate('/fortnite')}>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-nin-purple/20 flex items-center justify-center shrink-0">
+              <Gamepad2 className="w-6 h-6 text-nin-purple" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-display text-base text-white">Fortnite Challenges</h3>
+              <p className="text-sm text-midnight-400 font-semibold mt-0.5">Play anytime — no game night needed</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
       {/* All-Time Leader Widget */}
       {allTime.length > 0 && (
         <div className="animate-slide-up" style={{ animationDelay: '160ms' }}>

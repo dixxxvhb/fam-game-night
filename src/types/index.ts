@@ -144,7 +144,7 @@ export interface FortnitePlayerScore {
 
 export interface FortniteResult {
   id: string
-  game_night_id: string
+  game_night_id: string | null
   challenge_id: string
   format: FortniteFormat
   team_bonus_awarded: boolean

@@ -28,17 +28,11 @@ export default function ScoreChallenge() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: resultData }, { data: nightPlayers }] = await Promise.all([
-        supabase
-          .from('fortnite_results')
-          .select('*, fortnite_challenges(*)')
-          .eq('id', resultId!)
-          .single(),
-        supabase
-          .from('game_night_players')
-          .select('player_id, players(*)')
-          .eq('game_night_id', id!),
-      ])
+      const { data: resultData } = await supabase
+        .from('fortnite_results')
+        .select('*, fortnite_challenges(*)')
+        .eq('id', resultId!)
+        .single()
 
       if (resultData) {
         const mapped: FortniteResult = {
@@ -48,7 +42,6 @@ export default function ScoreChallenge() {
         setResult(mapped)
         setChallenge(resultData.fortnite_challenges)
 
-        // Initialize raw scores from existing player_scores
         const scores: Record<string, number> = {}
         for (const ps of mapped.player_scores) {
           scores[ps.player_id] = ps.raw_score
@@ -57,11 +50,24 @@ export default function ScoreChallenge() {
         setTeamBonusAwarded(mapped.team_bonus_awarded)
       }
 
-      if (nightPlayers) {
-        const mapped = (nightPlayers as unknown as { player_id: string; players: Player }[])
-          .map(np => np.players)
-          .filter((p): p is Player => p !== null)
-        setPlayers(mapped)
+      // Load players: from night if in game night, or all core players if standalone
+      if (id) {
+        const { data: nightPlayers } = await supabase
+          .from('game_night_players')
+          .select('player_id, players(*)')
+          .eq('game_night_id', id)
+        if (nightPlayers) {
+          const mapped = (nightPlayers as unknown as { player_id: string; players: Player }[])
+            .map(np => np.players)
+            .filter((p): p is Player => p !== null)
+          setPlayers(mapped)
+        }
+      } else {
+        const { data: allPlayers } = await supabase
+          .from('players')
+          .select('*')
+          .eq('is_core', true)
+        setPlayers(allPlayers ?? [])
       }
 
       setLoading(false)
@@ -112,7 +118,7 @@ export default function ScoreChallenge() {
   }, [rawScores, teamBonusAwarded, challenge])
 
   async function submitScores() {
-    if (!result || !challenge || !id || submitting) return
+    if (!result || !challenge || submitting) return
     setSubmitting(true)
 
     const scores = Object.entries(rawScores).map(([player_id, raw_score]) => ({
@@ -157,11 +163,13 @@ export default function ScoreChallenge() {
       .update({ last_played_at: new Date().toISOString() })
       .eq('id', challenge.id)
 
-    // Sync shadow placements
-    await syncFortniteToNight(id)
+    // Sync shadow placements (only during game nights)
+    if (id) {
+      await syncFortniteToNight(id)
+    }
 
     toast('Scores submitted!', 'success')
-    navigate(`/night/${id}/fortnite`)
+    navigate(id ? `/night/${id}/fortnite` : '/fortnite')
   }
 
   if (loading || !challenge) {
@@ -179,7 +187,7 @@ export default function ScoreChallenge() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate(`/night/${id}/fortnite`)}
+          onClick={() => navigate(id ? `/night/${id}/fortnite` : '/fortnite')}
           className="p-2 rounded-xl hover:bg-midnight-800 transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-midnight-300" />

@@ -39,6 +39,9 @@ export default function App() {
             <Route path="/night/:id/fortnite/generate/:format" element={<GenerateChallenge />} />
             <Route path="/night/:id/fortnite/score/:resultId" element={<ScoreChallenge />} />
             <Route path="/night/:id/fortnite/history" element={<FortniteHistory />} />
+            <Route path="/fortnite" element={<FortniteHub />} />
+            <Route path="/fortnite/generate/:format" element={<GenerateChallenge />} />
+            <Route path="/fortnite/score/:resultId" element={<ScoreChallenge />} />
             <Route path="/fortnite/history" element={<FortniteHistory />} />
             <Route path="/fortnite/challenges" element={<ChallengePool />} />
             <Route path="*" element={<NotFound />} />

@@ -32,20 +32,31 @@ export default function GenerateChallenge() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: challengeData }, { data: nightPlayers }] = await Promise.all([
+      const [{ data: challengeData }] = await Promise.all([
         supabase.from('fortnite_challenges').select('*'),
-        supabase
-          .from('game_night_players')
-          .select('player_id, players(*)')
-          .eq('game_night_id', id!),
       ])
       setChallenges(challengeData ?? [])
-      if (nightPlayers) {
-        const mapped = (nightPlayers as unknown as { player_id: string; players: Player }[])
-          .map(np => np.players)
-          .filter((p): p is Player => p !== null)
-        setPlayers(mapped)
+
+      // Load players: from night if in game night, or all core players if standalone
+      if (id) {
+        const { data: nightPlayers } = await supabase
+          .from('game_night_players')
+          .select('player_id, players(*)')
+          .eq('game_night_id', id)
+        if (nightPlayers) {
+          const mapped = (nightPlayers as unknown as { player_id: string; players: Player }[])
+            .map(np => np.players)
+            .filter((p): p is Player => p !== null)
+          setPlayers(mapped)
+        }
+      } else {
+        const { data: allPlayers } = await supabase
+          .from('players')
+          .select('*')
+          .eq('is_core', true)
+        setPlayers(allPlayers ?? [])
       }
+
       setLoading(false)
     }
     load()
@@ -65,7 +76,7 @@ export default function GenerateChallenge() {
   }
 
   async function startChallenge() {
-    if (!selected || !id || starting) return
+    if (!selected || starting) return
     setStarting(true)
 
     const playerScores: FortnitePlayerScore[] = players.map((p) => ({
@@ -80,7 +91,7 @@ export default function GenerateChallenge() {
     const { data: result, error } = await supabase
       .from('fortnite_results')
       .insert({
-        game_night_id: id,
+        game_night_id: id ?? null,
         challenge_id: selected.id,
         format: validFormat,
         team_bonus_awarded: false,
@@ -94,7 +105,7 @@ export default function GenerateChallenge() {
       return
     }
 
-    navigate(`/night/${id}/fortnite/score/${result.id}`)
+    navigate(id ? `/night/${id}/fortnite/score/${result.id}` : `/fortnite/score/${result.id}`)
   }
 
   if (loading) {
@@ -110,7 +121,7 @@ export default function GenerateChallenge() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate(`/night/${id}/fortnite`)}
+          onClick={() => navigate(id ? `/night/${id}/fortnite` : '/fortnite')}
           className="p-2 rounded-xl hover:bg-midnight-800 transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-midnight-300" />

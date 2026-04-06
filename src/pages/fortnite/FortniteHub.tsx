@@ -37,20 +37,18 @@ export default function FortniteHub() {
 
     setChallenges(challengeData ?? [])
 
-    // Load results for this night
-    if (id) {
-      const { data: resultData } = await supabase
-        .from('fortnite_results')
-        .select('*, fortnite_challenges(*)')
-        .eq('game_night_id', id)
+    // Load results for this night (or all standalone results)
+    const resultQuery = id
+      ? supabase.from('fortnite_results').select('*, fortnite_challenges(*)').eq('game_night_id', id)
+      : supabase.from('fortnite_results').select('*, fortnite_challenges(*)').is('game_night_id', null)
 
-      setResults(
-        (resultData ?? []).map(r => ({
-          ...r,
-          challenge: r.fortnite_challenges,
-        }))
-      )
-    }
+    const { data: resultData } = await resultQuery
+    setResults(
+      (resultData ?? []).map(r => ({
+        ...r,
+        challenge: r.fortnite_challenges,
+      }))
+    )
 
     setLoading(false)
   }
@@ -72,7 +70,7 @@ export default function FortniteHub() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate(`/night/${id}`)}
+          onClick={() => navigate(id ? `/night/${id}` : '/')}
           className="p-2 rounded-xl hover:bg-midnight-800 transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-midnight-300" />
@@ -81,7 +79,7 @@ export default function FortniteHub() {
           <h1 className="text-xl font-display text-white">Fortnite</h1>
           {completedCount > 0 && (
             <p className="text-xs text-midnight-400 font-semibold">
-              {completedCount} challenge{completedCount !== 1 ? 's' : ''} played tonight
+              {completedCount} challenge{completedCount !== 1 ? 's' : ''} played {id ? 'tonight' : 'for fun'}
             </p>
           )}
         </div>
@@ -89,7 +87,7 @@ export default function FortniteHub() {
 
       {/* Solo Rotation Card */}
       <Card
-        onClick={() => navigate(`/night/${id}/fortnite/generate/solo`)}
+        onClick={() => navigate(id ? `/night/${id}/fortnite/generate/solo` : '/fortnite/generate/solo')}
         className="active:scale-[0.97]"
       >
         <div className="flex items-start gap-4">
@@ -110,7 +108,7 @@ export default function FortniteHub() {
 
       {/* Squad Up Card */}
       <Card
-        onClick={() => navigate(`/night/${id}/fortnite/generate/squad`)}
+        onClick={() => navigate(id ? `/night/${id}/fortnite/generate/squad` : '/fortnite/generate/squad')}
         className="active:scale-[0.97]"
       >
         <div className="flex items-start gap-4">
@@ -139,7 +137,7 @@ export default function FortniteHub() {
           <Settings className="w-4 h-4" /> Manage
         </Button>
         <Button
-          onClick={() => navigate(`/night/${id}/fortnite/history`)}
+          onClick={() => navigate(id ? `/night/${id}/fortnite/history` : '/fortnite/history')}
           variant="ghost"
           className="flex-1 flex items-center justify-center gap-2"
         >
