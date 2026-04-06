@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Plus, Shuffle, X, Trophy, Flame, Undo2, Lock, ChevronRight } from 'lucide-react'
+import { Plus, Shuffle, X, Trophy, Flame, Undo2, Lock, ChevronRight, Gamepad2 } from 'lucide-react'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
 import { PlayerAvatar } from '../components/common/PlayerAvatar'
@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase'
 import { getPointsForGame, getPointsForPlacement } from '../lib/points'
 import { getOnFirePlayers } from '../lib/stats'
 import { PLACEMENT_LABELS, PLACEMENT_COLORS } from '../lib/constants'
-import type { Player, Game, GameNightGame, Placement, PointScale } from '../types'
+import type { Player, Game, GameNightGame, Placement, PointScale, FortnitePlayerScore } from '../types'
 
 interface GameWithPlacements extends GameNightGame {
   game: Game
@@ -45,6 +45,9 @@ export default function LiveNight() {
   const [allPredictions, setAllPredictions] = useState<Record<string, string[]>>({}) // playerName → predicted order (names)
   const [activePredictingPlayer, setActivePredictingPlayer] = useState<Player | null>(null)
   const [draftOrder, setDraftOrder] = useState<string[]>([]) // names in predicted order being built
+  // Fortnite
+  const [fortniteCompletedCount, setFortniteCompletedCount] = useState(0)
+  const [fortniteTotals, setFortniteTotals] = useState<Record<string, number>>({})
 
   const loadNight = useCallback(async () => {
     if (!id) return
@@ -56,6 +59,7 @@ export default function LiveNight() {
       { data: nightGamesData, error: nightGamesError },
       { data: scalesData, error: scalesError },
       { data: predictionsData },
+      { data: fortniteData },
     ] = await Promise.all([
       supabase.from('game_nights').select('*').eq('id', id).single(),
       supabase.from('game_night_players').select('player_id, players(*)').eq('game_night_id', id),
@@ -67,6 +71,11 @@ export default function LiveNight() {
         .order('game_order'),
       supabase.from('point_scales').select('*'),
       supabase.from('app_settings').select('value').eq('key', `predictions_${id}`).single(),
+      supabase
+        .from('fortnite_results')
+        .select('player_scores, completed_at')
+        .eq('game_night_id', id)
+        .not('completed_at', 'is', null),
     ])
 
     if (nightError || playersError || gamesError || nightGamesError || scalesError) {
@@ -106,6 +115,20 @@ export default function LiveNight() {
         setPredictionPhase('playing')
       } catch { /* no predictions yet */ }
     }
+
+    // Fortnite results
+    if (fortniteData) {
+      const completed = fortniteData.filter((r: { completed_at: string | null }) => r.completed_at)
+      setFortniteCompletedCount(completed.length)
+      const totals: Record<string, number> = {}
+      for (const r of completed) {
+        const scores = r.player_scores as FortnitePlayerScore[]
+        for (const s of scores) {
+          totals[s.player_id] = (totals[s.player_id] || 0) + s.total_points
+        }
+      }
+      setFortniteTotals(totals)
+    }
   }, [id, toast])
 
   useEffect(() => {
@@ -144,6 +167,16 @@ export default function LiveNight() {
     const channel = supabase
       .channel(`predictions-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings', filter: `key=eq.predictions_${id}` }, () => loadNight())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [id, loadNight])
+
+  // Subscribe to Fortnite results
+  useEffect(() => {
+    if (!id) return
+    const channel = supabase
+      .channel(`fortnite-${id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'fortnite_results', filter: `game_night_id=eq.${id}` }, () => loadNight())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [id, loadNight])
@@ -521,8 +554,57 @@ export default function LiveNight() {
         </Card>
       )}
 
+      {/* Fortnite Card */}
+      <Card onClick={() => navigate(`/night/${id}/fortnite`)}>
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-nin-purple/20 flex items-center justify-center shrink-0">
+            <Gamepad2 className="w-6 h-6 text-nin-purple" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-display text-base text-white">Fortnite</h3>
+              {fortniteCompletedCount > 0 && (
+                <span className="text-xs font-bold text-nin-purple bg-nin-purple/15 px-2 py-0.5 rounded-lg">
+                  {fortniteCompletedCount} played
+                </span>
+              )}
+            </div>
+            {fortniteCompletedCount > 0 ? (
+              <div className="flex gap-3 mt-2">
+                {players.map(p => (
+                  <div key={p.id} className="flex items-center gap-1.5">
+                    <PlayerAvatar name={p.name} color={p.color} size="sm" />
+                    <span className="text-xs font-display text-midnight-300">{fortniteTotals[p.id] || 0}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-midnight-400 font-semibold mt-0.5">Tap to play challenges</p>
+            )}
+          </div>
+        </div>
+      </Card>
+
       {/* Game Cards with Numbered Headers */}
-      {nightGames.map((ng, gameIdx) => (
+      {nightGames.map((ng, gameIdx) => {
+        // Shadow Fortnite game — render differently
+        if (ng.game.name === 'Fortnite') {
+          return (
+            <div key={ng.id} className="animate-slide-up" style={{ animationDelay: `${gameIdx * 60}ms` }}>
+              <Card>
+                <div className="flex items-center gap-2 opacity-50">
+                  <span className="bg-nin-purple/20 text-nin-purple text-xs font-black px-2.5 py-1 rounded-lg">
+                    <Gamepad2 className="w-3.5 h-3.5 inline" />
+                  </span>
+                  <h3 className="font-display text-base text-midnight-400">Fortnite</h3>
+                  <span className="text-[10px] text-midnight-500 font-semibold ml-auto">Auto-scored from challenges</span>
+                </div>
+              </Card>
+            </div>
+          )
+        }
+
+        return (
         <div key={ng.id} className="animate-slide-up" style={{ animationDelay: `${gameIdx * 60}ms` }}>
           <Card>
             {/* Game header stripe */}
@@ -589,7 +671,8 @@ export default function LiveNight() {
             </div>
           </Card>
         </div>
-      ))}
+        )
+      })}
 
       {/* Add Game / Shuffle / Undo */}
       {showGamePicker ? (
