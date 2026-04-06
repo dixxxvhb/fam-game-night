@@ -13,6 +13,11 @@ const LiveNight = lazy(() => import('./pages/LiveNight'))
 const NightSummary = lazy(() => import('./pages/NightSummary'))
 const Randomizer = lazy(() => import('./pages/Randomizer'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const FortniteHub = lazy(() => import('./pages/fortnite/FortniteHub'))
+const GenerateChallenge = lazy(() => import('./pages/fortnite/GenerateChallenge'))
+const ScoreChallenge = lazy(() => import('./pages/fortnite/ScoreChallenge'))
+const ChallengePool = lazy(() => import('./pages/fortnite/ChallengePool'))
+const FortniteHistory = lazy(() => import('./pages/fortnite/FortniteHistory'))
 
 export default function App() {
   return (
@@ -30,6 +35,12 @@ export default function App() {
             <Route path="/night/:id/summary" element={<NightSummary />} />
             <Route path="/night/:id/randomizer" element={<Randomizer />} />
             <Route path="/randomizer" element={<Randomizer />} />
+            <Route path="/night/:id/fortnite" element={<FortniteHub />} />
+            <Route path="/night/:id/fortnite/generate/:format" element={<GenerateChallenge />} />
+            <Route path="/night/:id/fortnite/score/:resultId" element={<ScoreChallenge />} />
+            <Route path="/night/:id/fortnite/history" element={<FortniteHistory />} />
+            <Route path="/fortnite/history" element={<FortniteHistory />} />
+            <Route path="/fortnite/challenges" element={<ChallengePool />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
