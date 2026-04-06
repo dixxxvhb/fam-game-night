@@ -104,3 +104,52 @@ export interface RandomResult {
   result: string
   created_at: string
 }
+
+export type FortniteFormat = 'solo' | 'squad'
+
+export type FortniteCategory =
+  | 'kill' | 'location' | 'loot' | 'survival'
+  | 'stunt' | 'restriction' | 'teamwork'
+
+export type FortniteScoringMethod =
+  | 'raw_count' | 'ranked' | 'inverse_ranked'
+  | 'binary' | 'custom'
+
+export interface FortniteChallenge {
+  id: string
+  name: string
+  description: string
+  format: FortniteFormat
+  category: FortniteCategory
+  time_limit_minutes: number | null
+  win_condition: string
+  scoring_method: FortniteScoringMethod
+  multiplier: number | null
+  binary_points: number | null
+  team_bonus_points: number | null
+  team_bonus_condition: string | null
+  is_active: boolean
+  created_at: string
+  last_played_at: string | null
+}
+
+export interface FortnitePlayerScore {
+  player_id: string
+  raw_score: number
+  calculated_points: number
+  team_bonus_points: number
+  total_points: number
+  turn_order: number | null
+}
+
+export interface FortniteResult {
+  id: string
+  game_night_id: string
+  challenge_id: string
+  format: FortniteFormat
+  team_bonus_awarded: boolean
+  player_scores: FortnitePlayerScore[]
+  generated_at: string
+  completed_at: string | null
+  challenge?: FortniteChallenge
+}
