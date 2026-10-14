@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useReducer, useRef, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useReducer, useRef, type ReactNode } from 'react'
 import type { RoomLink, StreamMsg } from '../net/link'
 
 /**
@@ -20,7 +20,7 @@ export function GameEnvProvider({ link, me, children }: GameEnv & { children: Re
 export function useStream(kind: string, handler: (m: StreamMsg) => void) {
   const { link } = useContext(Ctx)
   const ref = useRef(handler)
-  ref.current = handler
+  useLayoutEffect(() => { ref.current = handler })
   useEffect(() => {
     if (!link) return
     return link.onStream(kind, (m) => ref.current(m))

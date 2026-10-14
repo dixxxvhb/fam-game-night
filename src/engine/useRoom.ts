@@ -13,6 +13,8 @@ export interface RoomHandle {
   link: RoomLink | null
   me: SavedMe | null
   clientId: string
+  /** Last time this device heard the host (ms). Hosts report Date.now(). */
+  heardAt: () => number
 }
 
 /** Holds the latest state a non-host device has heard. */
@@ -84,11 +86,13 @@ export function useRoom(
   const client = useMemo(() => new ClientStore(), [])
   const offset = useRef(0)
   const samples = useRef<number[]>([])
+  const heard = useRef(Date.now())
 
   useEffect(() => {
     if (!link || engine) return
     return link.onState((s) => {
       // The least-delayed sample is the best clock estimate.
+      heard.current = Date.now()
       samples.current = [...samples.current.slice(-7), s.hostNow - Date.now()]
       offset.current = Math.max(...samples.current)
       client.set(s)
@@ -138,5 +142,7 @@ export function useRoom(
     send('room', 'join', { id: me.id, name: me.name, color: me.color, guest: me.guest })
   }, [me, state, status, engine, send])
 
-  return { state, status, isHost, now, send, link, me, clientId }
+  const heardAt = useCallback(() => (engine ? Date.now() : heard.current), [engine])
+
+  return { state, status, isHost, now, send, link, me, clientId, heardAt }
 }

@@ -18,11 +18,11 @@ function DrawPad({ s, send }: { s: SketchState; send: ControllerProps<SketchStat
   const cur = useRef<LiveStroke | null>(null)
   const lastSent = useRef(0)
   const pad = useRef<HTMLDivElement>(null)
-  const pending = useRef<Stroke[]>([])
-
   // Strokes already sent but not yet echoed back in state stay visible meanwhile.
+  // n = the index the stroke will take; once the state has that many strokes it has arrived.
+  const [pending, setPending] = useState<(Stroke & { n: number })[]>([])
   const committed = s.strokes
-  pending.current = pending.current.filter((p) => !committed.some((c) => c.p.length === p.p.length && c.p[0] === p.p[0] && c.p[1] === p.p[1]))
+  const unechoed = pending.filter((p) => p.n >= committed.length)
 
   function point(e: PointerEvent): [number, number] {
     const r = pad.current!.getBoundingClientRect()
@@ -35,7 +35,7 @@ function DrawPad({ s, send }: { s: SketchState; send: ControllerProps<SketchStat
     e.preventDefault()
     pad.current?.setPointerCapture(e.pointerId)
     const [x, y] = point(e)
-    const st: LiveStroke = { n: committed.length + pending.current.length, c: erasing ? ERASER : color, w: erasing ? 44 : width, p: [x, y] }
+    const st: LiveStroke = { n: committed.length + unechoed.length, c: erasing ? ERASER : color, w: erasing ? 44 : width, p: [x, y] }
     cur.current = st
     setLive({ ...st })
   }
@@ -59,13 +59,13 @@ function DrawPad({ s, send }: { s: SketchState; send: ControllerProps<SketchStat
     if (!st) return
     cur.current = null
     const stroke: Stroke = { c: st.c, w: st.w, p: st.p }
-    pending.current.push(stroke)
+    setPending((list) => [...list.filter((p) => p.n >= committed.length), { ...stroke, n: st.n }])
     send('stroke', { s: stroke })
     sendStream('sketch:live', { ...st, p: [...st.p] })
     setLive(null)
   }
 
-  const shown = [...committed, ...pending.current]
+  const shown = [...committed, ...unechoed.map(({ c, w, p }) => ({ c, w, p }))]
   return (
     <div className="grid gap-3">
       <div
@@ -98,8 +98,8 @@ function DrawPad({ s, send }: { s: SketchState; send: ControllerProps<SketchStat
         ))}
         <Btn size="sm" variant={erasing ? 'primary' : 'secondary'} onClick={() => setErasing((v) => !v)} aria-label="Eraser"><Eraser size={18} /></Btn>
         <div className="flex-1" />
-        <Btn size="sm" onClick={() => send('undo')} aria-label="Undo"><Undo2 size={18} /></Btn>
-        <Btn size="sm" variant="danger" onClick={() => send('clear')} aria-label="Clear"><Trash2 size={18} /></Btn>
+        <Btn size="sm" onClick={() => { setPending([]); send('undo') }} aria-label="Undo"><Undo2 size={18} /></Btn>
+        <Btn size="sm" variant="danger" onClick={() => { setPending([]); send('clear') }} aria-label="Clear"><Trash2 size={18} /></Btn>
       </div>
     </div>
   )
@@ -203,7 +203,7 @@ export function SketchController({ state: s, room, me, now, send }: ControllerPr
               </div>
               <Btn size="sm" variant="ghost" onClick={() => send('pass')}>Give up</Btn>
             </div>
-            <DrawPad s={s} send={send} />
+            <DrawPad key={s.turn} s={s} send={send} />
             <div className="text-center text-sm text-ink-3">
               {s.solved.length ? `${s.solved.length} got it` : 'No letters, no numbers, no pointing at things in the room.'}
             </div>

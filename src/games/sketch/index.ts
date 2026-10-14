@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type SketchState } from './logic'
+import { bot, outcome, reduce, setup, tick, type SketchState } from './logic'
 import { SketchStage } from './Stage'
 import { SketchController } from './Controller'
 import { PACK_OPTIONS } from './words'
@@ -24,6 +24,7 @@ const sketch: GameDef<SketchState> = {
   outcome,
   Stage: SketchStage,
   Controller: SketchController,
+  bot,
 }
 
 export default sketch
