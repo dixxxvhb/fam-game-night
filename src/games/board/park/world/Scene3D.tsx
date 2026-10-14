@@ -262,7 +262,7 @@ function Token({ t, s, who, now, hopKey, layer }: { t: TokenView; s: BoardState;
           </Up>
         )}
         {showBubble && (
-          <Up w={120} lift={TOKEN_H + 52}>
+          <Up w={120} lift={TOKEN_H + (moving ? 50 : 14)}>
             <StepBubble n={left} />
           </Up>
         )}
