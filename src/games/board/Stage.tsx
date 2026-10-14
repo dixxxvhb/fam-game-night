@@ -14,8 +14,8 @@ import {
 } from './logic'
 import { minigame } from './minigames/registry'
 import { VIEWS } from './minigames/views'
-import { SPACE_COLOR, STAR_COLOR, caption, fill, formatLine, names, plural, whoFrom, type Who } from './view'
-import { VIEW_H, VIEW_W, type SpaceKind } from './map'
+import { SPACE_COLOR, SPACE_NAME, STAR_COLOR, caption, fill, formatLine, names, plural, whoFrom, type Who } from './view'
+import { SPACES, VIEW_H, VIEW_W, type SpaceKind } from './map'
 
 // ---------------- sounds ----------------
 
@@ -68,23 +68,32 @@ function Hud({ s, who, now }: { s: BoardState; who: Who; now: number }) {
         const turn = id === mover && ['roll', 'rolling', 'moving', 'fork', 'star', 'land', 'event', 'eventPick', 'shop', 'duelPick'].includes(s.stage)
         const d = liveDelta(s, id, now)
         return (
-          <div key={id} className={cx('relative flex min-w-0 flex-1 items-center gap-3 rounded-2xl border-[3px] bg-tile px-3 py-2', turn ? 'border-hot' : 'border-transparent')}>
+          <div key={id} className={cx('relative flex min-w-0 flex-1 items-center rounded-2xl border-[3px] bg-tile py-2', crowded ? 'gap-2 px-2.5' : 'gap-3 px-3', turn ? 'border-hot' : 'border-transparent')}>
             <Avatar name={p.name} color={p.color} size={crowded ? 38 : 46} />
             <div className="min-w-0 flex-1">
               <div className={cx('truncate font-bold', crowded ? 'text-lg' : 'text-xl')}>{p.name}</div>
               <div className="flex h-6 items-center gap-1.5 truncate text-sm text-ink-2">
                 <span className="shrink-0 font-mono text-xs text-ink-3">{ordinal(pl[id])}</span>
-                {me.item ? <><ItemIcon id={me.item} size={16} /> <span className="truncate">{item(me.item).name}</span></> : <span className="truncate text-ink-3">No item</span>}
+                {me.item ? <><ItemIcon id={me.item} size={16} />{!crowded && <span className="truncate">{item(me.item).name}</span>}</> : !crowded && <span className="truncate text-ink-3">No item</span>}
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <StarIcon size={crowded ? 26 : 30} />
-              <span className={cx('font-display leading-none tabular', crowded ? 'text-2xl' : 'text-3xl')}>{me.stars}</span>
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <CoinIcon size={crowded ? 22 : 26} />
-              <span className={cx('min-w-[2ch] font-display leading-none tabular', crowded ? 'text-2xl' : 'text-3xl')}>{me.coins}</span>
-            </div>
+            {crowded ? (
+              <div className="grid shrink-0 gap-1">
+                <span className="flex items-center gap-1.5"><StarIcon size={22} /><span className="font-display text-2xl leading-none tabular">{me.stars}</span></span>
+                <span className="flex items-center gap-1.5"><CoinIcon size={20} /><span className="font-display text-2xl leading-none tabular">{me.coins}</span></span>
+              </div>
+            ) : (
+              <>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <StarIcon size={30} />
+                  <span className="font-display text-3xl leading-none tabular">{me.stars}</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <CoinIcon size={26} />
+                  <span className="min-w-[2ch] font-display text-3xl leading-none tabular">{me.coins}</span>
+                </div>
+              </>
+            )}
             {d !== 0 && <div key={s.notice?.at} className="absolute -bottom-3 right-3"><DeltaChip v={d} /></div>}
           </div>
         )
@@ -174,7 +183,11 @@ function Center({ s, who, now }: { s: BoardState; who: Who; now: number }) {
       )
     case 'moving': {
       const left = (s.move?.path.length ?? 0) - hopsDone(s, now) + (s.move?.left ?? 0)
-      return <CenterRow icon={<DieFace value={Math.max(0, left)} size={128} />} title={`${p.name} is moving`} sub={left > 0 ? `${plural(left, 'space')} to go` : 'Landing'} />
+      const dest = s.move?.path[s.move.path.length - 1]
+      if (left <= 0 && dest !== undefined) {
+        return <CenterRow icon={dest === s.star ? <StarIcon size={112} /> : <SpaceIcon kind={SPACES[dest].kind} size={112} />} title={`${p.name} is moving`} sub={`Landing on ${dest === s.star ? 'the Star' : `a ${SPACE_NAME[SPACES[dest].kind].toLowerCase()} space`}`} />
+      }
+      return <CenterRow icon={<DieFace value={Math.max(0, left)} size={128} />} title={`${p.name} is moving`} sub={`${plural(left, 'space')} to go`} />
     }
     case 'fork':
       return <CenterRow icon={av} title="Fork in the road" sub={`${p.name} picks: the long way, or the short cut with the red spaces.`} />

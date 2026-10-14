@@ -63,9 +63,10 @@ export function BoardSvg({ s, who, now, compact = false, className }: { s: Board
         const p = who(id)
         const active = id === mover && s.stage !== 'mgPlay' && s.stage !== 'bonus' && s.stage !== 'final'
         const r = active ? tokenR + 3 : tokenR
-        // Tokens sit up and to the right of the space so the space stays readable.
-        const ox = compact ? dx : dx * 1.1
-        const oy = compact ? dy : dy * 1.1 - (here.length === 1 ? 4 : 0)
+        // On the Star's space, tokens step up and aside so the Star stays visible.
+        const onStar = at[id] === s.star
+        const ox = (compact ? dx : dx * 1.1) + (onStar ? 26 : 0)
+        const oy = (compact ? dy : dy * 1.1 - (here.length === 1 ? 4 : 0)) + (onStar ? (sp.y < 100 ? 30 : -30) : 0)
         return (
           <g key={id} style={{ transform: `translate(${sp.x + ox}px, ${sp.y + oy}px)`, transition: 'transform 230ms cubic-bezier(0.3, 0.7, 0.3, 1.2)' }} data-token={id} data-space={at[id]}>
             {active && <circle r={r + 6} fill="none" stroke="#FF6B3D" strokeWidth={4} />}

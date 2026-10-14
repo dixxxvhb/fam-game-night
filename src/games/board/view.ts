@@ -68,7 +68,7 @@ export function caption(s: BoardState, who: Who): string {
   const c = who(curId(s)).name
   switch (s.stage) {
     case 'intro': return `Board Night. ${s.turns} turns.`
-    case 'turnStart': return `Turn ${s.turn} of ${s.turns}`
+    case 'turnStart': return `New turn. ${who(s.order[0]).name} goes first.`
     case 'lastFive': return s.notice?.text ?? 'Last five turns'
     case 'roll': return `${c} is up. Waiting on the roll.`
     case 'rolling': return `${c} rolled ${s.roll?.total ?? ''}`

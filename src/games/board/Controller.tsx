@@ -6,7 +6,7 @@ import { Countdown } from '../../ui/Countdown'
 import { CoinIcon, DieFace, ItemIcon, SpaceIcon, StarIcon } from './glyphs'
 import { ITEMS, item } from './items'
 import { eventCard } from './events'
-import { DIST, SPACES, laneSummary } from './map'
+import { DIST, SPACES, laneSummary, type SpaceKind } from './map'
 import {
   CHOICE_MS, DUEL_STAKE, MG_INTRO_MS, ROLL_MS, STAR_PRICE,
   curId, hopsDone, isLastFive, places, ranking, type BoardState,
@@ -17,6 +17,15 @@ import { myRole } from './minigames/ui'
 import { SPACE_COLOR, STAR_COLOR, caption, fill, formatLine, names, plural, whoFrom, type Who } from './view'
 
 type Send = ControllerProps<BoardState>['send']
+
+const LEGEND: { kind: SpaceKind; text: string }[] = [
+  { kind: 'blue', text: '+3 coins' },
+  { kind: 'red', text: '-3 coins' },
+  { kind: 'event', text: 'Event card' },
+  { kind: 'shop', text: 'Buy an item' },
+  { kind: 'duel', text: '1v1 for coins' },
+  { kind: 'lucky', text: 'Free item' },
+]
 
 function Card({ children, className, tone }: { children: ReactNode; className?: string; tone?: string }) {
   return (
@@ -414,7 +423,15 @@ export function BoardController({ state: s, room, me, now, send }: ControllerPro
       body = (
         <Card>
           <div className="font-display text-3xl">Board Night</div>
-          <div className="text-ink-2">{s.turns} turns. Stars cost {STAR_PRICE}. You go {ordinalWord(s.order.indexOf(me))}.</div>
+          <div className="text-ink-2">{s.turns} turns. Stars cost {STAR_PRICE}. Most Stars wins. You go {ordinalWord(s.order.indexOf(me))}.</div>
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
+            {LEGEND.map((l) => (
+              <div key={l.kind} className="flex items-center gap-2">
+                <SpaceIcon kind={l.kind} size={26} />
+                <span>{l.text}</span>
+              </div>
+            ))}
+          </div>
         </Card>
       )
       break

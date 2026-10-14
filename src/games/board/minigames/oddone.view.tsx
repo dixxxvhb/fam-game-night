@@ -52,7 +52,7 @@ export function OddPad({ s, me, now, send }: MgPadProps<OddState>) {
     )
   }
   function pick(i: number) {
-    // One pick per grid until the host answers (the next grid shows up when it does).
+    // Ignore a fast double tap on the same tile; the next grid shows when the host agrees.
     const at = performance.now()
     if (sentFor && sentFor.r === r && sentFor.i === i && at - sentFor.at < 500) return
     setSentFor({ r, i, at })

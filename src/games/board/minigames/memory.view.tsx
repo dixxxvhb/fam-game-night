@@ -22,7 +22,7 @@ function Pads({ lit, onTap, size, disabled = false, flash }: { lit: number | nul
             aria-label={PAD_NAMES[i]}
             data-pad={i}
             data-lit={on ? '1' : '0'}
-            className={cx('touch-none-all no-select rounded-3xl border-4 transition-[opacity,transform] duration-75', size === 'tv' ? 'h-40 w-56' : 'aspect-square w-full', on ? 'scale-[1.03] border-ink opacity-100' : 'border-transparent opacity-30', onTap && !disabled && 'active:opacity-100')}
+            className={cx('touch-none-all no-select rounded-3xl border-4 transition-[opacity,transform] duration-75', size === 'tv' ? 'h-40 w-56' : 'aspect-square w-full', on ? 'scale-[1.03] border-ink opacity-100' : onTap && !disabled ? 'border-transparent opacity-75 active:opacity-100' : 'border-transparent opacity-30')}
             style={{ background: PAD_COLORS[i] }}
           />
         )
@@ -57,7 +57,7 @@ export function MemoryStage({ s, run, who, now, compact }: MgViewProps<MemorySta
           {s.players.map((id) => (
             <TvRow key={id} id={id} who={who} dim={!s.alive[id]} side={sideOf(run, id)}>
               <span className={cx('text-2xl font-bold', s.alive[id] ? (s.sent[id] ? 'text-good' : 'text-ink') : 'text-bad')}>
-                {!s.alive[id] ? `Out at ${roundLen(s.outAt[id] ?? 0)}` : s.phase === 'input' ? (s.sent[id] ? 'Got it' : 'Tapping') : `Cleared ${s.cleared[id] ? roundLen(s.cleared[id] - 1) : 0}`}
+                {!s.alive[id] ? `Out at ${roundLen(s.outAt[id] ?? 0)} colors` : s.phase === 'input' ? (s.sent[id] ? 'Got it' : 'Tapping') : s.cleared[id] ? `Cleared ${roundLen(s.cleared[id] - 1)} colors` : 'Watching'}
               </span>
             </TvRow>
           ))}

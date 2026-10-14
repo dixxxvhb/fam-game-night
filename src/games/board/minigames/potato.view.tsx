@@ -27,8 +27,8 @@ export function PotatoStage({ s, run, who, compact }: MgViewProps<PotatoState>) 
             const blown = boom && s.blown === id
             return (
               <div key={id} className={cx('grid w-56 justify-items-center gap-3', !s.alive[id] && !blown && 'opacity-35')}>
-                <div className="grid h-28 place-items-end">
-                  {has && <div key={`${s.round}-${s.passes}`} className="animate-pop"><BombIcon size={104} /></div>}
+                <div className="grid h-36 place-items-end">
+                  {has && <div key={`${s.round}-${s.passes}`} className="animate-pop"><BombIcon size={136} /></div>}
                   {blown && <Big className="animate-pop text-6xl text-bad">BOOM</Big>}
                 </div>
                 <Avatar name={p.name} color={p.color} size={96} />

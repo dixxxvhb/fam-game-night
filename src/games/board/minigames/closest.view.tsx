@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useTicker } from '../../../engine/context'
-import { Btn, cx } from '../../../ui/kit'
+import { Avatar, Btn, cx } from '../../../ui/kit'
 import { CLOSEST_MS, teamAverage, type ClosestState } from './closest'
-import { Big, PadShell, TvClock, TvRow, TvShell, sideOf, type MgPadProps, type MgViewProps } from './ui'
+import { Big, PadShell, TvClock, TvShell, type MgPadProps, type MgViewProps } from './ui'
 import type { Who } from '../view'
 
 export function ClosestStage({ s, run, who, now, compact }: MgViewProps<ClosestState>) {
@@ -15,11 +15,15 @@ export function ClosestStage({ s, run, who, now, compact }: MgViewProps<ClosestS
           <div className="text-5xl font-bold leading-tight text-balance">{s.text}</div>
           <div className="mt-3 text-2xl text-ink-2">A number from 1 to 100.</div>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="flex flex-wrap justify-center gap-4">
           {s.players.map((id) => (
-            <TvRow key={id} id={id} who={who} side={sideOf(run, id)}>
-              <span className={cx('text-2xl font-bold', s.guesses[id] !== null ? 'text-good' : 'text-ink-3')}>{s.guesses[id] !== null ? 'Locked' : 'Thinking'}</span>
-            </TvRow>
+            <div key={id} className="flex items-center gap-3 rounded-2xl bg-tile py-3 pl-3 pr-6">
+              <Avatar name={who(id).name} color={who(id).color} size={44} />
+              <div className="grid">
+                <span className="text-2xl font-bold">{who(id).name}{run.format === '1v2' && id === run.solo ? ' (solo)' : ''}</span>
+                <span className={cx('text-lg font-bold', s.guesses[id] !== null ? 'text-good' : 'text-ink-3')}>{s.guesses[id] !== null ? 'Locked in' : 'Thinking'}</span>
+              </div>
+            </div>
           ))}
         </div>
       </div>
