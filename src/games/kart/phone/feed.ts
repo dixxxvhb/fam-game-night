@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import type { RoomView } from '../../../engine/types'
 import { useStream } from '../../../engine/context'
 import { charOf, gridOf, type KartState } from '../logic'
-import { kartFx, makeWorld, turnpikeScene, type ItemKind } from '../sim'
+import { makeWorld, turnpikeScene, type ItemKind, type PosSnapshot } from '../sim'
 import { hudOf, INTERP_DELAY_MS, SnapBuffer, type Roster } from '../snap'
 import { getTrack } from '../tracks'
 import type { TurnpikeScene } from '../render'
-import { liveWorld, raceKey } from './liveWorld'
+import { kartLive } from '../show/live'
 
 /** Everything the phone HUD shows about you, from wherever the freshest data is. */
 export interface MyHud {
@@ -34,7 +34,7 @@ export function rosterOf(s: KartState, room: RoomView): Roster {
 
 /**
  * The race as this phone sees it: a scene getter for the chase cam and a HUD getter.
- * Priority: the World the Stage runs on this same phone (apart host), then 'kart:pos'
+ * Priority: the race the host sim runs on this same phone (apart host, show/live.ts), then 'kart:pos'
  * snapshots (apart guests, and together mode once the TV broadcasts), then state.
  */
 export function useRaceFeed(s: KartState, room: RoomView, me: string) {
@@ -43,7 +43,7 @@ export function useRaceFeed(s: KartState, room: RoomView, me: string) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt only when the roster really changes
   const stableRoster = useMemo(() => roster, [rosterKey])
   const seat = stableRoster.findIndex((r) => r.id === me)
-  const key = raceKey(s)
+  const key = `${s.track}:${s.goAt}`
   const track = getTrack(s.track)
 
   const buf = useRef(new SnapBuffer())
@@ -66,29 +66,26 @@ export function useRaceFeed(s: KartState, room: RoomView, me: string) {
   const sRef = useRef(s)
   sRef.current = s
 
-  const world = () => (liveWorld.w && liveWorld.key === key ? liveWorld.w : null)
   const fresh = () => lastSnap.current > 0 && performance.now() - lastSnap.current < 1500
 
   const scene = useCallback((): TurnpikeScene => {
-    const w = liveWorld.w && liveWorld.key === key ? liveWorld.w : null
-    if (w) return turnpikeScene(w)
+    const live = kartLive.scene()
+    if (live) return live
     return buf.current.scene(track, stableRoster, sRef.current.laps, performance.now() - INTERP_DELAY_MS) ?? base
-  }, [key, track, stableRoster, base])
+  }, [track, stableRoster, base])
 
   const hud = (): MyHud => {
     const st = sRef.current
-    const w = world()
-    const k = w?.karts.find((x) => x.id === me)
-    if (w && k) {
-      const fx = kartFx(w, k)
-      return { place: fx.place, lap: fx.lap, coins: fx.coins, item: fx.item, uses: fx.uses ?? 0, rolling: fx.rolling, mt: fx.mt, finished: fx.finished, spin: k.spin > 0, boost: k.boost > 0, src: 'world' }
+    const fromSnap = (snap: PosSnapshot | null, at: number, src: MyHud['src']): MyHud | null => {
+      if (!snap || at < 0) return null
+      const h = hudOf(snap, at, st.laps)
+      const row = snap.k.find((r) => r[0] === at)
+      return h && row ? { ...h, spin: (row[6] & 1) > 0, boost: (row[6] & 4) > 0, src } : null
     }
-    const snap = fresh() ? buf.current.latest() : null
-    if (snap && seat >= 0) {
-      const h = hudOf(snap, seat, st.laps)
-      const row = snap.k.find((r) => r[0] === seat)
-      if (h && row) return { ...h, spin: (row[6] & 1) > 0, boost: (row[6] & 4) > 0, src: 'snap' }
-    }
+    const live = kartLive.get() ? fromSnap(kartLive.snapshot(), kartLive.seatOf(me), 'world') : null
+    if (live) return live
+    const snapped = fromSnap(fresh() ? buf.current.latest() : null, seat, 'snap')
+    if (snapped) return snapped
     const r = st.racers[me]
     return {
       place: Math.max(1, st.order.indexOf(me) + 1),

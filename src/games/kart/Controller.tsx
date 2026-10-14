@@ -3,6 +3,7 @@ import type { ControllerProps } from '../../engine/types'
 import { useTicker } from '../../engine/context'
 import { PARK } from '../board/park/ui'
 import { charOf, type KartState } from './logic'
+import { getTrack } from './tracks'
 import { preloadGarageLazy } from './phone/lazyView'
 import { useLandscape } from './useLandscape'
 import { useRaceFeed } from './phone/feed'
@@ -28,16 +29,15 @@ export function KartController({ state: s, room, me, now, send }: ControllerProp
 
   // Every new screen starts at the top (the lobby may have left the page scrolled).
   useEffect(() => {
-    if (apart) return
     document.querySelector('main')?.scrollTo(0, 0)
-  }, [s.stage, apart])
+  }, [s.stage])
 
   // Apart phones draw the chase cam: get every kart and prop rasterized before the first frame.
   const chars = s.ids.map((id) => charOf(s, id))
   const charKey = chars.join(',')
   useEffect(() => {
     if (!apart) return
-    void preloadGarageLazy(feed.roster.map((r) => r.char), feed.roster.map((r) => r.color), { props: true, night: s.track === 'night' })
+    void preloadGarageLazy(feed.roster.map((r) => r.char), feed.roster.map((r) => r.color), { props: true, night: s.track === 'night', propKinds: getTrack(s.track).props.map((x) => x.kind) })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per lineup and track
   }, [apart, charKey, s.track])
 

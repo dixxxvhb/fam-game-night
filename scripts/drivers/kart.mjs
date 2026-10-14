@@ -95,6 +95,7 @@ export default async function ({ tv, phones, shot, wait }) {
       for (const [i, p] of phones.entries()) {
         if (done[i]) continue
         if ((await p.locator('[data-kart-picked]').count()) > 0) { done[i] = true; continue }
+        if ((await p.locator('[data-kart-stage="pick"]').count()) === 0) { done[i] = true; continue }
         const btn = p.locator('button[data-kart-pick]:not([disabled])').first()
         if (await btn.count()) await btn.click().catch(() => {})
       }
@@ -170,7 +171,6 @@ export default async function ({ tv, phones, shot, wait }) {
   // ---------------- the cup ----------------
   const looks = phones.map(() => ({}))
   const hop = phones.map(() => 0)
-  const rocket = phones.map(() => 0)
   const seen = new Set()
   let raceNo = 0
   let tick = 0
@@ -179,6 +179,8 @@ export default async function ({ tv, phones, shot, wait }) {
   let lastShot = 0
   let lastFire = Date.now()
   let rockets = 0
+  let rocketRace = -1
+  const countsSeen = new Set()
   let itemsUsed = 0
 
   async function onStage(stage) {
@@ -209,18 +211,34 @@ export default async function ({ tv, phones, shot, wait }) {
       const racing = L.stage === 'countdown' || L.stage === 'race'
       if (!racing) { await releaseAll(); await wait(250); continue }
 
+      // Rocket start: a tight loop through the end of the countdown. "1" shows for the last second;
+      // HOP goes down about 0.45 s into it (inside the 0.6 s window) and comes up after GO.
+      if (L.stage === 'countdown' && (L.count === '2' || L.count === '1') && rocketRace !== raceNo) {
+        rocketRace = raceNo
+        let oneAt = 0
+        const t0r = Date.now()
+        while (Date.now() - t0r < 3500) {
+          const c = await phones[0].evaluate(() => document.querySelector('[data-kart-count]')?.getAttribute('data-kart-count') ?? null).catch(() => null)
+          if (c) countsSeen.add(c)
+          if (c === '1' && !oneAt) oneAt = Date.now()
+          if (oneAt && Date.now() - oneAt >= 430) break
+          if (c === 'GO') break
+          await wait(25)
+        }
+        if (oneAt) {
+          for (const p of phones) await touch(p, '[data-kart-hop]', 'pointerdown', 8)
+          rockets += 1
+          await wait(700)
+          for (const p of phones) await touch(p, '[data-kart-hop]', 'pointerup', 8)
+        }
+        continue
+      }
       if (!tv && (!simPage || Math.random() < 0.1)) simPage = await findSim()
       const h = await hints(simPage ?? phones[0])
       for (let i = 0; i < phones.length; i++) {
         const me = looks[i]
         const p = phones[i]
         if (me.buttons) await p.locator('[data-kart-buttons]').first().click().catch(() => {})
-        // Rocket start: hold HOP from "1" (about 0.5 s in) through GO.
-        const count = L.count
-        if (count === '1' && !rocket[i]) { rocket[i] = Date.now(); hop[i] = 0 }
-        if (rocket[i] > 0 && count === '1' && Date.now() - rocket[i] > 450 && !hop[i]) { await touch(p, '[data-kart-hop]', 'pointerdown', 8); hop[i] = Date.now(); rockets += 1 }
-        if ((count === 'GO' || L.stage === 'race') && rocket[i] > 0) { if (hop[i]) await touch(p, '[data-kart-hop]', 'pointerup', 8); hop[i] = 0; rocket[i] = -1 }
-        if (L.stage === 'countdown' && count !== '1' && count !== 'GO' && rocket[i] === -1) rocket[i] = 0
         if (L.stage === 'countdown') continue
 
         const v = me.finished ? 0 : h[p.playerId] ?? 0
@@ -265,7 +283,7 @@ export default async function ({ tv, phones, shot, wait }) {
   if (!trial) {
     await driveCup(1_200_000)
     if (tv) try { hostRecv = (await tv.evaluate(() => window.__kartQA?.recv?.() ?? null)) ?? hostRecv } catch { /* fine */ }
-    console.log(`Races driven: ${raceNo}. Rocket start tries: ${rockets}. Items used: ${itemsUsed}. Seen: ${[...seen].join(', ')}`)
+    console.log(`Races driven: ${raceNo}. Rocket start tries: ${rockets} (countdown seen: ${[...countsSeen].join(' ') || 'none'}). Items used: ${itemsUsed}. Seen: ${[...seen].join(', ')}`)
     await wait(1200)
     await shot('results')
   } else {

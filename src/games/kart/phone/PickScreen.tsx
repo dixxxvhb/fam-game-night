@@ -23,7 +23,7 @@ function Timer({ endsAt, total, now }: { endsAt: number; total: number; now: () 
 }
 
 /** Every phone picks a critter. Eight karts, first come first served. */
-export function PickScreen({ s, room, me, now, send }: ScreenProps) {
+export function PickScreen({ s, room, me, now, send, apart }: ScreenProps) {
   const land = useLandscape()
   const mine = charOf(s, me)
   const p = room.players.find((x) => x.id === me)
@@ -71,7 +71,7 @@ export function PickScreen({ s, room, me, now, send }: ScreenProps) {
 
   return (
     <div className="flex flex-1 flex-col gap-3 px-3 pb-6 pt-1">
-      {!land && <TopPlate char={null} name={p?.name ?? me} color={p?.color ?? PARK.ink3} sub="Pick a driver. Any driver." slim />}
+      {!land && !apart && <TopPlate char={null} name={p?.name ?? me} color={p?.color ?? PARK.ink3} sub="Pick a driver. Any driver." slim />}
       <div className={cx('flex items-center gap-3 px-1', !land && 'mt-1')}>
         <Ink size={land ? 30 : 36}>Pick your driver</Ink>
         <div className="min-w-0 flex-1"><Timer endsAt={s.stageEnds} total={PICK_MS} now={now} /></div>
