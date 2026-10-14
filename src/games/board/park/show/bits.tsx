@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import {
   Bomb, Calculator, Crosshair, Eye, Grid3x3, Hand, Music, Palette, Scale, Search, Sparkles, Timer, Zap, type LucideIcon,
+  Coins, LifeBuoy, Nut, PaintRoller,
 } from 'lucide-react'
 import { cx } from '../../../../ui/kit'
 import { INK, Mingo, critter, type Mood } from '../cast'
@@ -180,6 +181,10 @@ const LOOKS: Record<string, MgLook> = {
   math: { color: '#FFA51F', Icon: Calculator, gesture: 'keys' },
   closest: { color: '#8EA6C2', Icon: Scale, gesture: 'keys' },
   reflex: { color: '#4DB84A', Icon: Zap, gesture: 'tap' },
+  coconut: { color: '#B4793F', Icon: Nut, gesture: 'drag' },
+  frenzy: { color: '#E79A12', Icon: Coins, gesture: 'drag' },
+  tubes: { color: '#2AA8E0', Icon: LifeBuoy, gesture: 'drag' },
+  paint: { color: '#FF7AA2', Icon: PaintRoller, gesture: 'drag' },
 }
 
 const SPARE = ['#FF5D4E', '#3E7BFA', '#2FBF5B', '#9B5CF6', '#FFA51F', '#FF6FB5', '#2C9C86']
