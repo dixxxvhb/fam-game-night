@@ -5,7 +5,7 @@ import { seasonStats } from '../data/season'
 import { lsGet } from '../lib/ids'
 import { CORE } from '../lib/players'
 import { Avatar, Label, LinkBtn } from '../ui/kit'
-import { Tv, Smartphone, Users } from 'lucide-react'
+import { Bot, Tv, Smartphone, Users } from 'lucide-react'
 
 export default function Home() {
   const [data, setData] = useState<SeasonData | null>(null)
@@ -38,7 +38,8 @@ export default function Home() {
         <LinkBtn to="/host" variant="primary" size="xl" className="w-full justify-start"><Tv size={24} />Start on this screen</LinkBtn>
         <LinkBtn to="/join" size="xl" className="w-full justify-start"><Smartphone size={24} />Join with a code</LinkBtn>
         <LinkBtn to="/apart" size="xl" className="w-full justify-start"><Users size={24} />Play apart</LinkBtn>
-        <p className="text-sm text-ink-3">Start on the TV or laptop, then everyone joins on their phone. Apart means no TV: one phone hosts, everyone plays from their own couch.</p>
+        <LinkBtn to="/solo" size="lg" variant="ghost" className="w-full justify-start"><Bot size={22} />Play solo with bots</LinkBtn>
+        <p className="text-sm text-ink-3">Start on the TV or laptop, then everyone joins on their phone. Apart means no TV: one phone hosts, everyone plays from their own couch. Solo is you against bots, for practice.</p>
       </section>
 
       <section className="grid gap-4">

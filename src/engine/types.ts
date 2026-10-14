@@ -30,6 +30,8 @@ export interface RoomPlayer {
   guest: boolean
   /** Live presence. A player can drop and come back; their seat stays. */
   connected: boolean
+  /** A computer player. Games with a bot in them are practice and never saved. */
+  bot?: boolean
 }
 
 export interface GameCtx {
@@ -40,6 +42,11 @@ export interface GameCtx {
   mode: Mode
   /** Seeded-per-call random in [0, 1). Use instead of Math.random. */
   random: () => number
+  /**
+   * Content ids this group has already played in this game (newest last), remembered on
+   * the host device across nights. Prefer unused content in setup; fall back when you run out.
+   */
+  used?: string[]
 }
 
 export interface PlayerAction<P = unknown> {
@@ -67,6 +74,8 @@ export interface GameOutcome {
   summary?: string
   /** Small JSON kept with the result (under ~50 KB). */
   details?: unknown
+  /** Content ids this game used (prompts, questions, words), so the next game avoids them. */
+  used?: string[]
 }
 
 export interface OptionChoice {
@@ -97,6 +106,8 @@ export interface StageProps<S> {
   now: () => number
   /** True on phones in apart mode: render small, the Controller sits below. */
   compact: boolean
+  /** The player whose phone this is (apart mode), or null on a TV. Use it to skip what the Controller below already shows. */
+  me?: string | null
   /** True if this device is the host (it runs the logic). */
   isHost: boolean
   /** Host-only: raise an action from the stage itself (playerId '__host'). For host-run real-time sims. */
@@ -112,6 +123,7 @@ export interface ControllerProps<S> {
   send: (type: string, payload?: unknown) => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the registry holds games of different state types
 export interface GameDef<S = any> {
   /** a-z, 0-9, dashes; max 32. Stored with every result. */
   id: string
@@ -134,6 +146,19 @@ export interface GameDef<S = any> {
   outcome(state: S, ctx: GameCtx): GameOutcome | null
   Stage: ComponentType<StageProps<S>>
   Controller: ComponentType<ControllerProps<S>>
+  /**
+   * How a bot plays. The host calls this about 5 times a second for every bot in the game.
+   * Return a move to make now (sent as if that bot's phone sent it), or null to wait.
+   * Pace it like a person: act on a random chance per call (e.g. ctx.random() < 0.15) or after
+   * a delay you track in state. Bots may read the whole state (they're allowed to cheat a
+   * little); keep them beatable with ctx.random. Games without `bot` start without the bots.
+   */
+  bot?(state: S, botId: string, ctx: GameCtx): BotMove | null
+}
+
+export interface BotMove {
+  type: string
+  payload?: unknown
 }
 
 // ---------------- room state (host-owned, broadcast whole) ----------------
@@ -153,6 +178,8 @@ export interface NightGame {
   at: number
   placements: PlacementPoints[]
   summary?: string
+  /** Played with a bot: shown, never saved to the season. */
+  practice?: boolean
 }
 
 export interface RoomState {

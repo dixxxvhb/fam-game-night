@@ -1,7 +1,7 @@
-// Service Worker for FAM GAME NIGHT PWA
+// Service worker for Game Night
 // Provides app shell caching for installability while keeping API calls network-only
 
-const CACHE_NAME = 'fgn-v3'
+const CACHE_NAME = 'gn-v4'
 
 // Cache app shell assets on install
 self.addEventListener('install', (event) => {

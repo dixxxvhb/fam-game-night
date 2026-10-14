@@ -1,10 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Bot, Volume2, VolumeX, X } from 'lucide-react'
+import { sfx } from '../ui/sfx'
+import { useTicker } from '../engine/context'
 import type { GameDef, RoomPlayer, RoomState } from '../engine/types'
 import { GAMES } from '../games/registry'
 import { nightStandings } from '../engine/points'
 import { Avatar, Btn, cx, Label } from '../ui/kit'
 import { CORE, GUEST_COLORS, guestId } from '../lib/players'
 import type { SavedMe } from '../lib/ids'
+import { getSaveStatus, loadSeason } from '../data/api'
+import { seasonStats } from '../data/season'
 
 export function joinUrl(code: string) {
   const base = `${window.location.origin}${window.location.pathname}`
@@ -31,7 +36,8 @@ export function GameShelf({
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [opts, setOpts] = useState<Record<string, string | number>>({})
-  const ready = state.players.filter((p) => p.connected).length
+  const humans = state.players.filter((p) => p.connected && !p.bot).length
+  const bots = state.players.filter((p) => p.bot).length
   const playable = GAMES.filter((g) => g.modes.includes(state.mode))
 
   function choose(g: GameDef) {
@@ -45,6 +51,8 @@ export function GameShelf({
   return (
     <div className={cx('grid gap-3', !compact && 'sm:grid-cols-2')}>
       {playable.map((g) => {
+        // Bots only sit in games that can play them.
+        const ready = humans + (g.bot ? bots : 0)
         const tooFew = ready < g.minPlayers
         const tooMany = ready > g.maxPlayers
         const isOpen = open === g.id
@@ -58,6 +66,7 @@ export function GameShelf({
               </div>
               <span className="text-ink-2">{g.tagline}</span>
               {g.instead && <span className="text-sm text-ink-3">{g.instead}</span>}
+              {bots > 0 && !g.bot && <span className="text-sm text-hot-ink">Bots sit this one out</span>}
             </button>
             {isOpen && (
               <div className="mt-4 grid gap-4 animate-rise">
@@ -95,7 +104,7 @@ export function NightTable({ state, big = false }: { state: RoomState; big?: boo
   if (!state.games.length) return null
   return (
     <div className="grid gap-2">
-      <Label>Tonight · {state.games.length} {state.games.length === 1 ? 'game' : 'games'}</Label>
+      <Label>Tonight · {state.games.length} {state.games.length === 1 ? 'game' : 'games'}{state.games.some((g) => g.practice) ? ' · games with bots are practice' : ''}</Label>
       {standings.map((s, i) => {
         const p = playerById(state, s.playerId)
         const tied = i > 0 && standings[i - 1].points === s.points
@@ -122,6 +131,7 @@ export function Podium({ state, big = false }: { state: RoomState; big?: boolean
       <div className="grid gap-1 text-center">
         <Label>{game?.name ?? last.gameId}</Label>
         {last.summary && <div className={cx('text-ink-2', big && 'text-xl')}>{last.summary}</div>}
+        {last.practice && <div className="mx-auto rounded-full border border-line px-3 py-0.5 font-mono text-xs uppercase tracking-[0.12em] text-ink-3">Practice · not saved</div>}
       </div>
       <div className="grid gap-2">
         {last.placements.map((pl, i) => {
@@ -161,7 +171,8 @@ export function NightSummary({ state, big = false }: { state: RoomState; big?: b
         ) : (
           <div className={cx('font-display', big ? 'text-5xl' : 'text-3xl')}>No games, no winner</div>
         )}
-        <div className="text-ink-2">{state.games.length} {state.games.length === 1 ? 'game' : 'games'} played. Saved to the season.</div>
+        <div className="text-ink-2">{state.games.length} {state.games.length === 1 ? 'game' : 'games'} played. {state.games.every((g) => g.practice) ? 'Practice night with bots. Nothing saved.' : getSaveStatus() === 'off' ? 'Test mode, not saved.' : 'Saved to the season.'}</div>
+        <BeltCall state={state} big={big} />
       </div>
       <div className="mx-auto grid w-full max-w-md gap-2 text-left">
         {night.standings.map((s, i) => {
@@ -238,5 +249,108 @@ export function StatusDot({ status }: { status: string }) {
       <span className={cx('h-2 w-2 rounded-full', color)} />
       <span className="sr-only sm:not-sr-only">{label}</span>
     </span>
+  )
+}
+
+/** Plays the room's sounds on screens that show the game (TV, or phones in apart mode). */
+export function useRoomSounds(state: RoomState | null, enabled: boolean) {
+  const prev = useRef<{ phase: string; players: number; games: number } | null>(null)
+  useEffect(() => { sfx.enable(enabled) }, [enabled])
+  useEffect(() => {
+    if (!state) return
+    const p = prev.current
+    const cur = { phase: state.phase, players: state.players.length, games: state.games.length }
+    prev.current = cur
+    if (!p) return
+    if (cur.players > p.players) sfx.play('join')
+    if (cur.phase !== p.phase) {
+      if (cur.phase === 'playing') sfx.play('start')
+      if (cur.phase === 'results') sfx.play('reveal')
+      if (cur.phase === 'summary') sfx.play('win')
+    }
+  }, [state])
+}
+
+export function MuteButton() {
+  const [m, setM] = useState(sfx.isMuted())
+  useEffect(() => sfx.onMuted(setM), [])
+  return (
+    <button
+      onClick={() => sfx.setMuted(!m)}
+      className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink"
+      aria-label={m ? 'Sound off. Turn on' : 'Sound on. Turn off'}
+      title={m ? 'Sound off' : 'Sound on'}
+    >
+      {m ? <VolumeX size={18} /> : <Volume2 size={18} />}
+    </button>
+  )
+}
+
+/** Shows up when a phone hasn't heard the host for a while. */
+export function LostHost({ heardAt, isHost, what = 'the TV' }: { heardAt: () => number; isHost: boolean; what?: string }) {
+  useTicker(1000)
+  if (isHost) return null
+  const gone = Date.now() - heardAt() > 10_000
+  if (!gone) return null
+  return (
+    <div className="border-b border-hot/40 bg-hot/15 px-4 py-2 text-center text-sm text-hot-ink" role="status">
+      Lost {what}. Waiting for it to come back.
+    </div>
+  )
+}
+
+/** "Torii takes the Belt from Dixxx." Season leader before tonight vs after tonight. */
+export function BeltCall({ state, big = false }: { state: RoomState; big?: boolean }) {
+  const [line, setLine] = useState<string | null>(null)
+  const night = state.night
+  useEffect(() => {
+    if (!night || !state.games.length) return
+    let alive = true
+    loadSeason().then((d) => {
+      if (!alive || !d) return
+      const prior = { ...d, nights: d.nights.filter((n) => n.id !== state.nightId) }
+      const before = seasonStats(prior)
+      const totals = new Map(before.standings.map((r) => [r.playerId, r.points]))
+      for (const s of night.standings) totals.set(s.playerId, (totals.get(s.playerId) ?? 0) + s.points)
+      const ranked = [...totals.entries()].sort((a, b) => b[1] - a[1])
+      if (!ranked.length || ranked[0][1] <= 0) return
+      if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) {
+        setLine('The Belt is tied. Somebody has to want it.')
+        return
+      }
+      const name = (id: string) => playerById(state, id)?.name ?? d.players.find((p) => p.id === id)?.name ?? id
+      const after = ranked[0][0]
+      if (!before.belt) setLine(`${name(after)} takes the first Belt of the season.`)
+      else if (before.belt === after) setLine(`${name(after)} keeps the Belt.`)
+      else setLine(`${name(after)} takes the Belt from ${name(before.belt)}.`)
+    })
+    return () => { alive = false }
+  }, [night, state.nightId, state.games.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!line) return null
+  return <div className={cx('mx-auto mt-2 rounded-full bg-hot/15 px-5 py-2 font-bold text-hot-ink animate-pop', big ? 'text-2xl' : 'text-base')}>{line}</div>
+}
+
+/** Bots in the room: add one, or send one home. Bots only play games that support them. */
+export function BotControls({ state, send, big = false }: { state: RoomState; send: (type: string, payload?: unknown) => void; big?: boolean }) {
+  const bots = state.players.filter((p) => p.bot)
+  const canAdd = state.players.length < 8 && bots.length < 5 && state.phase !== 'playing'
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {bots.map((b) => (
+        <span key={b.id} className={cx('flex items-center gap-2 rounded-full border border-dashed border-line py-1 pl-1 pr-1', big && 'py-1.5')}>
+          <Avatar name={b.name} color={b.color} size={big ? 32 : 26} />
+          <span className={cx('font-bold', big ? 'text-lg' : 'text-sm')}>{b.name}</span>
+          <span className="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-ink-3">bot</span>
+          <button onClick={() => send('removeBot', { id: b.id })} className="grid h-8 w-8 place-items-center rounded-full text-ink-3 hover:text-ink" aria-label={`Remove ${b.name}`}>
+            <X size={16} />
+          </button>
+        </span>
+      ))}
+      {canAdd && (
+        <Btn size="sm" variant="ghost" onClick={() => send('addBot')}>
+          <Bot size={16} />{bots.length ? 'Another bot' : 'Add a bot'}
+        </Btn>
+      )}
+    </div>
   )
 }

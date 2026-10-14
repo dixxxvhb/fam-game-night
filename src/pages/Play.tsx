@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useRoom } from '../engine/useRoom'
 import { GameEnvProvider } from '../engine/context'
 import { getGame } from '../games/registry'
 import { cleanCode, getTabMe, lsSet } from '../lib/ids'
 import { Avatar, Btn, cx, Label, Spinner } from '../ui/kit'
-import { GameShelf, NightSummary, NightTable, Podium, StatusDot } from '../room/shared'
-import { Share2 } from 'lucide-react'
+import { BotControls, GameShelf, LostHost, MuteButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
+import { LogOut, Share2, X } from 'lucide-react'
 
 /** A phone in the room. In apart mode the hosting phone also runs the room. */
 export default function Play() {
@@ -17,10 +17,27 @@ export default function Play() {
   const [me] = useState(() => getTabMe(code))
   const room = useRoom(code.length === 4 && me ? code : null, { me, host, mode: host ? 'apart' : undefined })
   const s = room.state
+  const nav = useNavigate()
+  const solo = search.get('solo') === '1'
+  useEffect(() => {
+    if (!solo || !room.isHost || !s || s.phase !== 'lobby') return
+    const key = `gn-solo-seeded-${code}`
+    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1') } catch { /* ignore */ }
+    if (!s.players.some((p) => p.bot)) { room.send('room', 'addBot'); room.send('room', 'addBot') }
+  }, [solo, room, s, code])
+  const [confirmEnd, setConfirmEnd] = useState(false)
+  useRoomSounds(s, s?.mode === 'apart')
 
   useEffect(() => {
     if (code.length === 4 && me) lsSet('gn-last-room', { code, host, at: Date.now() })
   }, [code, host, me])
+
+  function leave() {
+    if (!me) return
+    room.send('room', 'leave', { id: me.id })
+    lsSet('gn-last-room', null)
+    nav('/', { replace: true })
+  }
 
   // Keep the screen awake while in a room.
   useEffect(() => {
@@ -42,6 +59,17 @@ export default function Play() {
       <span className="font-display text-lg tracking-[0.12em] text-hot">{code}</span>
       <div className="flex-1" />
       <StatusDot status={room.status} />
+      {s?.mode === 'apart' && <MuteButton />}
+      {s?.phase === 'playing' && (
+        <button onClick={() => setConfirmEnd(true)} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="End this game" title="End this game">
+          <X size={18} />
+        </button>
+      )}
+      {s?.phase === 'lobby' && !room.isHost && (
+        <button onClick={leave} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="Leave room" title="Leave room">
+          <LogOut size={18} />
+        </button>
+      )}
       <Avatar name={me.name} color={me.color} size={28} />
     </header>
   )
@@ -67,6 +95,14 @@ export default function Play() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {header}
+      <LostHost heardAt={room.heardAt} isHost={room.isHost} what={apart ? 'the host phone' : 'the TV'} />
+      {confirmEnd && s.phase === 'playing' && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-line bg-tile px-4 py-3" role="alertdialog" aria-label="End this game?">
+          <span className="flex-1 font-bold">End this game for everyone? No points.</span>
+          <Btn size="sm" variant="danger" onClick={() => { setConfirmEnd(false); room.send('room', 'abort') }}>End it</Btn>
+          <Btn size="sm" onClick={() => setConfirmEnd(false)}>Keep playing</Btn>
+        </div>
+      )}
       <main className="min-h-0 flex-1 overflow-y-auto">
         {s.phase === 'lobby' && <PhoneLobby room={room} />}
 
@@ -74,7 +110,7 @@ export default function Play() {
           <GameEnvProvider link={room.link} me={me.id}>
             {apart && (
               <div className="border-b border-line p-3">
-                <def.Stage state={s.game.state} room={roomView} now={room.now} compact isHost={room.isHost} hostAction={(t, p) => room.send('game', t, p)} />
+                <def.Stage state={s.game.state} room={roomView} now={room.now} compact me={me.id} isHost={room.isHost} hostAction={(t, p) => room.send('game', t, p)} />
               </div>
             )}
             <def.Controller state={s.game.state} room={roomView} me={me.id} now={room.now} send={(t, p) => room.send('game', t, p)} />
@@ -124,7 +160,11 @@ function PhoneLobby({ room }: { room: ReturnType<typeof useRoom> }) {
     <div className="grid gap-6 p-4">
       <div className="grid gap-1">
         <div className="font-display text-3xl">You're in.</div>
-        <div className="text-ink-2">{apart ? 'Send the code to the others. Everyone plays on their own phone.' : 'Watch the TV. Pick a game here or there.'}</div>
+        <div className="text-ink-2">
+          {s.players.some((p) => p.bot) && s.players.filter((p) => !p.bot).length === 1
+            ? 'Just you and the bots. Games with bots are practice and never count.'
+            : apart ? 'Send the code to the others. Everyone plays on their own phone.' : 'Watch the TV. Pick a game here or there.'}
+        </div>
       </div>
 
       {apart && (
@@ -138,13 +178,15 @@ function PhoneLobby({ room }: { room: ReturnType<typeof useRoom> }) {
       )}
 
       <div className="flex flex-wrap gap-3">
-        {s.players.map((p) => (
+        {s.players.filter((p) => !p.bot).map((p) => (
           <span key={p.id} className={cx('flex items-center gap-2 rounded-full bg-tile py-1 pl-1 pr-3', !p.connected && 'opacity-40')}>
             <Avatar name={p.name} color={p.color} size={28} />
             <span className="font-bold">{p.name}</span>
           </span>
         ))}
       </div>
+
+      <BotControls state={s} send={(type, payload) => room.send('room', type, payload)} />
 
       <div className="grid gap-3">
         <Label>Pick a game</Label>
