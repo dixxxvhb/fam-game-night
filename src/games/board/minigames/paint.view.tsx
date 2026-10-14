@@ -9,10 +9,10 @@ import {
 } from './paint'
 import { FIELD, WORLD_H, WORLD_W, body, stepWalker } from './rt'
 import {
-  CallOut, Joystick, NameTag, Plate, Scene, SceneFrame, Sprite, WinStar, callY, charFor, ownBodies, ownKey, secsLeft, simDraw,
-  useBodySender, usePosReport, usePoses, useStepLoop, vibrate,
+  CallOut, Joystick, SvgTag, Plate, Scene, SceneFrame, Sprite, WinStar, callY, ownBodies, ownKey, secsLeft, simDraw,
+  useBodySender, usePosReport, wonRound, usePoses, useStepLoop,
 } from './rt.view'
-import { PadShell, TvClock, TvShell, myRole, sideOf, useLatest, type MgPadProps, type MgViewProps } from './ui'
+import { CompactLine, PadShell, TvClock, TvShell, buzz, charOf, myRole, sideOf, useLatest, type MgPadProps, type MgViewProps } from './ui'
 import type { Who } from '../view'
 
 const WOOD = '#E9C48C'
@@ -82,7 +82,7 @@ function Washer({ x, rows, dir }: { x: number; rows: [number, number]; dir: 1 | 
 // ---------------- TV ----------------
 
 function colorsOf(s: PaintState, who: Who): (string | null)[] {
-  return s.players.map((id) => critter(charFor(who, s.players, id))!.color)
+  return s.players.map((id) => critter(charOf(who, id, s.players))!.color)
 }
 
 export function PaintStage({ s, run, who, now, compact }: MgViewProps<PaintState>) {
@@ -109,7 +109,7 @@ export function PaintStage({ s, run, who, now, compact }: MgViewProps<PaintState
   const sc = counts(s)
   const crit = snap ? s.players.map((id) => {
     const p = snap.poses[id]
-    const won = !!res && (s.format === 'coop' ? !!res.success : res.places[id] === 1)
+    const won = wonRound(res, s, id)
     const mood: Mood = won ? 'happy' : res ? 'sad' : Math.abs(p.vx) + Math.abs(p.vy) > 10 ? 'hop' : 'idle'
     return { id, x: p.x, y: p.y, flip: p.flip, mood }
   }).sort((a, b) => a.y - b.y) : []
@@ -127,10 +127,10 @@ export function PaintStage({ s, run, who, now, compact }: MgViewProps<PaintState
         {s.cells.map((o, i) => <Plank key={i} i={i} owner={o} color={o >= 0 ? colors[o] : null} pop={popOf(changedAt[i] ?? -1e12, t, o)} />)}
         {wash && wx !== null && <Washer x={wx} rows={wash.rows} dir={wash.dir} />}
         {crit.map((c) => {
-          const ch = charFor(who, s.players, c.id)
+          const ch = charOf(who, c.id, s.players)
           return (
             <Sprite key={c.id} x={c.x} y={c.y} char={ch} mood={c.mood} flip={c.flip} size={compact ? 13 : 12}>
-              {!compact && <NameTag name={who(c.id).name} char={ch} y={c.y < 32 ? 5.5 : -17} />}
+              {!compact && <SvgTag name={who(c.id).name} char={ch} y={c.y < 32 ? 5.5 : -17} />}
               {c.mood === 'happy' && <WinStar t={t} y={c.y < 32 ? -16 : -24} />}
             </Sprite>
           )
@@ -144,16 +144,16 @@ export function PaintStage({ s, run, who, now, compact }: MgViewProps<PaintState
     return (
       <div className="grid gap-2" data-rt-tv="paint">
         {scene}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm font-bold" style={{ color: INK }}>
+        <CompactLine><div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           {s.players.map((id, i) => <span key={id} className="inline-flex items-center gap-1"><span className="inline-block h-3 w-4 rounded-sm border-2" style={{ background: colors[i] ?? INK, borderColor: INK }} /> {who(id).name} {sc[id]}</span>)}
           <span className="font-party text-xl">{secsLeft(s.startAt + PAINT_MS, t)}</span>
-        </div>
+        </div></CompactLine>
       </div>
     )
   }
   return (
-    <TvShell run={run} title="Wet Paint" right={<TvClock endsAt={s.startAt + PAINT_MS} now={now} />}>
-      <div className="flex h-full min-h-0 gap-5" data-rt-tv="paint">
+    <TvShell run={run} title="Wet Paint" ground="boardwalk" sea right={<TvClock endsAt={s.startAt + PAINT_MS} now={now} />}>
+      <div className="flex h-full min-h-0 gap-5 px-7 pb-5 pt-3" data-rt-tv="paint">
         <div className="min-h-0 min-w-0 flex-1">{scene}</div>
         <div className="grid w-60 shrink-0 content-start gap-3">
           {s.format === 'coop' && (
@@ -165,7 +165,7 @@ export function PaintStage({ s, run, who, now, compact }: MgViewProps<PaintState
             </div>
           )}
           {[...s.players].sort((a, b) => sc[b] - sc[a]).map((id) => (
-            <Plate key={id} who={who} id={id} players={s.players} hot={!!res && s.format !== 'coop' && res.places[id] === 1} sub={sideOf(run, id)}>
+            <Plate key={id} who={who} id={id} players={s.players} hot={s.format !== 'coop' && wonRound(res, s, id)} sub={sideOf(run, id)}>
               <PlankBar n={sc[id]} color={colors[s.players.indexOf(id)] ?? INK} />
             </Plate>
           ))}
@@ -214,7 +214,7 @@ export function PaintPad({ s, run, me, who, now, send }: MgPadProps<PaintState>)
         if (cur.cells[c] !== seat) {
           batch.current.push(c)
           mine.current.set(c, t0)
-          if (cur.cells[c] >= 0) vibrate(15)
+          if (cur.cells[c] >= 0) buzz(15)
         }
       }
       if (batch.current.length && (t0 - flushed.current >= 250 || batch.current.length >= 30)) {

@@ -9,10 +9,10 @@ import {
 } from './frenzy'
 import { STEP, WORLD_W, body, dist, stepWalker } from './rt'
 import {
-  Burst, CallOut, Joystick, WinStar, callY, NameTag, Plate, Scene, SceneFrame, Sprite, charFor, ownBodies, ownKey, secsLeft, simDraw,
-  useBodySender, usePosReport, usePoses, useStepLoop, vibrate,
+  Burst, CallOut, Joystick, WinStar, callY, SvgTag, Plate, Scene, SceneFrame, Sprite, ownBodies, ownKey, secsLeft, simDraw,
+  useBodySender, usePosReport, wonRound, usePoses, useStepLoop,
 } from './rt.view'
-import { PadShell, TvClock, TvShell, myRole, sideOf, useLatest, type MgPadProps, type MgViewProps } from './ui'
+import { CompactLine, PadShell, TvClock, TvShell, buzz, charOf, myRole, sideOf, useLatest, type MgPadProps, type MgViewProps } from './ui'
 
 // ---------------- the plaza ----------------
 
@@ -146,7 +146,7 @@ export function FrenzyStage({ s, run, who, now, compact }: MgViewProps<FrenzySta
   const crit: Drawn[] = snap ? s.players.map((id) => {
     const p = snap.poses[id]
     const dizzy = stunned(s.bonks[id], t)
-    const won = !!res && (s.format === 'coop' ? !!res.success : res.places[id] === 1)
+    const won = wonRound(res, s, id)
     const mood: Mood = won ? 'happy' : dizzy || (res && !won) ? 'sad' : Math.abs(p.vx) + Math.abs(p.vy) > 10 ? 'hop' : 'idle'
     return { id, x: p.x, y: p.y, mood, flip: p.flip, dizzy }
   }).sort((x, y) => x.y - y.y) : []
@@ -161,10 +161,10 @@ export function FrenzyStage({ s, run, who, now, compact }: MgViewProps<FrenzySta
         <Plaza compact={compact} />
         {coins.map((c) => <CoinDraw key={c.k} c={c} t={t} layer="ground" />)}
         {crit.map((c) => {
-          const ch = charFor(who, s.players, c.id)
+          const ch = charOf(who, c.id, s.players)
           return (
             <Sprite key={c.id} x={c.x} y={c.y} char={ch} mood={c.mood} flip={c.flip} size={compact ? 14 : 13} alpha={c.dizzy && Math.floor(t / 100) % 2 === 0 ? 0.5 : 1}>
-              {!compact && <NameTag name={who(c.id).name} char={ch} y={c.y < 32 ? 5.5 : -18} />}
+              {!compact && <SvgTag name={who(c.id).name} char={ch} y={c.y < 32 ? 5.5 : -18} />}
               {c.mood === 'happy' && <WinStar t={t} y={c.y < 32 ? -17 : -25} />}
             </Sprite>
           )
@@ -175,7 +175,7 @@ export function FrenzyStage({ s, run, who, now, compact }: MgViewProps<FrenzySta
           const c = coinsOf(s)[Number(k)]
           if (!c) return null
           const up = (t - g.t) / 750
-          const ch = critter(charFor(who, s.players, g.by))!
+          const ch = critter(charOf(who, g.by, s.players))!
           return (
             <text key={`p${k}`} x={c.x} y={c.y - 4 - up * 10} textAnchor="middle" fontSize={c.v > 1 ? 6.5 : 5} className="font-party" fill={ch.color} stroke={INK} strokeWidth={0.5} paintOrder="stroke" opacity={1 - up * 0.7}>+{c.v}</text>
           )
@@ -194,22 +194,22 @@ export function FrenzyStage({ s, run, who, now, compact }: MgViewProps<FrenzySta
     return (
       <div className="grid gap-2" data-rt-tv="frenzy">
         {scene}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm font-bold" style={{ color: INK }}>
+        <CompactLine><div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           {s.players.map((id) => <span key={id} className="inline-flex items-center gap-1">{who(id).name} <Count kind="coin" n={scores[id]} size={14} /></span>)}
           {s.format === 'coop' && <span>{total} / {COOP_GOAL}</span>}
           <span className="font-party text-xl">{secsLeft(end, t)}</span>
-        </div>
+        </div></CompactLine>
       </div>
     )
   }
   return (
-    <TvShell run={run} title="Coin Frenzy" right={<TvClock endsAt={end} now={now} />}>
-      <div className="flex h-full min-h-0 gap-5" data-rt-tv="frenzy">
+    <TvShell run={run} title="Coin Frenzy" ground="pavement" right={<TvClock endsAt={end} now={now} />}>
+      <div className="flex h-full min-h-0 gap-5 px-7 pb-5 pt-3" data-rt-tv="frenzy">
         <div className="min-h-0 min-w-0 flex-1">{scene}</div>
         <div className="grid w-60 shrink-0 content-start gap-3">
           {s.format === 'coop' && <CoopMeter total={total} />}
           {[...s.players].sort((a, b) => scores[b] - scores[a]).map((id) => (
-            <Plate key={id} who={who} id={id} players={s.players} hot={!!res && res.places[id] === 1 && s.format !== 'coop'} sub={sideOf(run, id)}>
+            <Plate key={id} who={who} id={id} players={s.players} hot={s.format !== 'coop' && wonRound(res, s, id)} sub={sideOf(run, id)}>
               <Count kind="coin" n={scores[id]} size={24} />
             </Plate>
           ))}
@@ -241,7 +241,8 @@ export function FrenzyPad({ s, run, me, who, now, send }: MgPadProps<FrenzyState
   const stick = useRef<[number, number]>([0, 0])
   const [sx, sy] = frenzySpawn(s, me)
   const me0 = useRef(body(sx, sy))
-  const mine = useRef(new Map<number, number>())
+  /** Coins I grabbed (k -> value, when), until the host confirms or a moment passes. */
+  const mine = useRef(new Map<number, { v: number; at: number }>())
   const myBonks = useRef<Bonk[]>([...(s.bonks[me] ?? [])])
   const latest = useLatest(s)
   const push = useBodySender(run.no)
@@ -263,9 +264,9 @@ export function FrenzyPad({ s, run, me, who, now, send }: MgPadProps<FrenzyState
           if (c.land > t1) break
           if (c.gone <= t1 || cur.taken[c.k] || mine.current.has(c.k)) continue
           if (dist(b.x, b.y, c.x, c.y) <= GRAB_R) {
-            mine.current.set(c.k, c.v)
+            mine.current.set(c.k, { v: c.v, at: t1 })
             send('grab', { k: c.k })
-            vibrate(c.v > 1 ? 50 : 20)
+            buzz(c.v > 1 ? 50 : 20)
             sfx.play(c.v > 1 ? 'good' : 'pop')
             setPop({ v: c.v, at: t1 })
           }
@@ -277,7 +278,7 @@ export function FrenzyPad({ s, run, me, who, now, send }: MgPadProps<FrenzyState
           myBonks.current = [...myBonks.current, { c: cart.c, t: t1, lost: 0 }]
           setDizzyAt(t1)
           send('bonk', { c: cart.c })
-          vibrate([60, 40, 120])
+          buzz([60, 40, 120])
           sfx.play('bad')
           setPop({ v: -3, at: t1 })
         }
@@ -285,7 +286,7 @@ export function FrenzyPad({ s, run, me, who, now, send }: MgPadProps<FrenzyState
     }
     // Coins I grabbed that the host has not confirmed yet count right away (unless someone beat me to it).
     let p = 0
-    mine.current.forEach((v, k) => { if (!cur.taken[k]) p += v })
+    mine.current.forEach((g, k) => { if (!cur.taken[k] && t0 - g.at < 1500) p += g.v })
     setPending(p)
     ownBodies.set(ownKey(run.no, me), { b, f: dizzy ? 2 : 0 })
     push(b, dizzy ? 2 : 0)

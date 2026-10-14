@@ -1,11 +1,11 @@
-import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
+import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
 import { useSendStream, useStream } from '../../../engine/context'
 import type { MgRun } from '../logic'
 import type { Who } from '../view'
-import { CAST_IDS, CritterArt, INK, critter, type CritterId, type Mood } from '../park/cast'
+import { CritterArt, INK, critter, type CritterId, type Mood } from '../park/cast'
 import { PARK, Portrait, starPath } from '../park/ui'
 import { STEP, WORLD_H, WORLD_W, normStick, stepAt, stepTime, type Body } from './rt'
-import { useFrame, useLatest } from './ui'
+import { charOf, useFrame, useLatest } from './ui'
 
 /**
  * View kit for the action minigames: the live position stream, the pad's fixed-step loop,
@@ -149,9 +149,6 @@ export function usePosReport(run: MgRun, who: Who, send: (type: string, payload?
   }
 }
 
-export function vibrate(ms: number | number[]) {
-  try { navigator.vibrate?.(ms) } catch { /* not on this device */ }
-}
 
 // ---------------- the joystick ----------------
 
@@ -160,8 +157,16 @@ export function vibrate(ms: number | number[]) {
  * harder the farther from the middle. Tap-and-hold works as well as dragging. Arrow keys
  * and WASD work too (laptops, testing). `onStick` gets the live vector.
  */
-export function Joystick({ onStick, disabled = false, size = 300, label, color = PARK.coral }: { onStick: (v: [number, number]) => void; disabled?: boolean; size?: number; label?: ReactNode; color?: string }) {
+export function Joystick({ onStick, disabled = false, size: want = 300, label, color = PARK.coral }: { onStick: (v: [number, number]) => void; disabled?: boolean; size?: number; label?: ReactNode; color?: string }) {
   const box = useRef<HTMLDivElement>(null)
+  // Shrink to fit what is left of the screen (apart phones stack the scene above the pad).
+  const [size, setSize] = useState(want)
+  useLayoutEffect(() => {
+    const el = box.current
+    if (!el || typeof window === 'undefined') return
+    const room = window.innerHeight - el.getBoundingClientRect().top - 28
+    setSize(Math.round(Math.max(190, Math.min(want, room))))
+  }, [want])
   const knob = useRef<HTMLDivElement>(null)
   const ptr = useRef<number | null>(null)
   const keys = useRef(new Set<string>())
@@ -227,15 +232,6 @@ export function Joystick({ onStick, disabled = false, size = 300, label, color =
 
 // ---------------- critters in a world-unit SVG scene ----------------
 
-/** The critter for a player, never null (falls back to a free one by seat). */
-export function charFor(who: Who, players: string[], id: string): CritterId {
-  const c = who(id).char
-  if (c) return c
-  const taken = new Set(players.map((p) => who(p).char).filter(Boolean))
-  const free = CAST_IDS.filter((x) => !taken.has(x))
-  return free[Math.max(0, players.indexOf(id)) % free.length] ?? 'chomp'
-}
-
 const Art = memo(function Art({ id, mood, size, flip }: { id: CritterId; mood: Mood; size: number; flip: boolean }) {
   return <CritterArt id={id} mood={mood} size={size} flip={flip} />
 })
@@ -259,7 +255,7 @@ export function Sprite({ x, y, char, mood = 'idle', size = 13, flip = false, alp
 }
 
 /** A name tag floating over a critter. */
-export function NameTag({ name, char, y = -18, small = false }: { name: string; char: CritterId; y?: number; small?: boolean }) {
+export function SvgTag({ name, char, y = -18, small = false }: { name: string; char: CritterId; y?: number; small?: boolean }) {
   const c = critter(char)!
   const fs = small ? 3.6 : 3.1
   const w = Math.max(10, name.length * fs * 0.62 + 4)
@@ -357,7 +353,7 @@ export function SceneFrame({ children, compact = false }: { children: ReactNode;
 /** One player's plate for the TV side column: portrait, name, and a stat. */
 export function Plate({ who, id, players, children, dim = false, hot = false, sub }: { who: Who; id: string; players: string[]; children?: ReactNode; dim?: boolean; hot?: boolean; sub?: string }) {
   const p = who(id)
-  const ch = charFor(who, players, id)
+  const ch = charOf(who, id, players)
   const c = critter(ch)!
   return (
     <div
@@ -372,6 +368,14 @@ export function Plate({ who, id, players, children, dim = false, hot = false, su
       </div>
     </div>
   )
+}
+
+/** Did this player win the round (their side in 1 vs 2, everyone on a co-op success)? */
+export function wonRound(r: { places: Record<string, number>; winner?: 'solo' | 'team' | 'none'; success?: boolean } | null, run: { format: string; solo: string | null }, id: string): boolean {
+  if (!r) return false
+  if (run.format === 'coop') return !!r.success
+  if (run.format === '1v2') return r.winner === 'solo' ? id === run.solo : r.winner === 'team' ? id !== run.solo : false
+  return r.places[id] === 1
 }
 
 /** Interpolated draw position of a sim body. */

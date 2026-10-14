@@ -9,10 +9,10 @@ import {
 } from './tubes'
 import { STEP, WORLD_H, WORLD_W, body } from './rt'
 import {
-  Burst, CallOut, Joystick, WinStar, callY, NameTag, Plate, Scene, SceneFrame, charFor, ownBodies, ownKey, secsLeft, simDraw,
-  useBodySender, usePosReport, usePoses, useRemoteBodies, useStepLoop, vibrate,
+  Burst, CallOut, Joystick, WinStar, callY, SvgTag, Plate, Scene, SceneFrame, ownBodies, ownKey, secsLeft, simDraw,
+  useBodySender, usePosReport, usePoses, useRemoteBodies, useStepLoop,
 } from './rt.view'
-import { PadShell, TvClock, TvShell, myRole, sideOf, useLatest, type MgPadProps, type MgViewProps } from './ui'
+import { CompactLine, PadShell, TvClock, TvShell, buzz, charOf, myRole, sideOf, useLatest, type MgPadProps, type MgViewProps } from './ui'
 
 // ---------------- the wave pool ----------------
 
@@ -155,7 +155,7 @@ export function TubesStage({ s, run, who, now, compact }: MgViewProps<TubesState
       <Scene>
         <Pool t={t} startAt={s.startAt} compact={compact} />
         {sorted.map((d) => {
-          const ch = charFor(who, s.players, d.id)
+          const ch = charOf(who, d.id, s.players)
           const flip = d.flip
           const sp = Math.sqrt(d.vx * d.vx + d.vy * d.vy)
           const sink = d.out && d.outAt !== null ? Math.min(1, (t - d.outAt) / 1400) : 0
@@ -170,7 +170,7 @@ export function TubesStage({ s, run, who, now, compact }: MgViewProps<TubesState
                 </g>
               )}
               <Tube x={d.x} y={d.y} r={tubeR(s, d.id)} char={ch} mood={mood} flip={flip} sink={sink} wake={d.out ? 0 : sp / 70} wx={sp > 1 ? d.vx / sp : 0} wy={sp > 1 ? d.vy / sp : 0} />
-              {!compact && !d.out && <g transform={`translate(${d.x} ${d.y})`}><NameTag name={who(d.id).name} char={ch} y={d.y < 30 ? tubeR(s, d.id) * 0.9 + 3 : -tubeR(s, d.id) * 2.3 - 2.5} />{won && <WinStar t={t} y={d.y < 30 ? -tubeR(s, d.id) * 2.3 - 2 : -tubeR(s, d.id) * 2.3 - 9} />}</g>}
+              {!compact && !d.out && <g transform={`translate(${d.x} ${d.y})`}><SvgTag name={who(d.id).name} char={ch} y={d.y < 30 ? tubeR(s, d.id) * 0.9 + 3 : -tubeR(s, d.id) * 2.3 - 2.5} />{won && <WinStar t={t} y={d.y < 30 ? -tubeR(s, d.id) * 2.3 - 2 : -tubeR(s, d.id) * 2.3 - 9} />}</g>}
             </g>
           )
         })}
@@ -189,16 +189,16 @@ export function TubesStage({ s, run, who, now, compact }: MgViewProps<TubesState
     return (
       <div className="grid gap-2" data-rt-tv="tubes">
         {scene}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm font-bold" style={{ color: INK }}>
+        <CompactLine><div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           {s.players.map((id) => <span key={id} style={{ opacity: floating(s, id, t) ? 1 : 0.45 }}>{who(id).name} {floating(s, id, t) ? 'floating' : 'splashed'}</span>)}
           <span className="font-party text-xl">{secsLeft(s.startAt + TUBES_MS, t)}</span>
-        </div>
+        </div></CompactLine>
       </div>
     )
   }
   return (
-    <TvShell run={run} title="Bumper Tubes" right={<TvClock endsAt={s.startAt + TUBES_MS} now={now} />}>
-      <div className="flex h-full min-h-0 gap-5" data-rt-tv="tubes">
+    <TvShell run={run} title="Bumper Tubes" ground="pavement" right={<TvClock endsAt={s.startAt + TUBES_MS} now={now} />}>
+      <div className="flex h-full min-h-0 gap-5 px-7 pb-5 pt-3" data-rt-tv="tubes">
         <div className="min-h-0 min-w-0 flex-1">{scene}</div>
         <div className="grid w-60 shrink-0 content-start gap-3">
           {s.players.map((id) => {
@@ -266,7 +266,7 @@ export function TubesPad({ s, run, me, who, now, send }: MgPadProps<TubesState>)
         b.vx += h.dvx
         b.vy += h.dvy
         if (isBot) send('bump', { to: id, ix: Math.round(h.ovx * 10) / 10, iy: Math.round(h.ovy * 10) / 10 })
-        vibrate(35)
+        buzz(35)
         sfx.play('pop')
         setHitAt(t1)
       }
@@ -274,7 +274,7 @@ export function TubesPad({ s, run, me, who, now, send }: MgPadProps<TubesState>)
         outSent.current = true
         setOutNow(true)
         send('out')
-        vibrate([100, 50, 220])
+        buzz([100, 50, 220])
         sfx.play('bad')
       }
     }

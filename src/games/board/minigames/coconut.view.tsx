@@ -9,10 +9,10 @@ import {
 } from './coconut'
 import { BODY_R, WORLD_H, WORLD_W, body, stepWalker, STEP } from './rt'
 import {
-  Burst, CallOut, Joystick, NameTag, Plate, Scene, SceneFrame, Sprite, WinStar, callY, charFor, ownBodies, ownKey, secsLeft, simDraw,
-  useBodySender, usePosReport, usePoses, useRemoteAim, useStepLoop, vibrate,
+  Burst, CallOut, Joystick, SvgTag, Plate, Scene, SceneFrame, Sprite, WinStar, callY, ownBodies, ownKey, secsLeft, simDraw,
+  useBodySender, usePosReport, usePoses, useRemoteAim, useStepLoop,
 } from './rt.view'
-import { PadShell, TvClock, TvShell, myRole, useLatest, type MgPadProps, type MgViewProps } from './ui'
+import { CompactLine, PadShell, TvClock, TvShell, buzz, charOf, myRole, useLatest, type MgPadProps, type MgViewProps } from './ui'
 
 const PALM: [number, number] = [WORLD_W / 2 - 8, 9]
 
@@ -202,14 +202,14 @@ export function CocoStage({ s, run, who, now, compact }: MgViewProps<CocoState>)
           </g>
         )}
         {crit.map((c) => (
-          <Sprite key={c.id} x={c.x} y={c.y} char={charFor(who, s.players, c.id)} mood={c.mood} flip={c.flip} alpha={c.out ? 0.55 : c.blink ? 0.35 : 1} lie={c.out} size={compact ? 14 : 13}>
-            {!compact && <NameTag name={who(c.id).name} char={charFor(who, s.players, c.id)} y={c.out ? -8 : c.y < 32 ? 5.5 : -18} />}
+          <Sprite key={c.id} x={c.x} y={c.y} char={charOf(who, c.id, s.players)} mood={c.mood} flip={c.flip} alpha={c.out ? 0.55 : c.blink ? 0.35 : 1} lie={c.out} size={compact ? 14 : 13}>
+            {!compact && <SvgTag name={who(c.id).name} char={charOf(who, c.id, s.players)} y={c.out ? -8 : c.y < 32 ? 5.5 : -18} />}
             {c.mood === 'happy' && <WinStar t={t} y={c.y < 32 ? -17 : -25} />}
           </Sprite>
         ))}
         {solo && (
-          <Sprite x={PALM[0] + 13} y={PALM[1] + 15} char={charFor(who, s.players, solo)} mood={over ? (alive.length ? 'sad' : 'happy') : 'hop'} size={12}>
-            {!compact && <NameTag name={who(solo).name} char={charFor(who, s.players, solo)} y={5} />}
+          <Sprite x={PALM[0] + 13} y={PALM[1] + 15} char={charOf(who, solo, s.players)} mood={over ? (alive.length ? 'sad' : 'happy') : 'hop'} size={12}>
+            {!compact && <SvgTag name={who(solo).name} char={charOf(who, solo, s.players)} y={5} />}
             {over && !alive.length && <WinStar t={t} y={-17} />}
           </Sprite>
         )}
@@ -232,16 +232,16 @@ export function CocoStage({ s, run, who, now, compact }: MgViewProps<CocoState>)
     return (
       <div className="grid gap-2" data-rt-tv="coconut">
         {scene}
-        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm font-bold" style={{ color: INK }}>
+        <CompactLine><div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
           {ds.map((id) => <span key={id} className="inline-flex items-center gap-1">{who(id).name} <Lives n={livesLeft(s, id, Math.min(t, end))} of={s.lives[id]} size={14} /></span>)}
           <span className="font-party text-xl">{secsLeft(s.startAt + COCO_MS, t)}</span>
-        </div>
+        </div></CompactLine>
       </div>
     )
   }
   return (
-    <TvShell run={run} title="Coconut Drop" right={<TvClock endsAt={s.startAt + COCO_MS} now={now} />}>
-      <div className="flex h-full min-h-0 gap-5" data-rt-tv="coconut">
+    <TvShell run={run} title="Coconut Drop" ground="sand" sea right={<TvClock endsAt={s.startAt + COCO_MS} now={now} />}>
+      <div className="flex h-full min-h-0 gap-5 px-7 pb-5 pt-3" data-rt-tv="coconut">
         <div className="min-h-0 min-w-0 flex-1">{scene}</div>
         <div className="grid w-60 shrink-0 content-start gap-3">
           {solo && <Plate who={who} id={solo} players={s.players} sub="In the palm tree" hot={over && !alive.length}><span className="font-party text-xl">{ds.reduce((a, id) => a + (s.hits[id] ?? []).filter((h) => h.t <= Math.min(t, end)).length, 0)} bonks</span></Plate>}
@@ -292,7 +292,7 @@ function DodgePad({ s, run, me, who, now, send }: MgPadProps<CocoState>) {
         if (bonks(n, b.x, b.y, hits.current, lives)) {
           hits.current.push({ k: n.k, t: n.land })
           send('hit', { k: n.k })
-          vibrate(hits.current.length >= lives ? [80, 60, 200] : 140)
+          buzz(hits.current.length >= lives ? [80, 60, 200] : 140)
           sfx.play('bad')
           setFlash(n.land)
           setLeft(Math.max(0, lives - hits.current.length))
@@ -366,7 +366,7 @@ function DropPad({ s, run, who, now, send }: MgPadProps<CocoState>) {
     if (!p || over || tt - Math.max(ld?.t ?? -Infinity, lastSent) < DROP_GAP_MS) return
     setLastSent(tt)
     send('drop', { x: Math.round(p[0] * 10) / 10, y: Math.round(p[1] * 10) / 10 })
-    vibrate(40)
+    buzz(40)
     sfx.play('whoosh')
   }
 
