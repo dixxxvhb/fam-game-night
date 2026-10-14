@@ -2,17 +2,18 @@ import type { MgBase, Minigame } from './types'
 import { botNoise, isInt, judge, obj } from './util'
 
 /**
- * Memory: watch a color sequence, repeat it. It grows by one each round (3, 4, 5...).
+ * Memory: watch a color sequence, repeat it. It grows each round (3, 4, 6, 8, 10).
  * Miss once and you are out. Last one standing; everyone out in the same round ties.
  */
 
 export const PADS = 4
-export const START_LEN = 3
-export const MAX_ROUNDS = 7
-export const STEP_MS = 560
-export const LIT_MS = 400
-export const LEAD_MS = 600
-export const BETWEEN_MS = 1600
+/** Colors to repeat each round. */
+export const LENGTHS = [3, 4, 6, 8, 10]
+export const MAX_ROUNDS = LENGTHS.length
+export const STEP_MS = 480
+export const LIT_MS = 340
+export const LEAD_MS = 500
+export const BETWEEN_MS = 1300
 
 export interface MemoryState extends MgBase {
   seq: number[]
@@ -30,9 +31,9 @@ export interface MemoryState extends MgBase {
   over: boolean
 }
 
-export const roundLen = (r: number) => START_LEN + r
+export const roundLen = (r: number) => LENGTHS[Math.min(r, LENGTHS.length - 1)]
 export const showMs = (r: number) => LEAD_MS + roundLen(r) * STEP_MS
-export const inputMs = (r: number) => 3000 + roundLen(r) * 900
+export const inputMs = (r: number) => 2500 + roundLen(r) * 800
 
 /** Which pad is lit at host time t during the show, or null. */
 export function litPad(s: MemoryState, t: number): number | null {
@@ -80,7 +81,7 @@ export const memory: Minigame<MemoryState> = {
   soloRule: 'Outlast all of them.',
   setup(a) {
     const seq: number[] = []
-    for (let i = 0; i < START_LEN + MAX_ROUNDS; i++) {
+    for (let i = 0; i < LENGTHS[LENGTHS.length - 1]; i++) {
       let v = Math.floor(a.random() * PADS)
       if (i > 0 && v === seq[i - 1] && a.random() < 0.6) v = (v + 1 + Math.floor(a.random() * (PADS - 1))) % PADS
       seq.push(v)
@@ -135,10 +136,10 @@ export const memory: Minigame<MemoryState> = {
     if (s.over || s.phase !== 'input' || !s.alive[id] || s.sent[id]) return null
     const len = roundLen(s.r)
     // Takes about 0.7 s a color to tap it back.
-    if (ctx.now < s.phaseAt + 600 + len * (550 + botNoise(id, s.startAt, s.r) * 300)) return null
+    if (ctx.now < s.phaseAt + 400 + len * (330 + botNoise(id, s.startAt, s.r) * 200)) return null
     const seq = s.seq.slice(0, len)
     // Gets shakier as it grows: 3 colors almost never wrong, 8 colors often.
-    if (botNoise(id, s.startAt + 7, s.r) < 0.04 + (len - 3) * 0.1) seq[seq.length - 1] = (seq[seq.length - 1] + 1) % PADS
+    if (botNoise(id, s.startAt + 7, s.r) < 0.04 + (len - 3) * 0.09) seq[seq.length - 1] = (seq[seq.length - 1] + 1) % PADS
     return { type: 'answer', payload: { r: s.r, seq } }
   },
 }
