@@ -1,0 +1,82 @@
+// What a bot knows for Categories: a few common answers by kind, routed by keywords in the
+// category name. A bot only answers when it has something that fits; otherwise it leaves the
+// slot blank, like a person who's stuck. PG-13.
+
+const KINDS: Record<string, string> = {
+  animal: 'Alligator|Anteater|Bear|Beaver|Camel|Cheetah|Dolphin|Donkey|Eagle|Elephant|Falcon|Ferret|Giraffe|Goat|Hippo|Hamster|Iguana|Impala|Jaguar|Jellyfish|Kangaroo|Koala|Lion|Llama|Monkey|Moose|Narwhal|Newt|Octopus|Otter|Penguin|Parrot|Rabbit|Raccoon|Shark|Sloth|Tiger|Turtle|Walrus|Wolf',
+  food: 'Apple|Avocado|Bagel|Banana|Carrot|Cookie|Donut|Dumpling|Eggplant|Eclair|Fudge|Fig|Grape|Garlic|Ham|Honey|Ice cream|Jam|Jelly beans|Kale|Kiwi|Lemon|Lasagna|Mango|Muffin|Nachos|Noodles|Olive|Omelet|Pizza|Pickle|Ravioli|Rice|Salsa|Sushi|Taco|Toast|Waffle|Watermelon',
+  boy: 'Aaron|Ben|Brandon|Carlos|Chris|David|Derek|Ethan|Eric|Frank|Gavin|Henry|Hugo|Isaac|Ivan|Jake|James|Kevin|Kyle|Leo|Liam|Mason|Miles|Nathan|Noah|Oscar|Owen|Peter|Paul|Ryan|Riley|Sam|Seth|Tyler|Theo|Will|Wyatt',
+  girl: 'Abby|Ava|Bella|Brooke|Chloe|Claire|Daisy|Dana|Emma|Ella|Fiona|Faith|Grace|Gwen|Hannah|Holly|Ivy|Isla|Jade|Julia|Kate|Kayla|Lily|Luna|Mia|Maya|Nora|Nina|Olivia|Paige|Piper|Ruby|Rose|Sophie|Sara|Tessa|Tara|Wendy|Willow',
+  city: 'Atlanta|Austin|Boston|Baltimore|Chicago|Dallas|Denver|Detroit|El Paso|Fresno|Gainesville|Houston|Honolulu|Indianapolis|Jacksonville|Kansas City|Kissimmee|Las Vegas|London|Miami|Memphis|Nashville|New York|Orlando|Ocala|Paris|Phoenix|Raleigh|Rome|Seattle|Sarasota|Tampa|Toronto|Washington',
+  country: 'Argentina|Australia|Brazil|Belgium|Canada|Chile|Denmark|Egypt|England|France|Finland|Germany|Greece|Haiti|Hungary|India|Ireland|Italy|Jamaica|Japan|Kenya|Korea|Lebanon|Mexico|Morocco|Norway|Nepal|Oman|Peru|Poland|Portugal|Russia|Spain|Sweden|Thailand|Turkey|Wales',
+  state: 'Alabama|Alaska|Arizona|California|Colorado|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Kansas|Kentucky|Louisiana|Maine|Montana|Nevada|Nebraska|Ohio|Oregon|Pennsylvania|Rhode Island|Texas|Tennessee|Utah|Washington|Wyoming',
+  thing: 'Alarm clock|Battery|Blanket|Candle|Charger|Desk lamp|Duct tape|Eraser|Extension cord|Flashlight|Fork|Glue|Glasses|Hammer|Headphones|Ink pen|Iron|Jar|Key|Keychain|Lamp|Lint roller|Magnet|Mirror|Notebook|Nail|Oven mitt|Pencil|Pillow|Remote|Ruler|Scissors|Stapler|Tape|Toothbrush|Towel|Wallet|Wrench',
+  clothing: 'Apron|Ankle socks|Belt|Beanie|Boots|Cardigan|Cap|Dress|Denim jacket|Earrings|Flip flops|Fedora|Gloves|Gown|Hoodie|Hat|Jeans|Jacket|Kimono|Leggings|Leotard|Mittens|Necklace|Overalls|Pajamas|Poncho|Robe|Ring|Scarf|Sneakers|Sweater|Tights|Tank top|Watch|Wig',
+  sport: 'Archery|Baseball|Basketball|Bowling|Cheer|Cycling|Darts|Diving|Fencing|Football|Golf|Gymnastics|Hockey|Hiking|Ice skating|Judo|Karate|Kickball|Lacrosse|Marathon|Netball|Polo|Pickleball|Rowing|Rugby|Soccer|Surfing|Swimming|Tennis|Track|Volleyball|Wrestling|Water polo',
+  job: 'Accountant|Actor|Baker|Barber|Chef|Coach|Dentist|Doctor|Electrician|Engineer|Farmer|Firefighter|Gardener|Hairdresser|Hostess|Insurance agent|Janitor|Judge|Lawyer|Lifeguard|Mechanic|Musician|Nurse|Nanny|Optometrist|Plumber|Pilot|Realtor|Reporter|Singer|Surgeon|Teacher|Tailor|Waiter|Writer',
+  color: 'Aqua|Amber|Black|Blue|Brown|Cyan|Coral|Denim|Emerald|Fuchsia|Gold|Gray|Green|Hot pink|Indigo|Ivory|Jade|Khaki|Lavender|Lime|Magenta|Maroon|Navy|Orange|Olive|Pink|Purple|Red|Rose|Silver|Scarlet|Teal|Tan|White|Wine',
+  instrument: 'Accordion|Bagpipes|Banjo|Bass|Cello|Clarinet|Drums|Didgeridoo|Electric guitar|Flute|French horn|Guitar|Gong|Harp|Harmonica|Kazoo|Keyboard|Lute|Maracas|Mandolin|Oboe|Organ|Piano|Piccolo|Recorder|Saxophone|Sitar|Tambourine|Trumpet|Tuba|Triangle|Viola|Violin|Whistle',
+  dance: 'Arabesque|Attitude|Ballet|Breakdance|Ballroom|Chasse|Contemporary|Cha cha|Disco|Fouette|Flamenco|Foxtrot|Grand jete|Hip hop|House|Irish dance|Jazz|Jive|Krump|Lyrical|Line dance|Modern|Mambo|Pirouette|Pas de bourree|Plie|Polka|Releve|Rumba|Salsa|Samba|Swing|Tango|Tap|Tendu|Two step|Waltz|Waacking',
+  body: 'Ankle|Arm|Back|Belly button|Calf|Chin|Elbow|Ear|Finger|Foot|Glutes|Hip|Hamstring|Heel|Index finger|Jaw|Knee|Knuckle|Leg|Lower back|Neck|Nose|Pinky toe|Rib|Shoulder|Shin|Thigh|Toe|Thumb|Wrist|Waist',
+  weather: 'Avalanche|Blizzard|Breeze|Cloud|Cyclone|Drizzle|Downpour|Earthquake|Fog|Flood|Frost|Gale|Hail|Hurricane|Heat wave|Ice storm|Lightning|Mist|Monsoon|Overcast|Rain|Rainbow|Sleet|Snow|Storm|Thunder|Tornado|Typhoon|Wind|Whiteout',
+  movie: 'Aladdin|Avatar|Bambi|Barbie|Cars|Coco|Dune|Encanto|Elf|Frozen|Finding Nemo|Grease|Gravity|Hercules|Hairspray|Inside Out|Jaws|Jumanji|Kung Fu Panda|Lilo and Stitch|Matilda|Moana|Mulan|Night at the Museum|Oppenheimer|Pinocchio|Ratatouille|Rocky|Shrek|Star Wars|Tangled|Titanic|Toy Story|Up|Wicked|Wall-E',
+  disney: 'Ariel|Aladdin|Baloo|Belle|Buzz|Cinderella|Dumbo|Daisy Duck|Elsa|Eeyore|Flounder|Goofy|Gaston|Hades|Hercules|Ian|Jasmine|Jafar|Kristoff|Lumiere|Mickey|Minnie|Moana|Mulan|Nemo|Olaf|Pluto|Pumbaa|Rapunzel|Simba|Stitch|Tinker Bell|Tiana|Timon|Woody|Wall-E',
+  florida: 'Alligator|Airboat|Beach|Bougainvillea|Citrus|Cocoa Beach|Disney|Daytona|Everglades|Egret|Flamingo|Gator|Gulf|Heron|Hurricane|Iguana|Jacksonville|Key lime pie|Key West|Lovebugs|Lightning|Manatee|Mosquito|Mangrove|Naples|Orange|Orlando|Palm tree|Pelican|Publix|Rain|Sunscreen|Sinkhole|Sand|Tampa|Theme park|Tourists|Wawa|Water park',
+  music: 'Adele|Abba|Beyonce|Bruno Mars|Coldplay|Cher|Drake|Dua Lipa|Ed Sheeran|Elton John|Fleetwood Mac|Gaga|Green Day|Harry Styles|Imagine Dragons|Journey|Jonas Brothers|Katy Perry|Kelly Clarkson|Lizzo|Madonna|Maroon 5|Nirvana|Olivia Rodrigo|Pink|Prince|Queen|Rihanna|Shakira|Sabrina Carpenter|Taylor Swift|Usher|Weezer|Whitney Houston',
+  genre: 'Alternative|Blues|Bluegrass|Country|Classical|Disco|Dubstep|Electronic|Emo|Folk|Funk|Gospel|Grunge|Hip hop|House|Indie|Jazz|K-pop|Latin|Lo-fi|Metal|Motown|New wave|Opera|Pop|Punk|R&B|Rap|Reggae|Rock|Salsa|Soul|Swing|Techno|Trap|World',
+  vehicle: 'Ambulance|Airplane|Bike|Bus|Boat|Car|Canoe|Dump truck|Firetruck|Forklift|Go-kart|Golf cart|Helicopter|Hovercraft|Ice cream truck|Jeep|Jet ski|Kayak|Limo|Motorcycle|Minivan|Pickup truck|Rocket|Scooter|Skateboard|Submarine|Tractor|Train|Truck|Wagon',
+  game: 'Apex Legends|Battleship|Bingo|Checkers|Chess|Candy Land|Clue|Dominoes|Euchre|Fortnite|Go Fish|Hungry Hippos|Jenga|Kirby|Life|Mario Kart|Minecraft|Monopoly|Operation|Pac-Man|Poker|Pictionary|Risk|Rummy|Scrabble|Sorry|Tetris|Twister|Uno|War|Wordle|Yahtzee',
+  bird: 'Albatross|Blue jay|Bald eagle|Cardinal|Crow|Dove|Duck|Eagle|Egret|Falcon|Flamingo|Goose|Hawk|Heron|Hummingbird|Ibis|Jay|Kingfisher|Lark|Loon|Macaw|Magpie|Nightingale|Owl|Ostrich|Parrot|Pelican|Penguin|Raven|Robin|Sparrow|Swan|Toucan|Turkey|Woodpecker|Wren',
+  sea: 'Anchovy|Angelfish|Barracuda|Bass|Clam|Crab|Catfish|Dolphin|Eel|Flounder|Grouper|Goldfish|Halibut|Jellyfish|Lobster|Mackerel|Manta ray|Narwhal|Octopus|Oyster|Pufferfish|Piranha|Salmon|Shark|Shrimp|Squid|Starfish|Tuna|Trout|Walrus|Whale',
+  bug: 'Ant|Aphid|Bee|Beetle|Butterfly|Caterpillar|Cricket|Cockroach|Dragonfly|Earwig|Firefly|Flea|Gnat|Grasshopper|Hornet|Inchworm|Katydid|Ladybug|Lovebug|Mosquito|Moth|No-see-um|Praying mantis|Roach|Spider|Stink bug|Termite|Tick|Wasp|Weevil',
+  flower: 'Azalea|Aster|Begonia|Buttercup|Carnation|Daisy|Daffodil|Dahlia|Edelweiss|Freesia|Gardenia|Geranium|Hibiscus|Hydrangea|Iris|Jasmine|Lily|Lavender|Lilac|Magnolia|Marigold|Narcissus|Orchid|Peony|Poppy|Rose|Sunflower|Snapdragon|Tulip|Violet|Wisteria',
+  room: 'Apron|Blender|Bowl|Bread|Coffee maker|Cutting board|Dish soap|Eggs|Freezer|Fork|Grater|Grill|Hot sauce|Juice|Kettle|Knife|Ladle|Mixer|Microwave|Napkin|Oven|Pan|Plate|Pot|Refrigerator|Rolling pin|Sink|Spatula|Spoon|Stove|Toaster|Tongs|Whisk|Wok',
+}
+
+/** Category keywords to answer kinds. First match wins, so specific beats general. */
+const ROUTES: [RegExp, string][] = [
+  [/boy's name|nickname|names for a goldfish|bad names for a pet/i, 'boy'],
+  [/girl's name/i, 'girl'],
+  [/florida cities|cities|vacation spots/i, 'city'],
+  [/countr|languages/i, 'country'],
+  [/us states/i, 'state'],
+  [/florida|beach|swamp/i, 'florida'],
+  [/disney|pixar|princess|sidekick|cartoon|villain|superhero|fairy tale/i, 'disney'],
+  [/movie|sequel|animated/i, 'movie'],
+  [/music genre/i, 'genre'],
+  [/singer|band|songs|celebrit|movie star/i, 'music'],
+  [/instrument/i, 'instrument'],
+  [/dance|ballet|stage|choreograph|warm up|solo|rehearsal/i, 'dance'],
+  [/birds|things that fly/i, 'bird'],
+  [/fish|sea creature/i, 'sea'],
+  [/insect|bug/i, 'bug'],
+  [/flower|trees|garden/i, 'flower'],
+  [/animal|zoo|farm|pet|reptile|dog breed|forest|bite/i, 'animal'],
+  [/kitchen|fridge|grocery|publix/i, 'room'],
+  [/food|fruit|vegetable|snack|dessert|candy|breakfast|pizza topping|sandwich|salad|soup|cheese|pasta|burger|ice cream|cereal|spice|picnic|melt/i, 'food'],
+  [/body part|hurt after class|things that hurt/i, 'body'],
+  [/weather|sky|space|hurricane/i, 'weather'],
+  [/color|green|red|yellow|black/i, 'color'],
+  [/sport|hobb|gym|athlete/i, 'sport'],
+  [/job/i, 'job'],
+  [/clothing|shoes|wear on your head|accessor|costume|dance bag|purse|pack for vacation|quick change/i, 'clothing'],
+  [/wheels|motor|car brand|things in a car|on a boat|road trip/i, 'vehicle'],
+  [/game|toy/i, 'game'],
+  [/drawer|plug in|garage|tool|office|backpack|classroom|things you lose|buttons|collect|bathroom|furniture|hotel|break|throw|open|screen|couch/i, 'thing'],
+]
+
+const SPLIT = Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, v.split('|')]))
+
+export function kindFor(category: string): string | null {
+  for (const [re, kind] of ROUTES) if (re.test(category)) return kind
+  return null
+}
+
+/** Answers a bot could give for this category and letter (may be empty). */
+export function botOptions(category: string, letter: string): string[] {
+  const kind = kindFor(category)
+  if (!kind) return []
+  return (SPLIT[kind] ?? []).filter((w) => w[0]?.toUpperCase() === letter.toUpperCase())
+}
+
+export const BOT_KINDS = KINDS
