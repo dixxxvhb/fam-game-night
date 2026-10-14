@@ -93,7 +93,8 @@ await card.click()
 if (args.opts) {
   const open = starter.locator('div.border-hot', { has: starter.getByRole('button', { name: /^Start / }) }).first()
   for (const label of String(args.opts).split(',').map((x) => x.trim()).filter(Boolean)) {
-    const btn = open.getByRole('button', { name: label, exact: true })
+    const esc = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const btn = open.getByRole('button', { name: new RegExp(`^${esc}`) })
     if (await btn.count()) await btn.first().click()
     else console.warn(`Option button "${label}" not found`)
   }
