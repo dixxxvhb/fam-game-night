@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/preserve-manual-memoization, react-hooks/set-state-in-effect -- the room hook memoizes long-lived objects (link, engine) by hand and mirrors external status into state on purpose */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { ActionEnvelope, Mode, RoomState } from './types'
 import { HostEngine, loadSavedRoom, newRoomState } from './host'
@@ -15,6 +16,8 @@ export interface RoomHandle {
   clientId: string
   /** Last time this device heard the host (ms). Hosts report Date.now(). */
   heardAt: () => number
+  /** Host-only: raise a game action as '__host' (for host-run simulations). */
+  hostAction: (type: string, payload?: unknown) => void
 }
 
 /** Holds the latest state a non-host device has heard. */
@@ -25,7 +28,7 @@ class ClientStore {
   get = () => this.state
   set(s: RoomState) {
     const cur = this.state
-    if (cur && s.hostClientId === cur.hostClientId && s.v < cur.v) return
+    if (cur && s.v < cur.v) return
     if (cur && s.v === cur.v && s.hostClientId === cur.hostClientId) {
       // Heartbeat: same state, fresh clock stamp. Keep the object stable for React.
       cur.hostNow = s.hostNow
@@ -42,7 +45,10 @@ export function useRoom(
 ): RoomHandle {
   const clientId = useMemo(() => getClientId(), [])
   const me = opts.me ?? null
-  const isHost = Boolean(opts.host)
+  // Hosting can change hands in apart mode: a phone takes over when the host goes quiet.
+  const [hosting, setHosting] = useState(Boolean(opts.host))
+  const [seed, setSeed] = useState<RoomState | null>(null)
+  const isHost = hosting
 
   const link = useMemo(
     () => (code ? getLink(code, clientId, { clientId, role: isHost ? 'host' : me ? 'player' : 'screen', playerId: me?.id }) : null),
@@ -68,25 +74,33 @@ export function useRoom(
   }, [link])
 
   // ----- host engine (only when this device hosts) -----
+  const client = useMemo(() => new ClientStore(), [])
+  const offset = useRef(0)
+  const samples = useRef<number[]>([])
+  const heard = useRef(0)
+  useEffect(() => { heard.current = Date.now() }, [])
+
   const engine = useMemo(() => {
     if (!code || !isHost) return null
-    const saved = loadSavedRoom(code)
+    const saved = seed ?? loadSavedRoom(code)
     const state = saved ? { ...saved, hostClientId: clientId } : newRoomState(code, opts.mode ?? 'together', clientId)
     return new HostEngine(state, link)
-  }, [code, isHost, link]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [code, isHost, link, seed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!engine) return
     if (me) engine.localPlayers.add(me.id)
+    engine.setOnDemote((s) => {
+      client.set(s)
+      heard.current = Date.now()
+      setSeed(null)
+      setHosting(false)
+    })
     engine.start()
-    return () => engine.stop()
+    return () => { engine.setOnDemote(null); engine.stop() }
   }, [engine]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ----- client store (everyone else) -----
-  const client = useMemo(() => new ClientStore(), [])
-  const offset = useRef(0)
-  const samples = useRef<number[]>([])
-  const heard = useRef(Date.now())
 
   useEffect(() => {
     if (!link || engine) return
@@ -108,6 +122,25 @@ export function useRoom(
   )
   const state = useSyncExternalStore(store.subscribe, store.get)
 
+  // Apart mode: if the host phone goes quiet (locked, switched apps, dead battery), the
+  // connected player phone with the lowest client id takes over from the last state it saw.
+  useEffect(() => {
+    if (!link || engine || !me) return
+    const t = setInterval(() => {
+      const s = client.state
+      if (!s || s.mode !== 'apart' || link.status !== 'live') return
+      if (Date.now() - heard.current < 8000) return
+      const candidates = link.getPresence()
+        .filter((m) => m.role === 'player' && m.playerId && m.clientId !== s.hostClientId)
+        .map((m) => m.clientId)
+        .sort()
+      if (candidates[0] !== clientId) return
+      setSeed({ ...s, hostClientId: clientId })
+      setHosting(true)
+    }, 1000)
+    return () => clearInterval(t)
+  }, [link, engine, me, client, clientId])
+
   // Ask the host for the state until it arrives.
   useEffect(() => {
     if (!link || engine) return
@@ -119,6 +152,15 @@ export function useRoom(
   }, [link, engine, status, client, state])
 
   const now = useCallback(() => (engine ? Date.now() : Date.now() + offset.current), [engine])
+
+  /** For a host Stage that runs its own simulation: an action stamped '__host'. No-op elsewhere. */
+  const hostAction = useCallback(
+    (type: string, payload?: unknown) => {
+      if (!engine) return
+      engine.dispatch({ aid: uuid(), from: '__host', kind: 'game', type, payload })
+    },
+    [engine],
+  )
 
   const send = useCallback(
     (kind: 'room' | 'game', type: string, payload?: unknown) => {
@@ -144,5 +186,5 @@ export function useRoom(
 
   const heardAt = useCallback(() => (engine ? Date.now() : heard.current), [engine])
 
-  return { state, status, isHost, now, send, link, me, clientId, heardAt }
+  return { state, status, isHost, now, send, hostAction, link, me, clientId, heardAt }
 }

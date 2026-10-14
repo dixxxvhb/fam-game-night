@@ -71,7 +71,7 @@ export default function Host() {
               compact={false}
               me={null}
               isHost
-              hostAction={(type, payload) => room.send('game', type, payload)}
+              hostAction={room.hostAction}
             />
           </GameEnvProvider>
         )}

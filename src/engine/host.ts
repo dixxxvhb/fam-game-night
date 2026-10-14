@@ -64,6 +64,9 @@ export class HostEngine {
   private offs: (() => void)[] = []
   /** When each player last sent a join; presence gets a grace period after it. */
   private joinedAt = new Map<string, number>()
+  /** Called when another device has taken over hosting with a newer state. */
+  private onDemote: ((s: RoomState) => void) | null = null
+  setOnDemote(fn: ((s: RoomState) => void) | null) { this.onDemote = fn }
 
   constructor(state: RoomState, link: RoomLink | null) {
     this.state = state
@@ -76,6 +79,13 @@ export class HostEngine {
       this.offs.push(this.link.onHello(() => this.broadcastNow()))
       this.offs.push(this.link.onPresence((list) => this.applyPresence(list)))
       this.offs.push(this.link.onStatus((s) => { if (s === 'live') this.broadcastNow() }))
+      // Two hosts at once (a phone came back after another took over): the newer state wins,
+      // ties go to the lower client id, and the loser becomes a normal client.
+      this.offs.push(this.link.onState((s) => {
+        if (s.hostClientId === this.state.hostClientId) return
+        const theirsWins = s.v > this.state.v || (s.v === this.state.v && s.hostClientId < this.state.hostClientId)
+        if (theirsWins) this.onDemote?.(s)
+      }))
     }
     this.timers.push(setInterval(() => this.tick(), TICK_MS))
     this.timers.push(setInterval(() => this.broadcastNow(), HEARTBEAT_MS))
