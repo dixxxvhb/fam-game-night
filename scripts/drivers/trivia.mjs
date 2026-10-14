@@ -68,7 +68,7 @@ export default async function ({ tv, phones, shot, wait }) {
         const pick = plan[p.playerId] ?? (right + k) % 4
         await p.locator(`[data-answer="${pick}"]`).click()
         await wait(k === 0 ? 900 : 500)
-        if (k === 1) await snap(tag)
+        if (k === Math.min(1, phones.length - 1)) await snap(tag)
       }
       await wait(cur.phase === 'finalQ' ? 2200 : 900)
       await snap(cur.phase === 'finalQ' ? 'final-reveal' : `r${round}-reveal`)

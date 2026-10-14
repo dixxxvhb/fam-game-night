@@ -128,7 +128,7 @@ export function SurviveStage({ state: s, room, now, compact, me }: StageProps<Su
     const sort = f.sort
     const revealing = s.phase === 'finaleReveal'
     const order = revealing && f.last ? room.gamePlayers.filter((id) => (f.last!.moves[id] ?? 0) > 0) : []
-    const hideSort = compact && inGame && s.phase === 'finaleQ'
+    const hideSort = compact && inGame && s.phase === 'finaleQ' && !f.answers[me!]
     body = (
       <div className={cx('grid min-h-0 content-start', compact ? 'gap-2' : 'gap-5')}>
         <div className="flex items-center justify-between gap-3">

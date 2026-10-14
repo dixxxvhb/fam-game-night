@@ -1,8 +1,9 @@
-import type { GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine/types'
-import { shuffle } from '../../lib/shuffle'
+import type { BotMove, GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine/types'
+import { freshFirst, shuffle } from '../../lib/shuffle'
 import type { CatKey } from '../_quiz/categories'
 import { allIn, catsWith, drawQuestion, readPick, type Answer, type LiveQ } from '../_quiz/bank'
-import { makeRun, trapDone, trapInput, trapTimeout, TRAP_KINDS, type TrapKind, type TrapRun } from './traps'
+import { botTrap, makeRun, trapDone, trapInput, trapTimeout, TRAP_KINDS, type TrapKind, type TrapRun } from './traps'
+import { botPick, thinkMs } from '../_quiz/botkit'
 import { SORTS } from './sorts'
 import * as L from './lines'
 
@@ -97,7 +98,7 @@ function nextQuestion(s: SurviveState, ctx: GameCtx): SurviveState {
   const [min, max] = rangeFor(qNum)
   const open = catsWith(s.used, min, max).filter((k) => k !== s.lastCat)
   const cat = open.length ? open[Math.floor(ctx.random() * open.length)] : null
-  const current = drawQuestion({ used: s.used, cat, min, max, avoid: s.lastCat }, ctx.random)
+  const current = drawQuestion({ used: s.used, cat, min, max, avoid: s.lastCat, seen: ctx.used }, ctx.random)
   return {
     ...phase(s, 'question', ctx.now, QUESTION_MS),
     qNum,
@@ -201,10 +202,13 @@ function toTrapResult(s: SurviveState, ctx: GameCtx): SurviveState {
   }
 }
 
-function drawSort(used: string[], random: () => number): LiveSort {
+/** Sort sets are remembered across nights as 'sort:<id>' in ctx.used. */
+export const sortKey = (id: string) => `sort:${id}`
+
+function drawSort(used: string[], random: () => number, seen: readonly string[] = []): LiveSort {
   const fresh = SORTS.filter((x) => !used.includes(x.id))
   const pool = fresh.length ? fresh : SORTS
-  const set = pool[Math.floor(random() * pool.length)]
+  const set = freshFirst(pool, (x) => sortKey(x.id), seen, random)[0]
   // Three things, at least one from each side.
   const a = shuffle(set.a, random)
   const b = shuffle(set.b, random)
@@ -230,7 +234,7 @@ function startFinale(s: SurviveState, ctx: GameCtx): SurviveState {
 
 function startFinaleQ(s: SurviveState, ctx: GameCtx): SurviveState {
   const f = s.finale!
-  const sort = drawSort(f.usedSorts, ctx.random)
+  const sort = drawSort(f.usedSorts, ctx.random, ctx.used)
   return {
     ...phase(s, 'finaleQ', ctx.now, FINALE_Q_MS),
     line: '',
@@ -424,5 +428,32 @@ export function outcome(s: SurviveState, ctx: GameCtx): GameOutcome | null {
         : `${who} escaped first. ${deaths} ${deaths === 1 ? 'death' : 'deaths'} along the way`,
     highlights,
     details: { questions: s.qNum, deaths, finaleRounds: s.finale?.round ?? 0 },
+    used: [...s.used, ...(s.finale?.usedSorts ?? []).map(sortKey)],
   }
+}
+
+// ---------------- bots ----------------
+
+/** How often a bot sorts a finale item to the right side. */
+export const BOT_SORT_ACCURACY = 0.7
+
+/**
+ * Bots: answer after 3 to 10 seconds (right about 70 / 55 / 40% by difficulty), alive or dead;
+ * play traps by sending the same inputs a phone would (the host judges them, see botTrap);
+ * sort finale items after a few seconds, right about 70% of the time.
+ */
+export function bot(s: SurviveState, id: string, ctx: GameCtx): BotMove | null {
+  const elapsed = ctx.now - s.phaseAt
+  if (s.phase === 'question' && s.current) {
+    if (s.answers[id] || elapsed < thinkMs(id, s.current.id)) return null
+    return { type: 'answer', payload: { pick: botPick(s.current, ctx.random) } }
+  }
+  if (s.phase === 'trap' && s.trap) return botTrap(s.trap, id, ctx)
+  if (s.phase === 'finaleQ' && s.finale?.sort) {
+    const f = s.finale
+    const sort = f.sort!
+    if (f.answers[id] || elapsed < thinkMs(id, `${sort.id}-${f.round}`, 3_000, 9_000)) return null
+    return { type: 'sort', payload: { picks: sort.key.map((k) => (ctx.random() < BOT_SORT_ACCURACY ? k : 1 - k)) } }
+  }
+  return null
 }

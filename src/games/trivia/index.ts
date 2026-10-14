@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type TriviaState } from './logic'
+import { bot, outcome, reduce, setup, tick, type TriviaState } from './logic'
 import { TriviaStage } from './Stage'
 import { TriviaController } from './Controller'
 
@@ -16,6 +16,7 @@ const trivia: GameDef<TriviaState> = {
   reduce,
   tick,
   outcome,
+  bot,
   Stage: TriviaStage,
   Controller: TriviaController,
 }

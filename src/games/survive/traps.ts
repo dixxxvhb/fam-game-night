@@ -1,6 +1,7 @@
 // The traps. The host builds each player's trap and judges every input; phones only
 // draw it and send what the player did. Pure functions, plain JSON.
 import { shuffle } from '../../lib/shuffle'
+import { roll } from '../_quiz/botkit'
 
 export type TrapKind = 'math' | 'odd' | 'memory' | 'quick' | 'door'
 export const TRAP_KINDS: TrapKind[] = ['math', 'odd', 'memory', 'quick', 'door']
@@ -207,4 +208,53 @@ export function trapTimeout(run: TrapRun): TrapRun {
 
 export function trapDone(run: TrapRun): boolean {
   return Object.values(run.seats).every((s) => s.status !== 'playing')
+}
+
+// ---------------- bots ----------------
+
+/** Bot skill in traps: chance per step of a right tap, memory and early-tap odds. */
+export const BOT_TRAP = { step: 0.88, memory: 0.65, early: 0.12 }
+
+/**
+ * A bot in a trap sends what a phone would, at a human pace, and the host judges it like any
+ * other input. Pass rates land around 60 to 70%: math and odd 0.88 per step (three steps), memory
+ * 65%, quick draw taps 220 to 640 ms after NOW (12% jump the gun), doors are doors.
+ */
+export function botTrap(run: TrapRun, id: string, ctx: { now: number; random: () => number }): { type: 'trap'; payload: unknown } | null {
+  const seat = run.seats[id]
+  if (!seat || seat.status !== 'playing' || ctx.now < run.startAt) return null
+  const t = ctx.now - run.startAt
+  const key = String(run.startAt)
+  const pace = roll(id, key, 'pace')
+  switch (run.kind) {
+    case 'math': {
+      const sum = seat.math?.[seat.step]
+      if (!sum || t < (seat.step + 1) * (1_600 + pace * 1_200)) return null
+      const value = ctx.random() < BOT_TRAP.step ? sum.answer : sum.options.find((o) => o !== sum.answer) ?? sum.answer + 1
+      return { type: 'trap', payload: { step: seat.step, value } }
+    }
+    case 'odd': {
+      const r = seat.odd?.[seat.step]
+      if (!r || t < (seat.step + 1) * (1_800 + pace * 1_500)) return null
+      const index = ctx.random() < BOT_TRAP.step ? r.odd : (r.odd + 1 + Math.floor(ctx.random() * (r.size - 1))) % r.size
+      return { type: 'trap', payload: { step: seat.step, index } }
+    }
+    case 'memory': {
+      const want = seat.memory ?? []
+      if (ctx.now < memoryShowEnd(run.startAt, want.length) + 1_500 + pace * 2_500) return null
+      const seq = ctx.random() < BOT_TRAP.memory ? [...want] : [want[1], want[0], ...want.slice(2)]
+      return { type: 'trap', payload: { seq } }
+    }
+    case 'quick': {
+      const goAt = seat.goAt ?? run.startAt
+      if (roll(id, key, 'early') < BOT_TRAP.early) return ctx.now >= goAt - 900 ? { type: 'trap', payload: { early: true } } : null
+      const ms = 220 + Math.round(roll(id, key, 'reaction') * 420)
+      return ctx.now >= goAt + ms ? { type: 'trap', payload: { ms } } : null
+    }
+    case 'door': {
+      if (t < 1_500 + pace * 2_500) return null
+      return { type: 'trap', payload: { door: Math.floor(ctx.random() * 3) } }
+    }
+  }
+  return null
 }

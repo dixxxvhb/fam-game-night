@@ -1,4 +1,4 @@
-import { shuffle } from '../../lib/shuffle'
+import { freshFirst, shuffle } from '../../lib/shuffle'
 import { CAT_KEYS, type CatKey, type Question } from './categories'
 import { QUESTIONS } from './questions'
 
@@ -23,6 +23,8 @@ export interface DrawOpts {
   max?: number
   /** Skip this category when cat is not set (no two in a row). */
   avoid?: CatKey | null
+  /** Ids this group saw in earlier games (ctx.used, newest last): unseen ones come first. */
+  seen?: readonly string[]
 }
 
 function inRange(q: Question, min: number, max: number) {
@@ -58,7 +60,7 @@ export function drawQuestion(o: DrawOpts, random: () => number, bank: readonly Q
     const p = bank.filter(t)
     if (p.length) { pool = p; break }
   }
-  const q = pool[Math.floor(random() * pool.length)] ?? bank[0]
+  const q = freshFirst(pool, (x) => x.id, o.seen ?? [], random)[0] ?? bank[0]
   return prepare(q, random)
 }
 

@@ -373,6 +373,21 @@ describe('the finale', () => {
     expect(s.finale!.last!.moves).toEqual({ dixxx: 3, johnnyboy: 0, torii: 0 })
   })
 
+  it('two out the door on one sort: the furthest wins and the host calls the photo finish', () => {
+    let [s, now] = atFinale({ dixxx: true, johnnyboy: true, torii: true })
+    now += FINALE_INTRO_MS
+    s = tick(s, ctx(now))
+    s = { ...s, finale: { ...s.finale!, pos: { dixxx: 9, johnnyboy: 9, torii: 0 } } }
+    const key = s.finale!.sort!.key
+    s = act(s, 'dixxx', 'sort', { picks: key }, now)
+    s = act(s, 'johnnyboy', 'sort', { picks: [key[0], 1 - key[1], 1 - key[2]] }, now)
+    s = act(s, 'torii', 'sort', { picks: key }, now)
+    expect(s.phase).toBe('finaleReveal')
+    expect(s.winner).toBe('dixxx')
+    expect(s.line).toContain('Dixxx escaped')
+    expect(s.lines[0]).toContain('Photo finish')
+  })
+
   it('a photo finish goes to the furthest, then the higher score; full ties share', () => {
     const base = setup(ctx(0))
     const mk = (pos: Record<string, number>, scores: Record<string, number>): SurviveState => ({

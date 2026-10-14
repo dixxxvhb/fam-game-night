@@ -108,7 +108,7 @@ export default async function ({ tv, phones, shot, wait }) {
       for (const [k, p] of phones.entries()) {
         await p.locator(`[data-answer="${plan[p.playerId] ?? right}"]`).click()
         await wait(350)
-        if (k === 1) await snap(`q${qn}-question`)
+        if (k === Math.min(1, phones.length - 1)) await snap(`q${qn}-question`)
       }
       await wait(1200)
       await snap(`q${qn}-reveal`)
@@ -141,7 +141,7 @@ export default async function ({ tv, phones, shot, wait }) {
         if (i === 0) await snap(`${step}-sort-picked`)
         await p.getByRole('button', { name: 'Lock it in' }).click()
         await wait(300)
-        if (i === 1) await snap(`${step}-sort`)
+        if (i === Math.min(1, phones.length - 1)) await snap(`${step}-sort`)
       }
       await wait(2600)
       await snap(`${step}-finale-reveal`)

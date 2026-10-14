@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type SurviveState } from './logic'
+import { bot, outcome, reduce, setup, tick, type SurviveState } from './logic'
 import { SurviveStage } from './Stage'
 import { SurviveController } from './Controller'
 
@@ -16,6 +16,7 @@ const survive: GameDef<SurviveState> = {
   reduce,
   tick,
   outcome,
+  bot,
   Stage: SurviveStage,
   Controller: SurviveController,
 }
