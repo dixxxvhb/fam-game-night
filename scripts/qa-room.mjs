@@ -2,7 +2,8 @@
 // Rendered QA for a whole room: one TV (1280x720) and N phones (390x844), real realtime.
 //
 //   node scripts/qa-room.mjs --base http://localhost:5179/fam-game-night/ --game sketch \
-//        [--players 3] [--mode together|apart] [--driver scripts/drivers/sketch.mjs] [--out shots/sketch]
+//        [--players 3] [--mode together|apart|solo] [--driver scripts/drivers/sketch.mjs] [--out shots/sketch]
+//        [--opts "Odds,2"]   (option buttons to click on the game's shelf card, by label)
 //
 // Without a driver it starts the game and screenshots every screen a few times.
 // A driver module exports `default async function ({ tv, phones, shot, wait, code })`
@@ -52,6 +53,14 @@ if (mode === 'together') {
     await p.goto(`${base}#/join/${code}?as=${PLAYERS[i]}`)
     phones.push(p)
   }
+} else if (mode === 'solo') {
+  // Solo: one device hosts with two bots.
+  const host = await page(phoneOpts, PLAYERS[1])
+  host.playerId = PLAYERS[1]
+  await host.goto(`${base}#/solo`)
+  await host.getByText('Dixxx', { exact: true }).click()
+  await host.waitForURL(/#\/play\/[A-Z]{4}\?host=1&solo=1/)
+  phones.push(host)
 } else {
   // Apart: first phone hosts.
   const host = await page(phoneOpts, PLAYERS[0])
@@ -88,6 +97,16 @@ const shelfName = args.name ?? game
 const card = starter.locator('button[aria-expanded]', { hasText: new RegExp(shelfName, 'i') }).first()
 if (!(await card.count())) { console.error(`No shelf card matching "${shelfName}". Pass --name "<Shelf name>".`); process.exit(2) }
 await card.click()
+// --opts "Odds" or "Odds,2" clicks option buttons by their visible label inside the open card.
+if (args.opts) {
+  const open = starter.locator('div.border-hot', { has: starter.getByRole('button', { name: /^Start / }) }).first()
+  for (const label of String(args.opts).split(',').map((x) => x.trim()).filter(Boolean)) {
+    const esc = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const btn = open.getByRole('button', { name: new RegExp(`^${esc}`) })
+    if (await btn.count()) await btn.first().click()
+    else console.warn(`Option button "${label}" not found`)
+  }
+}
 await starter.getByRole('button', { name: /^Start / }).click()
 await wait(1500)
 
