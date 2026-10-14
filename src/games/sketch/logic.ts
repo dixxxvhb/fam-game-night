@@ -253,3 +253,44 @@ export function outcome(s: SketchState, ctx: GameCtx): GameOutcome | null {
     details: { turns: s.order.length, pack: s.pack },
   }
 }
+
+// ---------------- bots ----------------
+
+/** A doodle a bot "draws": a few random wobbly strokes in 0..1000 space. */
+function doodle(random: () => number): Stroke {
+  const p: number[] = []
+  let x = 200 + random() * 600
+  let y = 200 + random() * 600
+  const steps = 6 + Math.floor(random() * 10)
+  for (let i = 0; i < steps; i++) {
+    p.push(Math.round(x), Math.round(y))
+    x = Math.max(60, Math.min(940, x + (random() - 0.5) * 260))
+    y = Math.max(60, Math.min(940, y + (random() - 0.5) * 260))
+  }
+  return { c: '#0C1130', w: 8, p }
+}
+
+/**
+ * Bots: they pick words, draw nonsense and give up halfway (they can't really draw),
+ * and as guessers they get the word with odds that climb as the clock runs down,
+ * with the occasional wrong guess for the feed.
+ */
+export function bot(s: SketchState, id: string, ctx: GameCtx): { type: string; payload?: unknown } | null {
+  const elapsed = ctx.now - s.stageStartedAt
+  const frac = s.stageTotal ? elapsed / s.stageTotal : 0
+  if (s.drawer === id) {
+    if (s.stage === 'choose' && elapsed > 2500 && ctx.random() < 0.3) return { type: 'choose', payload: { word: s.choices[Math.floor(ctx.random() * s.choices.length)] } }
+    if (s.stage === 'draw') {
+      if (frac > 0.4 && ctx.random() < 0.05) return { type: 'pass' }
+      if (s.strokes.length < 8 && ctx.random() < 0.12) return { type: 'stroke', payload: { s: doodle(ctx.random) } }
+    }
+    return null
+  }
+  if (s.stage !== 'draw' || s.solved.some((x) => x.playerId === id) || elapsed < 4000) return null
+  if (ctx.random() < 0.012 + frac * 0.03) return { type: 'guess', payload: { text: s.word } }
+  if (ctx.random() < 0.025) {
+    const pool = PACKS[s.pack]?.words ?? PACKS.classic.words
+    return { type: 'guess', payload: { text: pool[Math.floor(ctx.random() * pool.length)] } }
+  }
+  return null
+}
