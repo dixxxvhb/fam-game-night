@@ -4,7 +4,8 @@ import type { ItemId } from './items'
 import { COIN_COLOR, SPACE_COLOR, STAR_COLOR } from './view'
 import { cx } from '../../ui/kit'
 
-const INK = '#0C1130'
+/** Party Park ink (matches park/cast INK). */
+const INK = '#1E1838'
 
 /** Five-point star points around 0,0. */
 export function starPoints(r: number, inner = 0.48): string {
@@ -17,41 +18,52 @@ export function starPoints(r: number, inner = 0.48): string {
   return pts.join(' ')
 }
 
-/** The glyph inside a space, drawn around 0,0 for a space of radius r. */
+/**
+ * The glyph on a space, drawn around 0,0 for a space of radius r: white sticker marks with
+ * an ink outline (Party Park look), readable on every space color.
+ */
 export function SpaceGlyph({ kind, r }: { kind: SpaceKind; r: number }) {
   const k = r / 24
+  const ink = { stroke: INK, strokeWidth: 2.6 * k, strokeLinejoin: 'round' as const, paintOrder: 'stroke' as const }
   switch (kind) {
     case 'blue':
-      return <g fill={INK}><rect x={-3 * k} y={-10 * k} width={6 * k} height={20 * k} rx={1.5 * k} /><rect x={-10 * k} y={-3 * k} width={20 * k} height={6 * k} rx={1.5 * k} /></g>
+      return <path d={`M${-3.6 * k} ${-11 * k} H${3.6 * k} V${-3.6 * k} H${11 * k} V${3.6 * k} H${3.6 * k} V${11 * k} H${-3.6 * k} V${3.6 * k} H${-11 * k} V${-3.6 * k} H${-3.6 * k} Z`} fill="#FFFFFF" {...ink} />
     case 'red':
-      return <rect x={-10 * k} y={-3 * k} width={20 * k} height={6 * k} rx={1.5 * k} fill={INK} />
+      return <rect x={-11 * k} y={-3.8 * k} width={22 * k} height={7.6 * k} rx={2 * k} fill="#FFFFFF" {...ink} />
     case 'event':
-      return <text x={0} y={9 * k} textAnchor="middle" fontFamily="Bungee, Arial Black, sans-serif" fontSize={26 * k} fill={INK}>?</text>
+      return <text x={0} y={9.5 * k} textAnchor="middle" fontFamily="Lilita One, Arial Black, sans-serif" fontSize={28 * k} fill="#FFFFFF" {...ink} strokeWidth={3 * k}>?</text>
     case 'shop':
       return (
-        <g fill="none" stroke={INK} strokeWidth={3.2 * k} strokeLinejoin="round">
-          <rect x={-9 * k} y={-3 * k} width={18 * k} height={14 * k} rx={2 * k} fill={INK} />
-          <path d={`M ${-5 * k} ${-3 * k} V ${-6 * k} A ${5 * k} ${5 * k} 0 0 1 ${5 * k} ${-6 * k} V ${-3 * k}`} />
+        <g {...ink}>
+          <path d={`M ${-5.5 * k} ${-2 * k} V ${-6 * k} A ${5.5 * k} ${5.5 * k} 0 0 1 ${5.5 * k} ${-6 * k} V ${-2 * k}`} fill="none" stroke={INK} strokeWidth={6.4 * k} strokeLinecap="round" />
+          <path d={`M ${-5.5 * k} ${-2 * k} V ${-6 * k} A ${5.5 * k} ${5.5 * k} 0 0 1 ${5.5 * k} ${-6 * k} V ${-2 * k}`} fill="none" stroke="#FFFFFF" strokeWidth={2.6 * k} strokeLinecap="round" />
+          <rect x={-10 * k} y={-3 * k} width={20 * k} height={14 * k} rx={2.5 * k} fill="#FFFFFF" />
         </g>
       )
     case 'duel':
       return (
-        <g stroke={INK} strokeWidth={3.4 * k} strokeLinecap="round">
-          <line x1={-9 * k} y1={-9 * k} x2={9 * k} y2={9 * k} />
-          <line x1={9 * k} y1={-9 * k} x2={-9 * k} y2={9 * k} />
-          <line x1={-11 * k} y1={3 * k} x2={-3 * k} y2={11 * k} />
-          <line x1={11 * k} y1={3 * k} x2={3 * k} y2={11 * k} />
+        <g strokeLinecap="round">
+          {[INK, '#FFFFFF'].map((c, i) => (
+            <g key={c} stroke={c} strokeWidth={(i ? 3 : 6.6) * k}>
+              <line x1={-8 * k} y1={-8 * k} x2={8 * k} y2={8 * k} />
+              <line x1={8 * k} y1={-8 * k} x2={-8 * k} y2={8 * k} />
+              <line x1={-11 * k} y1={3.5 * k} x2={-3.5 * k} y2={11 * k} />
+              <line x1={11 * k} y1={3.5 * k} x2={3.5 * k} y2={11 * k} />
+            </g>
+          ))}
         </g>
       )
-    case 'lucky':
+    case 'lucky': {
+      const leaves: [number, number][] = [[0, -5.6], [5.6, 0], [0, 5.6], [-5.6, 0]]
       return (
-        <g fill={INK}>
-          <circle cx={0} cy={-5.5 * k} r={5 * k} />
-          <circle cx={0} cy={5.5 * k} r={5 * k} />
-          <circle cx={-5.5 * k} cy={0} r={5 * k} />
-          <circle cx={5.5 * k} cy={0} r={5 * k} />
+        <g>
+          <path d={`M${2 * k} ${4 * k} Q${6 * k} ${10 * k} ${10 * k} ${12 * k}`} fill="none" stroke={INK} strokeWidth={5 * k} strokeLinecap="round" />
+          {leaves.map(([x, y], i) => <circle key={i} cx={x * k} cy={y * k} r={6.4 * k} fill={INK} />)}
+          <path d={`M${2 * k} ${4 * k} Q${6 * k} ${10 * k} ${10 * k} ${12 * k}`} fill="none" stroke="#FFFFFF" strokeWidth={2 * k} strokeLinecap="round" />
+          {leaves.map(([x, y], i) => <circle key={i} cx={x * k} cy={y * k} r={4.6 * k} fill="#FFFFFF" />)}
         </g>
       )
+    }
   }
 }
 
@@ -59,8 +71,8 @@ export function SpaceGlyph({ kind, r }: { kind: SpaceKind; r: number }) {
 export function SpaceIcon({ kind, size = 22, className }: { kind: SpaceKind; size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="-26 -26 52 52" className={cx('shrink-0', className)} aria-label={kind}>
-      <circle r={24} fill={SPACE_COLOR[kind]} />
-      <SpaceGlyph kind={kind} r={24} />
+      <circle r={23} fill={SPACE_COLOR[kind]} stroke={INK} strokeWidth={3} />
+      <SpaceGlyph kind={kind} r={22} />
     </svg>
   )
 }
