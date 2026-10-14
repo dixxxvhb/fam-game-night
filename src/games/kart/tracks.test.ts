@@ -130,6 +130,13 @@ describe('track geometry', () => {
     expect(getTrack('swamp').gator).toBeTruthy()
     expect(getTrack('pier').waveAt).not.toBeNull()
     expect(getTrack('launch').pad).not.toBeNull()
+    // The rocket's smoke (520 around the pad) covers a stretch of road, and the pad sits off it.
+    const lp = getTrack('launch')
+    const pad = lp.pad!
+    let near = 0
+    for (let i = 0; i < lp.n; i++) if (Math.hypot(lp.xs[i] - pad.x, lp.ys[i] - pad.y) < 520) near++
+    expect(near).toBeGreaterThan(20)
+    expect(project(lp, pad.x, pad.y).dist).toBeGreaterThan(lp.half + 60)
     expect(getTrack('keys').features.hazards).toContain('wind')
     expect(getTrack('night').features.hazards).toContain('barrels')
     expect(getTrack('night').look.night).toBe(true)

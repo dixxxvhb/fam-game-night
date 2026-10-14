@@ -440,7 +440,7 @@ export const TRACK_DEFS: TrackDef[] = [
       [1050, 420], [1200, 380], [1300, 250], [1450, 300], [1500, 480], [1420, 650], [1250, 760],
     ],
     surface: 'sand',
-    pad: [760, 520],
+    pad: [880, 480],
     features: {
       boxes: [0.2, 0.62],
       pads: [{ at: 0.06, d: 0 }, { at: 0.46, d: -0.4 }, { at: 0.75, d: 0.4 }],
@@ -451,9 +451,9 @@ export const TRACK_DEFS: TrackDef[] = [
     },
     look: { skyTop: '#2F6FD0', skyBottom: '#FFDDB2', horizon: 'space', ground: 'sand', road: '#5A5E70', curbA: '#FFFFFF', curbB: '#3D5AFE' },
     props: (t) => [
-      at(t, 'rocket', 760, 520, { h: 520 }),
-      at(t, 'gantry', 830, 520, { h: 480 }),
-      at(t, 'tower', 640, 580, { h: 300 }),
+      at(t, 'rocket', 880, 480, { h: 520 }),
+      at(t, 'gantry', 820, 500, { h: 480 }),
+      at(t, 'tower', 700, 560, { h: 300 }),
       ...rows(t, 'palm', 0.02, 0.98, 10, 90, {}, 60),
       ...rows(t, 'reeds', 0.05, 0.95, 6, 30, {}, 20),
       ...row(t, 'crowd', 0.6, 0.72, 4, 1, 90),

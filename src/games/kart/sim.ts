@@ -51,6 +51,8 @@ export const COIN_SPEED = 0.012
 export const MT_TIERS = [0.55, 1.15, 1.85]
 export const MT_BOOST = [0.45, 0.8, 1.25]
 export const SLIP_TIME = 1.2
+/** How far past the track's own box the race fence sits (world units beyond the road edge). */
+export const RACE_FENCE = 170
 const SURFACE_SLOW = { grass: 0.55, sand: 0.5, mud: 0.45, water: 0.45 } as const
 
 export interface Kart {
@@ -331,7 +333,8 @@ export function makeWorld(opts: {
     wave: hz.includes('wave') && track.waveAt !== null ? { phase: 'calm', t: 0, next: 5 + rng() * 4 } : null,
     barrels, barrelLap: 0, shake: 0,
     items, order: karts.map((k) => k.id), rng, nextId: 1, lastLeadAt: 0,
-    bounds: opts.walled ? trackBounds(track) : { x0: 0, y0: 0, x1: track.w, y1: track.h },
+    // A fence around the track's box: off-road is fine, wandering off the map is not.
+    bounds: opts.walled ? trackBounds(track) : trackBounds(track, RACE_FENCE),
     brains,
   }
 }

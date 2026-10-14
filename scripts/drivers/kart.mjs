@@ -39,14 +39,23 @@ async function watchFrames(page) {
 }
 
 export default async function ({ tv, phones, shot, wait }) {
+  /** Every phone taps the first free critter, retrying for a few seconds until each has one. */
+  async function pickAll() {
+    const done = phones.map(() => false)
+    for (let tries = 0; tries < 20 && done.some((d) => !d); tries++) {
+      for (const [i, p] of phones.entries()) {
+        if (done[i]) continue
+        if ((await p.getByText(/^You drive /).count()) > 0) { done[i] = true; continue }
+        const btn = p.locator('button[aria-label^="Pick "]:not([disabled])').first()
+        if (await btn.count()) await btn.click().catch(() => {})
+      }
+      await wait(300)
+    }
+  }
   // Pick: every phone taps the first free critter.
   await wait(800)
   await shot('pick')
-  for (const p of phones) {
-    const btn = p.locator('button[aria-label^="Pick "]:not([disabled])').first()
-    if (await btn.count()) await btn.click().catch(() => {})
-    await wait(300)
-  }
+  await pickAll()
   await wait(600)
   await shot('picked')
   // A time trial shows "Start run"; a race does not.
@@ -69,8 +78,16 @@ export default async function ({ tv, phones, shot, wait }) {
     if (!(await l.count()) || !(await r.count())) return null
     return { L: await l.boundingBox(), R: await r.boundingBox() }
   }
+  const boxesAt = phones.map(() => 0)
   async function steer(i, want) {
     const p = phones[i]
+    // Between races the controller remounts: a held pad on the old element never reaches the
+    // new one, so every few seconds let go and look the pads up again.
+    if (Date.now() - boxesAt[i] > 3000) {
+      boxesAt[i] = Date.now()
+      if (held[i]) { await p.mouse.up(); held[i] = null }
+      boxes[i] = await padBoxes(i)
+    }
     if (held[i] === want) return
     if (held[i]) { await p.mouse.up(); held[i] = null }
     if (!want) return
@@ -233,10 +250,7 @@ export default async function ({ tv, phones, shot, wait }) {
       await phones[0].getByRole('button', { name: /^Start (Kart|Turnpike)/ }).click()
       for (let i = 0; i < phones.length; i++) boxes[i] = null
       await wait(1000)
-      for (const p of phones) {
-        const btn = p.locator('button[aria-label^="Pick "]:not([disabled])').first()
-        if (await btn.count()) await btn.click().catch(() => {})
-      }
+      await pickAll()
       await wait(6500 + 4500)
       await drive(id, 25_000)
       await tv.getByRole('button', { name: 'End game' }).click()
