@@ -123,7 +123,9 @@ function award(s: ForeheadState, ids: string[]): Pick<ForeheadState, 'guessed' |
   const guessed = { ...s.guessed, [s.guesser]: (s.guessed[s.guesser] ?? 0) + 1 }
   const acted = { ...s.acted }
   for (const id of ids) if (id !== s.guesser) acted[id] = (acted[id] ?? 0) + 1
-  const scores = Object.fromEntries(ids.map((id) => [id, (guessed[id] ?? 0) + (acted[id] ?? 0)]))
+  // A word you guess is worth 2 to you and 1 to every actor, so acting pays but guessing ranks you.
+  // (Equal credit for everyone makes every game a tie, since everyone acts on everyone else's turn.)
+  const scores = Object.fromEntries(ids.map((id) => [id, 2 * (guessed[id] ?? 0) + (acted[id] ?? 0)]))
   return { guessed, acted, scores }
 }
 

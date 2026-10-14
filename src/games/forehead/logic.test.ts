@@ -84,7 +84,7 @@ describe('got and pass', () => {
     expect(s.guessed[g]).toBe(2)
     expect(new Set(s.calls.map((c) => c.word)).size).toBe(3)
   })
-  it('pays every actor one point per word the Guesser gets', () => {
+  it('pays the Guesser 2 and every actor 1 per word the Guesser gets', () => {
     let { s, now } = toPlay(setup(ctx(1), {}), 1)
     const g = s.guesser
     const actors = ids.filter((id) => id !== g)
@@ -97,7 +97,7 @@ describe('got and pass', () => {
       expect(s.scores[a]).toBe(3)
     }
     expect(s.acted[g]).toBe(0)
-    expect(s.scores[g]).toBe(3)
+    expect(s.scores[g]).toBe(6)
   })
   it('only takes calls from the Guesser, in play, for the word on screen', () => {
     const started = toPlay(setup(ctx(1), {}), 1)
@@ -232,15 +232,14 @@ describe('a full game', () => {
     expect(out.highlights).toEqual([])
     expect(out.summary).toContain('Nobody got a single word')
   })
-  it('moves every total together, as briefed: guesser +1 and each actor +1 per word', () => {
-    // With actor points every player gets every word, so totals only differ when turns are uneven.
+  it('ranks by guessing: guesser +2 and each actor +1 per word', () => {
     let now = 1
     let s = setup(ctx(now), { turns: 1 })
     ;({ s, now } = toPlay(s, now))
     for (let i = 0; i < 4; i++) { now += 1000; s = call(s, 'got', now) }
     const first = s.guesser
-    expect(s.scores[first]).toBe(4)
-    for (const id of ids) expect(s.scores[id]).toBe(4)
+    expect(s.scores[first]).toBe(8)
+    for (const id of ids.filter((x) => x !== first)) expect(s.scores[id]).toBe(4)
   })
   it('never runs out of words', () => {
     let { s, now } = toPlay(setup(ctx(1), { deck: 'florida' }), 1)

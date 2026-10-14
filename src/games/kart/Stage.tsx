@@ -15,6 +15,9 @@ import { levelFor, sceneFromWorld, type Scene, type SceneKart } from './render'
 import { useTrackCanvas } from './useTrackCanvas'
 import { ItemIcon } from './ItemIcon'
 
+/** Flip on when a non-host screen renders races from 'kart:pos'. */
+const SECOND_SCREEN = false
+
 export function KartStage(props: StageProps<KartState>) {
   if (props.state.kind === 'trial') return <TrialBoard {...props} />
   return <RaceScreen {...props} />
@@ -229,7 +232,9 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
     const report = () => {
       const st = sRef.current
       const t = performance.now()
-      if (w.time > 0 && t - lastPos >= 125) {
+      // No screen renders 'kart:pos' yet (together = one TV, solo = the host phone), so
+      // positions only go out when a second screen asks for them. Saves the room's message budget.
+      if (SECOND_SCREEN && w.time > 0 && t - lastPos >= 125) {
         lastPos = t
         sendRef.current('kart:pos', snapshot(w))
       }
