@@ -53,7 +53,7 @@ export default function Host() {
         {s.phase === 'playing' && def && <span className="font-bold text-ink-2">{def.name}</span>}
         <span className="font-mono text-xs text-ink-3">{save === 'saving' ? 'Saving' : save === 'offline' ? 'Will save when online' : save === 'off' ? 'Not saving' : ''}</span>
         <StatusDot status={room.status} />
-        {s.phase === 'playing' && s.game?.id === 'board' && <MusicButton />}
+        {s.phase === 'playing' && (s.game?.id === 'board' || s.game?.id === 'kart') && <MusicButton />}
         <MuteButton />
         {s.phase === 'playing' && (
           <Btn size="sm" variant="ghost" onClick={() => room.send('room', 'abort')}>End game</Btn>
