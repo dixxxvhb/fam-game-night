@@ -37,7 +37,7 @@ let flushing = false
 let retryTimer: ReturnType<typeof setTimeout> | null = null
 
 async function flush() {
-  if (!backendReady || flushing) return
+  if (!backendReady || flushing || noSave()) return
   flushing = true
   try {
     let q = readQ()

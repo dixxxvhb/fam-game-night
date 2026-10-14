@@ -75,7 +75,7 @@ export function SketchCanvas({
     const c = canvas.current
     if (!c || !size) return
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
-    if (c.width !== Math.round(size * dpr)) {
+    if (c.width !== Math.round(size * dpr) || c.height !== Math.round(size * dpr)) {
       c.width = Math.round(size * dpr)
       c.height = Math.round(size * dpr)
     }
