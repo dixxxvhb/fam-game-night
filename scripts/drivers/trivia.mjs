@@ -66,7 +66,8 @@ export default async function ({ tv, phones, shot, wait }) {
       const plan = { johnnyboy: right, dixxx: questions % 2 ? right : (right + 1) % 4, torii: questions % 3 ? right : (right + 2) % 4 }
       for (const [k, p] of phones.entries()) {
         const pick = plan[p.playerId] ?? (right + k) % 4
-        await p.locator(`[data-answer="${pick}"]`).click()
+        // Phones that aren't hosting can lag a moment behind the host.
+        await p.locator(`[data-answer="${pick}"]`).click({ timeout: 8000 })
         await wait(k === 0 ? 900 : 500)
         if (k === Math.min(1, phones.length - 1)) await snap(tag)
       }

@@ -135,6 +135,8 @@ export default async function ({ tv, phones, shot, wait }) {
       const good = { dixxx: 3, johnnyboy: 2, torii: 1 }
       for (const [i, p] of phones.entries()) {
         const rows = p.locator('[data-side]')
+        // Phones that aren't hosting can lag a moment behind the host.
+        await rows.first().waitFor({ timeout: 8000 }).catch(() => {})
         const n = (await rows.count()) / 2
         const ok = good[p.playerId] ?? 2
         for (let k = 0; k < n; k++) await rows.nth(k * 2 + (k < ok ? key[k] : 1 - key[k])).click()
