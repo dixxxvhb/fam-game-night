@@ -35,6 +35,8 @@ export interface Scene {
   missiles: { x: number; y: number; a: number }[]
   gatorExt: number
   gatorWarn: boolean
+  /** Ring this kart (your own, on a phone racing bots). */
+  mine?: string | null
 }
 
 export interface View {
@@ -425,10 +427,17 @@ function drawGator(ctx: CanvasRenderingContext2D, s: Scene, time: number) {
   }
 }
 
-function drawKart(ctx: CanvasRenderingContext2D, k: SceneKart, time: number, v: View, size: number) {
+function drawKart(ctx: CanvasRenderingContext2D, k: SceneKart, time: number, v: View, size: number, mine = false) {
   ctx.save()
   ctx.translate(k.x, k.y)
   ctx.scale(size, size)
+  if (mine) {
+    ctx.strokeStyle = PAL.hot
+    ctx.lineWidth = 4
+    ctx.beginPath()
+    ctx.arc(0, 0, 30, 0, Math.PI * 2)
+    ctx.stroke()
+  }
   if (k.shield) {
     ctx.save()
     ctx.rotate(time / 300)
@@ -607,7 +616,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, s: Scene, v: View, la
   // Hazards on the ground first; peels hide in the dark at night.
   for (const p of s.peels) if (!upper(p.level)) drawPeel(ctx, p)
   if (s.track.gator) drawGator(ctx, s, time)
-  for (const k of s.karts) if (!upper(k.level)) drawKart(ctx, k, time, v, size)
+  for (const k of s.karts) if (!upper(k.level)) drawKart(ctx, k, time, v, size, k.id === s.mine)
   if (layers.bridge) {
     ctx.save()
     ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -631,8 +640,8 @@ export function renderScene(ctx: CanvasRenderingContext2D, s: Scene, v: View, la
   }
   for (const b of s.boxes) drawBox(ctx, b, time, v)
   for (const m of s.missiles) drawMissile(ctx, m)
-  if (night) for (const k of s.karts) if (!upper(k.level)) drawKart(ctx, k, time, v, size)
-  for (const k of s.karts) if (upper(k.level)) drawKart(ctx, k, time, v, size)
+  if (night) for (const k of s.karts) if (!upper(k.level)) drawKart(ctx, k, time, v, size, k.id === s.mine)
+  for (const k of s.karts) if (upper(k.level)) drawKart(ctx, k, time, v, size, k.id === s.mine)
 }
 
 function drawReflectors(ctx: CanvasRenderingContext2D, t: Track) {

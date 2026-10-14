@@ -129,3 +129,12 @@ export function tiltToSteer(right: number, zero: number, full = 0.5, dead = 0.04
   const sign = v > 0 ? 1 : -1
   return Math.max(-1, Math.min(1, (sign * (Math.abs(v) - dead)) / (full - dead)))
 }
+
+/**
+ * Solo race on one phone: the Controller and the host Stage share this device, so the
+ * Controller hands its input straight over here instead of going through the network.
+ */
+export const localInputs = new Map<string, KartInput & { at: number }>()
+
+/** Height of the solo race controls under the Stage (portrait), so the Stage can size itself. */
+export const SOLO_PADS_H = 188

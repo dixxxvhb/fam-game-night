@@ -66,6 +66,21 @@ export interface Kart {
   hits: number
   off: boolean
   wet: boolean
+  /** Driven by the AI below instead of a phone. */
+  bot: boolean
+}
+
+/** An AI driver's memory. Skill 0..1 sets how clean its lines are and how often it drifts. */
+export interface Brain {
+  skill: number
+  steer: number
+  hold: number
+  noise: number
+  noiseFor: number
+  lift: number
+  drifting: boolean
+  itemAt: number
+  f: number
 }
 
 export interface Box { x: number; y: number; level: Level; respawn: number }
@@ -90,6 +105,7 @@ export interface World {
   lastLeadAt: number
   /** Walls. The TV race uses the whole screen; a phone's solo trial is walled to what it shows. */
   bounds: Bounds
+  brains: Record<string, Brain>
 }
 
 export type SimEvent =
@@ -153,7 +169,7 @@ export function rollItem(place: number, n: number, u: number): ItemKind {
 
 // ---------------- world ----------------
 
-export interface RacerInfo { id: string; name: string; color: string }
+export interface RacerInfo { id: string; name: string; color: string; bot?: boolean }
 
 export function makeWorld(opts: { trackId: string; laps: number; racers: RacerInfo[]; seed: number; items?: boolean; walled?: boolean }): World {
   const track = getTrack(opts.trackId)
@@ -166,7 +182,7 @@ export function makeWorld(opts: { trackId: string; laps: number; racers: RacerIn
       hint: pr.i, s: pr.s, d: pr.d, level: levelAt(track, pr.i),
       prog: deltaS(0, pr.s, track.L), laps: 0, lapMs: [], finished: false, finishMs: null,
       spin: 0, spinDir: 1, invuln: 0, boost: 0, drift: 0, charge: 0,
-      item: null, shield: 0, lastF: null, hits: 0, off: false, wet: false,
+      item: null, shield: 0, lastF: null, hits: 0, off: false, wet: false, bot: Boolean(r.bot),
     }
   })
   const items = opts.items ?? true
@@ -181,11 +197,17 @@ export function makeWorld(opts: { trackId: string; laps: number; racers: RacerIn
     }
   }
   const rng = mulberry32(opts.seed)
+  const brains: Record<string, Brain> = {}
+  for (const k of karts) {
+    if (!k.bot) continue
+    brains[k.id] = { skill: 0.55 + rng() * 0.35, steer: 0, hold: 0, noise: 0, noiseFor: 0, lift: 0, drifting: false, itemAt: 0, f: 0 }
+  }
   return {
     track, laps: Math.max(1, Math.round(opts.laps)), time: 0, karts, boxes, peels: [], missiles: [],
     gator: track.gator ? { phase: 'lurk', t: 0, next: 4 + rng() * 4, ext: 0 } : null,
     items, order: karts.map((k) => k.id), rng, nextId: 1, lastLeadAt: 0,
     bounds: opts.walled ? trackBounds(track) : { x0: 0, y0: 0, x1: WORLD_W, y1: WORLD_H },
+    brains,
   }
 }
 
@@ -524,11 +546,43 @@ function distToSeg(px: number, py: number, ax: number, ay: number, bx: number, b
   return Math.hypot(px - (ax + vx * u), py - (ay + vy * u))
 }
 
+/**
+ * The AI driver: follows the centerline ahead like the autopilot, but reacts in chunks, wobbles
+ * (less with skill), lifts off now and then, drifts some hard turns and fires items after a beat.
+ * Decent, beatable, and deterministic for a given world seed.
+ */
+export function botInput(w: World, k: Kart, dt = STEP): KartInput {
+  const b = w.brains[k.id]
+  if (!b) return { ...NEUTRAL, g: 1 }
+  const want = autoSteer(w, k, 80 + 60 * b.skill)
+  b.noiseFor -= dt
+  if (b.noiseFor <= 0) {
+    b.noise = (w.rng() * 2 - 1) * (1 - b.skill) * 0.9
+    b.noiseFor = 0.25 + w.rng() * 0.5
+  }
+  b.hold -= 1
+  if (b.hold <= 0) {
+    b.steer = Math.round(clamp(want + b.noise, -1, 1) * 10) / 10
+    b.hold = 3 + Math.floor(w.rng() * (10 - 7 * b.skill))
+  }
+  if (b.lift > 0) b.lift = Math.max(0, b.lift - dt)
+  else if (w.rng() < (1 - b.skill) * 0.006) b.lift = 0.25 + w.rng() * 0.45
+  if (!b.drifting && Math.abs(want) >= 0.8 && k.vf > VMAX * 0.6 && w.rng() < b.skill * 0.03) b.drifting = true
+  if (b.drifting && Math.abs(want) < 0.35) b.drifting = false
+  if (k.item) {
+    if (!b.itemAt) b.itemAt = w.time + 700 + w.rng() * 3200
+    else if (w.time >= b.itemAt) { b.f += 1; b.itemAt = 0 }
+  } else b.itemAt = 0
+  // A governor keeps them a notch under full speed: good tilt driving beats them.
+  const cap = VMAX * (0.76 + 0.14 * b.skill)
+  return { s: b.steer, g: b.lift > 0 || k.vf > cap ? 0 : 1, b: b.drifting ? 1 : 0, f: b.f }
+}
+
 /** Advance the world one fixed step. Returns what happened. */
 export function step(w: World, inputs: Record<string, KartInput | undefined>, dt = STEP): SimEvent[] {
   const ev: SimEvent[] = []
   w.time += dt * 1000
-  for (const k of w.karts) stepKart(w, k, inputs[k.id] ?? NEUTRAL, dt, ev)
+  for (const k of w.karts) stepKart(w, k, k.bot ? botInput(w, k, dt) : inputs[k.id] ?? NEUTRAL, dt, ev)
   collide(w)
   stepItems(w, dt, ev)
   const order = raceOrder(w.karts)

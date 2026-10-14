@@ -196,6 +196,37 @@ describe('race', () => {
   })
 })
 
+describe('AI karts', () => {
+  const bots = [
+    { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', bot: true },
+    { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', bot: true },
+    { id: 'bot-toaster', name: 'Toaster', color: '#F59E0B', bot: true },
+  ]
+  for (const id of TRACK_IDS) {
+    it(`${id}: three AI karts finish a 3-lap race on their own, using items`, () => {
+      const w = makeWorld({ trackId: id, laps: 3, racers: bots, seed: 11 })
+      const ev: SimEvent[] = []
+      for (let i = 0; i < 60 * 180 && !w.karts.every((k) => k.finished); i++) ev.push(...step(w, {}))
+      const fins = ev.filter((e) => e.t === 'finish') as { id: string; time: number; place: number }[]
+      expect(fins.map((f) => f.place)).toEqual([1, 2, 3])
+      expect(ev.some((e) => e.t === 'use')).toBe(true)
+      const laps = w.karts.flatMap((k) => k.lapMs.map((t, i) => t - (k.lapMs[i - 1] ?? 0)).slice(1))
+      console.log(`${id}: AI finish ${fins.map((f) => (f.time / 1000).toFixed(1)).join(' / ')}s, best lap ${(Math.min(...laps) / 1000).toFixed(2)}s, hits ${ev.filter((e) => e.t === 'hit').length}`)
+      // Beatable: slower than the perfect autopilot line, but not hopeless.
+      expect(Math.min(...laps)).toBeGreaterThan(minLapMs(id))
+      expect(fins[2].time).toBeLessThan(150_000)
+    })
+  }
+
+  it('races a phone player against AI karts: the human input drives, the bots drive themselves', () => {
+    const w = makeWorld({ trackId: 'oval', laps: 3, racers: [racers[0], ...bots.slice(0, 2)], seed: 5 })
+    const ev = drive(w, 200)
+    expect(ev.filter((e) => e.t === 'finish')).toHaveLength(3)
+    expect(w.karts[0].bot).toBe(false)
+    expect(Object.keys(w.brains)).toEqual(['bot-gator', 'bot-pigeon'])
+  })
+})
+
 describe('items by position', () => {
   const sweep = (place: number, n: number) => {
     const counts: Record<string, number> = { boost: 0, peel: 0, missile: 0, shield: 0 }

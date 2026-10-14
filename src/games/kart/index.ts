@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type KartState } from './logic'
+import { bot, outcome, reduce, setup, tick, type KartState } from './logic'
 import { KartStage } from './Stage'
 import { KartController } from './Controller'
 import { TRACK_DEFS } from './tracks'
@@ -22,6 +22,8 @@ const kart: GameDef<KartState> = {
   reduce,
   tick,
   outcome,
+  // Race bots drive inside the host Stage sim (AI karts); this only posts time-trial laps.
+  bot,
   Stage: KartStage,
   Controller: KartController,
 }

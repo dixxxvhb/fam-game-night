@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type PointerEvent as RPointerEvent, type ReactNode } from 'react'
+import { useLatest } from './useLatest'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ControllerProps } from '../../engine/types'
 import { useSendStream, useTicker } from '../../engine/context'
 import { Btn, cx, Label } from '../../ui/kit'
 import { fmtMs, ordinal, trackName, TRIAL_RUNS, type KartState } from './logic'
 import { autoSteer, ITEM_NAMES, makeWorld, step, STEP, type ItemKind, type KartInput, type World } from './sim'
-import { InputSender, quantizeSteer, steerWithHysteresis } from './input'
+import { InputSender, localInputs, quantizeSteer, SOLO_PADS_H, steerWithHysteresis } from './input'
 import { getTrack } from './tracks'
 import { sceneFromWorld } from './render'
 import { useTrackCanvas } from './useTrackCanvas'
 import { useSteering, type SteerMode } from './useSteering'
+import { useLandscape } from './useLandscape'
 import { ItemIcon } from './ItemIcon'
 
 declare global {
@@ -28,17 +30,6 @@ export function KartController(props: ControllerProps<KartState>) {
 
 type Key = 'L' | 'R' | 'D' | 'G'
 
-function useLandscape() {
-  const [land, setLand] = useState(() => typeof window !== 'undefined' && window.innerWidth > window.innerHeight)
-  useEffect(() => {
-    const on = () => setLand(window.innerWidth > window.innerHeight)
-    window.addEventListener('resize', on)
-    window.addEventListener('orientationchange', on)
-    return () => { window.removeEventListener('resize', on); window.removeEventListener('orientationchange', on) }
-  }, [])
-  return land
-}
-
 /** Held buttons (multi-touch), keyboard for laptops, the fire counter, and the input they add up to. */
 function useControls(mode: SteerMode, tilt: { current: number }, gas: 'auto' | 'hold', onChange: () => void) {
   const held = useRef(new Map<Key, number>())
@@ -47,10 +38,8 @@ function useControls(mode: SteerMode, tilt: { current: number }, gas: 'auto' | '
   const fire = useRef(0)
   const firedAt = useRef(0)
   const steerQ = useRef(0)
-  const changed = useRef(onChange)
-  changed.current = onChange
-  const modeRef = useRef(mode)
-  modeRef.current = mode
+  const changed = useLatest(onChange)
+  const modeRef = useLatest(mode)
 
   const sync = () => {
     setPressed([...held.current.keys()].sort().join(''))
@@ -83,7 +72,7 @@ function useControls(mode: SteerMode, tilt: { current: number }, gas: 'auto' | '
     firedAt.current = performance.now()
     try { navigator.vibrate?.(15) } catch { /* no vibration */ }
     changed.current()
-  }, [])
+  }, [changed])
 
   useEffect(() => {
     const map: Record<string, Key> = { ArrowLeft: 'L', ArrowRight: 'R', ArrowDown: 'D', ' ': 'D', ArrowUp: 'G' }
@@ -115,7 +104,7 @@ function useControls(mode: SteerMode, tilt: { current: number }, gas: 'auto' | '
     }
     steerQ.current = s
     return { s, g: gas === 'auto' || h.has('G') ? 1 : 0, b: h.has('D') ? 1 : 0, f: fire.current }
-  }, [gas, tilt])
+  }, [gas, tilt, modeRef])
 
   return { bind, pressed, read, doFire, firedAt }
 }
@@ -207,32 +196,44 @@ function SteerBar({ steering, compact, inline }: { steering: ReturnType<typeof u
 
 // ---------------- together mode: the wheel ----------------
 
-function Wheel({ state: s, me, now }: ControllerProps<KartState>) {
+function Wheel({ state: s, me, now, room }: ControllerProps<KartState>) {
+  // Apart race = solo against bots: this phone also runs the race in the Stage above.
+  const solo = room.mode === 'apart'
   useTicker(250)
   const steering = useSteering()
   const sendStream = useSendStream()
-  const sendRef = useRef(sendStream)
-  sendRef.current = sendStream
-  const sender = useMemo(() => new InputSender((m) => sendRef.current('kart:in', m)), [])
+  const sendRef = useLatest(sendStream)
+  const senderRef = useRef<InputSender | null>(null)
   const r = s.racers[me]
   const active = (s.stage === 'countdown' || s.stage === 'race') && Boolean(r) && r.finishMs === null
-  const activeRef = useRef(active)
-  activeRef.current = active
+  const activeRef = useLatest(active)
   const land = useLandscape()
 
   const readRef = useRef<() => KartInput>(() => ({ s: 0, g: 0, b: 0, f: 0 }))
-  const controls = useControls(steering.mode, steering.tilt, s.gas, () => {
-    if (activeRef.current) sender.set(readRef.current(), performance.now())
-  })
-  readRef.current = controls.read
+  const soloRef = useLatest(solo)
+  const push = () => {
+    if (!activeRef.current) return
+    if (soloRef.current) localInputs.set(me, { ...readRef.current(), at: performance.now() })
+    else senderRef.current?.set(readRef.current(), performance.now())
+  }
+  const controls = useControls(steering.mode, steering.tilt, s.gas, push)
+  useLayoutEffect(() => { readRef.current = controls.read })
+  const pushRef = useLatest(push)
 
   useEffect(() => {
+    // One sender per phone for the whole race: it owns the 10-a-second budget.
+    const sender = new InputSender((m) => sendRef.current('kart:in', m))
+    senderRef.current = sender
     window.__kartIn = sender
-    if (!active) { sender.stop(); return }
-    sender.set(readRef.current(), performance.now())
-    const iv = setInterval(() => sender.set(readRef.current(), performance.now()), 50)
-    return () => clearInterval(iv)
-  }, [active, sender])
+    return () => { sender.stop(); senderRef.current = null }
+  }, [sendRef])
+
+  useEffect(() => {
+    if (!active) { senderRef.current?.stop(); localInputs.delete(me); return }
+    pushRef.current()
+    const iv = setInterval(() => pushRef.current(), solo ? 16 : 50)
+    return () => { clearInterval(iv); localInputs.delete(me) }
+  }, [active, solo, me, pushRef])
 
   // The TV clears your item a beat after you fire; don't show it in the meantime.
   const [firedItem, setFiredItem] = useState<ItemKind | null>(null)
@@ -254,6 +255,21 @@ function Wheel({ state: s, me, now }: ControllerProps<KartState>) {
   const lap = Math.min(s.laps, (r?.lap ?? 0) + 1)
   const toGo = s.goAt - now()
 
+  if (solo && (s.stage === 'freeze' || s.stage === 'done' || (r?.finishMs !== null && r?.finishMs !== undefined))) {
+    return (
+      <div className="grid content-center justify-items-center gap-1 p-3 text-center" style={{ height: SOLO_PADS_H }}>
+        {r?.finishMs !== null && r?.finishMs !== undefined ? (
+          <>
+            <Label>Your time</Label>
+            <div className="font-mono text-3xl font-bold tabular">{fmtMs(r.finishMs)}</div>
+            <div className="text-ink-2">The bots are still out there. Somewhere.</div>
+          </>
+        ) : (
+          <div className="text-lg text-ink-2">That's the race.</div>
+        )}
+      </div>
+    )
+  }
   if (r?.finishMs !== null && r?.finishMs !== undefined) {
     const finPlace = s.ids.filter((id) => s.racers[id]?.finishMs !== null && (s.racers[id]?.finishMs ?? 0) <= (r.finishMs ?? 0)).length
     return (
@@ -288,6 +304,46 @@ function Wheel({ state: s, me, now }: ControllerProps<KartState>) {
   const buttons = steering.mode !== 'tilt'
 
   const placeText = counting ? (toGo > 3000 ? 'Ready' : toGo > 0 ? String(Math.ceil(toGo / 1000)) : 'GO') : ordinal(place).toUpperCase()
+
+  if (solo) {
+    // Under (or beside) the race on this same phone: just the pads.
+    const steerBtn = steering.mode === 'tilt'
+      ? <Btn size="sm" onClick={steering.calibrate}>Calibrate</Btn>
+      : steering.tiltAvailable
+        ? <Btn size="sm" variant={steering.mode === 'needs-tap' ? 'primary' : 'ghost'} onClick={steering.mode === 'needs-tap' ? () => void steering.request() : steering.pickTilt}>{steering.mode === 'needs-tap' ? 'Tap for tilt' : 'Use tilt'}</Btn>
+        : null
+    if (land) {
+      return (
+        <div className="touch-none-all no-select">
+          <div className="fixed bottom-2 left-2 top-16 z-30 grid w-28 auto-rows-fr gap-2">
+            {buttons && left}
+            {driftPad}
+          </div>
+          <div className="fixed bottom-2 right-2 top-16 z-30 grid w-28 auto-rows-fr gap-2">
+            {buttons && right}
+            {gasPad}
+            {firePad}
+          </div>
+          {steerBtn && <div className="fixed left-1/2 top-14 z-30 -translate-x-1/2">{steerBtn}</div>}
+        </div>
+      )
+    }
+    return (
+      <div className="touch-none-all no-select flex flex-col gap-2 p-2" style={{ height: SOLO_PADS_H }}>
+        <div className="flex min-h-9 items-center justify-between gap-2 text-xs text-ink-3">
+          {steering.mode === 'tilt' ? <TiltMeter tilt={steering.tilt} /> : <span>{counting ? 'Get ready.' : 'Hold DRIFT through turns. FIRE uses your item.'}</span>}
+          {steerBtn}
+        </div>
+        <div className="grid min-h-0 flex-1 grid-flow-col auto-cols-fr gap-2">
+          {buttons && left}
+          {driftPad}
+          {gasPad}
+          {firePad}
+          {buttons && right}
+        </div>
+      </div>
+    )
+  }
 
   if (land) {
     return (
@@ -368,16 +424,14 @@ function TrialDriver({ state: s, room, me, send }: ControllerProps<KartState>) {
   const allIn = runs >= TRIAL_RUNS
   const [phase, setPhase] = useState<'idle' | 'count' | 'drive' | 'result'>('idle')
   const phaseRef = useRef(phase)
-  phaseRef.current = phase
+  useLayoutEffect(() => { phaseRef.current = phase })
   const [last, setLast] = useState<number | null>(null)
   const [counting, setCounting] = useState(3)
   const countEnd = useRef(0)
   const driveStart = useRef(0)
   const controls = useControls(steering.mode, steering.tilt, s.gas, () => {})
-  const readRef = useRef(controls.read)
-  readRef.current = controls.read
-  const sendRef = useRef(send)
-  sendRef.current = send
+  const readRef = useLatest(controls.read)
+  const sendRef = useLatest(send)
   const land = useLandscape()
 
   const p = room.players.find((x) => x.id === me)
@@ -386,19 +440,14 @@ function TrialDriver({ state: s, room, me, send }: ControllerProps<KartState>) {
   const worldRef = useRef<World>(firstWorld)
 
   // A lap report can get lost on the way to the host: resend it until it shows up in state.
-  const pending = useRef<{ n: number; time: number } | null>(null)
-  const runsRef = useRef(runs)
-  runsRef.current = runs
-  const saving = pending.current !== null && runs < pending.current.n
+  const [pending, setPending] = useState<{ n: number; time: number } | null>(null)
+  const saving = pending !== null && runs < pending.n
   useEffect(() => {
-    const iv = setInterval(() => {
-      const pd = pending.current
-      if (!pd) return
-      if (runsRef.current >= pd.n) { pending.current = null; return }
-      sendRef.current('trial:lap', pd)
-    }, 1200)
+    if (!pending || runs >= pending.n) return
+    const iv = setInterval(() => sendRef.current('trial:lap', pending), 1200)
     return () => clearInterval(iv)
-  }, [])
+  }, [pending, runs, sendRef])
+  const runsRef = useLatest(runs)
 
   const start = () => {
     if (over || allIn || saving || phaseRef.current !== 'idle') return
@@ -430,8 +479,9 @@ function TrialDriver({ state: s, room, me, send }: ControllerProps<KartState>) {
           n++
           const fin = ev.find((e) => e.t === 'finish')
           if (fin && fin.t === 'finish') {
-            pending.current = { n: runsRef.current + 1, time: fin.time }
-            sendRef.current('trial:lap', pending.current)
+            const report = { n: runsRef.current + 1, time: fin.time }
+            setPending(report)
+            sendRef.current('trial:lap', report)
             setLast(fin.time)
             setPhase('result')
             phaseRef.current = 'result'
@@ -453,7 +503,7 @@ function TrialDriver({ state: s, room, me, send }: ControllerProps<KartState>) {
       phase: () => phaseRef.current,
     }
     return () => { cancelAnimationFrame(raf); delete window.__kartQA }
-  }, [draw, me, over])
+  }, [draw, me, over, readRef, runsRef, sendRef])
 
   // Fit the whole thing under the leaderboard without scrolling.
   const root = useRef<HTMLDivElement>(null)
@@ -498,7 +548,7 @@ function TrialDriver({ state: s, room, me, send }: ControllerProps<KartState>) {
           <div key={counting} className="font-display text-8xl text-ink riso animate-pop">{counting || 'GO'}</div>
         ) : phase === 'result' && last !== null ? (
           <div className="grid gap-1 rounded-2xl bg-paper/90 px-6 py-4 animate-pop">
-            <Label>Run {pending.current?.n ?? runs} of {TRIAL_RUNS}</Label>
+            <Label>Run {pending?.n ?? runs} of {TRIAL_RUNS}</Label>
             <div className="font-mono text-4xl font-bold tabular">{fmtMs(last)}</div>
             <div className="text-ink-2">{best === null || last <= best ? 'New best' : `Best ${fmtMs(best)}`}</div>
           </div>

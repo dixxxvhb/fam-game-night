@@ -38,6 +38,9 @@ async function watchFrames(page) {
 
 export default async function ({ tv, phones, shot, wait }) {
   const apart = !tv
+  // Solo (--mode solo): one phone racing AI karts; the race runs on that phone.
+  const solo = !tv && phones.length === 1
+  const screen = tv ?? phones[0]
   const counters = []
   for (const p of phones) counters.push(await watchFrames(p))
   const t0 = Date.now()
@@ -96,7 +99,7 @@ export default async function ({ tv, phones, shot, wait }) {
           drifting[i] = 0
         }
       }
-      if (!apart && Date.now() - lastFire > 2500) {
+      if ((!apart || solo) && Date.now() - lastFire > 2500) {
         lastFire = Date.now()
         const p = phones[Math.floor(Math.random() * phones.length)]
         await touch(p, 'Fire', 'pointerdown', 9)
@@ -119,7 +122,7 @@ export default async function ({ tv, phones, shot, wait }) {
   let gatorShot = false
   const resultsUp = async () => (await phones[0].getByRole('button', { name: 'Next game' }).count()) > 0
 
-  if (!apart) {
+  if (!apart || solo) {
     // Get-ready panel, then a countdown digit.
     await shot('ready')
     await wait(2200)
@@ -127,13 +130,13 @@ export default async function ({ tv, phones, shot, wait }) {
     let froze = false
     let winnerShot = false
     await drive('oval', 170_000, async () => {
-      try { hostRecv = (await tv.evaluate(() => window.__kartQA?.recv?.() ?? null)) ?? hostRecv } catch { /* fine */ }
-      if (!winnerShot && (await tv.getByText(/ WINS$/).count())) {
+      if (tv) try { hostRecv = (await tv.evaluate(() => window.__kartQA?.recv?.() ?? null)) ?? hostRecv } catch { /* fine */ }
+      if (!winnerShot && (await screen.getByText(/ WINS$/).count())) {
         winnerShot = true
         await wait(300)
         await shot('winner')
       }
-      if (!froze && (await tv.getByText('Finish', { exact: true }).count())) {
+      if (!froze && (await screen.getByText('Finish', { exact: true }).count())) {
         froze = true
         await wait(500)
         await shot('freeze')
@@ -188,6 +191,7 @@ export default async function ({ tv, phones, shot, wait }) {
     console.log(` ${p.playerId}: websocket frames ${c.frames.length} (${(c.frames.length / elapsed).toFixed(1)}/s avg, max ${wsMax} in any second)${c.err ? ` [cdp: ${c.err}]` : ''}; controller log ${app ? `${app.total} (max ${appMax} in any second)` : 'gone'}`)
   }
   if (!apart) console.log(' host received (kart:in per player):', JSON.stringify(hostRecv))
+  if (solo) console.log(' (solo: the controller hands input to the Stage on the same phone, so no kart:in goes over the network)')
 
   if (!apart) {
     // A lap of each other track, for the look of them. Abort from the TV after ~25 s.

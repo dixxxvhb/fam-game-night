@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { RoomPlayer, StageProps } from '../../engine/types'
 import { useSendStream, useStream, useTicker } from '../../engine/context'
 import { Avatar, cx, Label } from '../../ui/kit'
@@ -8,7 +8,8 @@ import {
   autoSteer, ITEM_NAMES, makeWorld, NEUTRAL, progressOf, snapshot, step, STEP,
   type ItemKind, type KartInput, type PosSnapshot, type SimEvent, type World,
 } from './sim'
-import { sanitizeInput } from './input'
+import { localInputs, sanitizeInput, SOLO_PADS_H } from './input'
+import { useLandscape } from './useLandscape'
 import { getTrack } from './tracks'
 import { levelFor, sceneFromWorld, type Scene, type SceneKart } from './render'
 import { useTrackCanvas } from './useTrackCanvas'
@@ -97,20 +98,22 @@ declare global {
   interface Window { __kartQA?: Record<string, unknown> }
 }
 
-function RaceScreen({ state: s, room, now, isHost, hostAction, compact }: StageProps<KartState>) {
+function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: StageProps<KartState>) {
   useTicker(100)
   const track = getTrack(s.track)
-  const { boxRef, canvasRef, view, draw } = useTrackCanvas(track, false)
+  // On a phone (solo race) the track is cropped and turned to fill the screen.
+  const { boxRef, canvasRef, view, draw } = useTrackCanvas(track, compact)
+  const land = useLandscape()
   const sendStream = useSendStream()
 
   const playerKey = room.gamePlayers.map((id) => {
     const p = room.players.find((x) => x.id === id)
-    return `${id}|${p?.name ?? id}|${p?.color ?? ''}`
+    return `${id}|${p?.name ?? id}|${p?.color ?? ''}|${p?.bot ? 1 : 0}`
   }).join(',')
   const racers = useMemo(
     () => playerKey.split(',').filter(Boolean).map((row) => {
-      const [id, name, color] = row.split('|')
-      return { id, name, color: color || '#8790B6' }
+      const [id, name, color, bot] = row.split('|')
+      return { id, name, color: color || '#8790B6', bot: bot === '1' }
     }),
     [playerKey],
   )
@@ -126,6 +129,10 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact }: StageP
   nowRef.current = now
   const whoRef = useRef(who)
   whoRef.current = who
+  const compactRef = useRef(compact)
+  compactRef.current = compact
+  const meRef = useRef(me ?? null)
+  meRef.current = me ?? null
 
   const [hud, setHud] = useState<Hud>(() => ({ order: s.order, laps: {}, items: {}, fin: {} }))
   const [feed, setFeed] = useState<FeedLine[]>([])
@@ -185,6 +192,10 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact }: StageP
       const t = performance.now()
       for (const [id, inp] of Object.entries(inputs.current)) {
         out[id] = t - inp.at > 3000 ? { ...NEUTRAL, f: inp.f } : inp
+      }
+      // Solo: the phone's own controller, handed over without the network.
+      for (const [id, inp] of localInputs) {
+        if (t - inp.at < 1000 && sRef.current.ids.includes(id)) out[id] = inp
       }
       return out
     }
@@ -250,7 +261,7 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact }: StageP
       lastFrame = performance.now()
       simulate()
       report()
-      draw(sceneFromWorld(w), KART_SIZE)
+      draw({ ...sceneFromWorld(w), mine: compactRef.current ? meRef.current : null }, compactRef.current ? 1.5 : KART_SIZE)
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
@@ -344,6 +355,26 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact }: StageP
   const showBanner = banner && t < banner.until
   const big = !compact
 
+  if (compact) {
+    return (
+      <PhoneRace
+        s={s}
+        order={order}
+        me={me ?? null}
+        myLap={Math.min(s.laps, lapOf(me ?? '') + 1)}
+        who={who}
+        land={land}
+        toGo={toGo}
+        endsIn={endsIn}
+        feed={visibleFeed}
+        banner={showBanner ? banner : null}
+        boxRef={boxRef}
+        canvasRef={canvasRef}
+        view={view}
+      />
+    )
+  }
+
   return (
     <div className="relative grid h-full w-full place-items-center overflow-hidden bg-paper">
       <div ref={boxRef} className="absolute inset-0" />
@@ -430,6 +461,119 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact }: StageP
                     <span className={cx('min-w-0 flex-1 truncate font-bold', big ? 'text-2xl' : 'text-sm')}>{p?.name ?? id}</span>
                     <span className={cx('font-mono tabular text-ink-2', big ? 'text-xl' : 'text-xs')}>
                       {r?.finishMs !== null && r?.finishMs !== undefined ? fmtMs(r.finishMs) : `${Math.round(((r?.prog ?? 0) / s.laps) * 100)}% done`}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** A race on the phone itself (solo against bots): small standings row, the track, the overlays. */
+function PhoneRace({ s, order, me, myLap, who, land, toGo, endsIn, feed, banner, boxRef, canvasRef, view }: {
+  s: KartState
+  order: string[]
+  me: string | null
+  myLap: number
+  who: (id: string) => RoomPlayer | undefined
+  land: boolean
+  toGo: number
+  endsIn: number | null
+  feed: FeedLine[]
+  banner: { text: string; color: string } | null
+  boxRef: (el: HTMLDivElement | null) => void
+  canvasRef: (el: HTMLCanvasElement | null) => void
+  view: { w: number; h: number } | null
+}) {
+  // Fill the screen down to the controls the Controller puts below (or beside, in landscape).
+  const root = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = root.current
+      if (!el) return
+      const top = el.getBoundingClientRect().top + (el.closest('main')?.scrollTop ?? 0)
+      const below = land ? 14 : SOLO_PADS_H + 14
+      setHeight(Math.max(220, Math.floor(window.innerHeight - top - below)))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [land])
+
+  const last = feed[feed.length - 1]
+  return (
+    <div ref={root} className="flex flex-col gap-2" style={{ height: height ?? undefined, paddingLeft: land ? 116 : 0, paddingRight: land ? 116 : 0 }}>
+      <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 gap-1 overflow-hidden">
+          {order.map((id, i) => {
+            const p = who(id)
+            return (
+              <span key={id} className={cx('flex min-w-0 items-center gap-1 rounded-full py-0.5 pl-0.5 pr-2 text-xs font-bold', id === me ? 'bg-hot/25 text-ink' : 'bg-tile text-ink-2')}>
+                <span className="w-4 text-center font-display">{i + 1}</span>
+                <Avatar name={p?.name ?? id} color={p?.color ?? '#8790B6'} size={18} />
+                <span className="max-w-[72px] truncate">{id === me ? 'You' : p?.name ?? id}</span>
+              </span>
+            )
+          })}
+        </div>
+        <div className="shrink-0 font-display text-xl leading-none"><span className="text-xs text-ink-3">LAP </span>{myLap}/{s.laps}</div>
+      </div>
+      <div className="relative min-h-0 flex-1">
+        <div ref={boxRef} className="absolute inset-0" />
+        <div className="absolute inset-0 grid place-items-center">
+          <div className="relative" style={{ width: view?.w ?? 0, height: view?.h ?? 0 }}>
+            <canvas ref={canvasRef} className="block rounded-xl" style={{ width: view?.w ?? 0, height: view?.h ?? 0 }} aria-label={`${trackName(s.track)} race`} />
+            {last && (
+              <div className="pointer-events-none absolute inset-x-2 bottom-2 grid justify-items-center">
+                <div key={last.key} className="max-w-full truncate rounded-lg bg-paper/90 px-3 py-1 text-sm font-bold animate-rise">
+                  {last.parts.map((p, i) => <span key={i} style={p.c ? { color: p.c } : undefined}>{p.t}</span>)}
+                </div>
+              </div>
+            )}
+            {endsIn !== null && (
+              <div className="pointer-events-none absolute right-2 top-2 rounded-lg bg-paper/90 px-2 py-1 font-mono text-sm font-bold text-hot tabular">Ends in {endsIn}</div>
+            )}
+          </div>
+        </div>
+        {s.stage !== 'freeze' && s.stage !== 'done' && toGo > -900 && (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center p-4 text-center">
+            {toGo > 3000 ? (
+              <div className="grid justify-items-center gap-1 rounded-2xl bg-paper/90 px-6 py-4 animate-pop">
+                <div className="font-display text-3xl text-hot riso">{trackName(s.track)}</div>
+                <div className="font-bold">{s.laps} laps against the bots.</div>
+                <div className="text-sm text-ink-2">You're the one with the orange ring.</div>
+              </div>
+            ) : (
+              <div key={toGo > 0 ? Math.ceil(toGo / 1000) : 'go'} className={cx('font-display text-8xl leading-none riso animate-pop', toGo > 0 ? 'text-ink' : 'text-hot')}>
+                {toGo > 0 ? Math.ceil(toGo / 1000) : 'GO'}
+              </div>
+            )}
+          </div>
+        )}
+        {banner && s.stage === 'race' && (
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <div className="rounded-2xl bg-paper/90 px-5 py-3 font-display text-2xl animate-pop" style={{ color: banner.color }}>{banner.text}</div>
+          </div>
+        )}
+        {(s.stage === 'freeze' || s.stage === 'done') && (
+          <div className="absolute inset-0 grid place-items-center bg-paper/60 p-3">
+            <div className="grid w-full max-w-[300px] gap-2 rounded-2xl border border-line bg-tile p-4 animate-pop">
+              <div className="text-center font-display text-3xl text-hot riso">Finish</div>
+              {standings(s).map(({ id, place }) => {
+                const p = who(id)
+                const r = s.racers[id]
+                return (
+                  <div key={id} className="flex items-center gap-2">
+                    <span className={cx('w-6 text-center font-display text-lg', place === 1 ? 'text-hot' : 'text-ink-3')}>{place}</span>
+                    <Avatar name={p?.name ?? id} color={p?.color ?? '#8790B6'} size={22} />
+                    <span className="min-w-0 flex-1 truncate font-bold">{id === me ? 'You' : p?.name ?? id}</span>
+                    <span className="font-mono text-sm tabular text-ink-2">
+                      {r?.finishMs !== null && r?.finishMs !== undefined ? fmtMs(r.finishMs) : `${Math.round(((r?.prog ?? 0) / s.laps) * 100)}%`}
                     </span>
                   </div>
                 )

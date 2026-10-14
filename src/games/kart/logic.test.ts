@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, PlayerAction, RoomPlayer } from '../../engine/types'
 import {
-  COUNTDOWN_MS, FINISH_WINDOW_MS, FREEZE_MS, fmtMs, HOST, lapTimes, ordinal, outcome, reduce, setup, standings, tick,
-  TRIAL_MS,
+  bot, COUNTDOWN_MS, FINISH_WINDOW_MS, FREEZE_MS, fmtMs, HOST, lapTimes, ordinal, outcome, reduce, setup, standings, tick,
+  TRIAL_MS, type KartState,
 } from './logic'
-import { minLapMs } from './sim'
+import { autoSteer, makeWorld, minLapMs, progressOf, step, type KartInput } from './sim'
 
 const players: RoomPlayer[] = [
   { id: 'dixxx', name: 'Dixxx', color: '#3CCB72', guest: false, connected: true },
@@ -190,7 +190,7 @@ describe('time trial (apart)', () => {
     s = reduce(s, { playerId: 'torii', type: 'trial:start', payload: undefined }, ctx(10, 'apart'))
     expect(s.runners.torii.driving).toBe(true)
     lap('torii', 15_000)
-    expect(s.runners.torii).toEqual({ runs: [15_000], best: 15_000, driving: false })
+    expect(s.runners.torii).toEqual({ runs: [15_000], best: 15_000, driving: false, startedAt: null })
     lap('torii', 13_400)
     lap('torii', 14_100)
     expect(s.runners.torii.best).toBe(13_400)
@@ -257,5 +257,74 @@ describe('helpers', () => {
     expect(ordinal(4)).toBe('4th')
     expect(ordinal(11)).toBe('11th')
     expect(lapTimes([14_000, 27_000, 41_500])).toEqual([14_000, 13_000, 14_500])
+  })
+})
+
+describe('bots', () => {
+  const bots: RoomPlayer[] = [
+    { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', guest: true, connected: true, bot: true },
+    { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', guest: true, connected: true, bot: true },
+  ]
+  const mk = (ps: RoomPlayer[], mode: 'together' | 'apart') => (now: number): GameCtx => ({ now, players: ps, mode, random })
+
+  it('solo (one person with bots, apart) is a race; two people apart is a time trial', () => {
+    expect(setup(mk([players[0], ...bots], 'apart')(0), {}).kind).toBe('race')
+    expect(setup(mk([players[0]], 'apart')(0), {}).kind).toBe('race')
+    expect(setup(mk([players[0], players[1], ...bots], 'apart')(0), {}).kind).toBe('trial')
+    expect(setup(mk([players[0], ...bots], 'together')(0), {}).kind).toBe('race')
+  })
+
+  it('a solo race against AI karts: the host sim reports, the logic scores it', () => {
+    const ps = [players[0], ...bots]
+    const c = mk(ps, 'apart')
+    let s: KartState = setup(c(0), { track: 'oval', laps: 3 })
+    const w = makeWorld({ trackId: s.track, laps: s.laps, racers: ps.map((p) => ({ id: p.id, name: p.name, color: p.color, bot: p.bot })), seed: s.seed })
+    // In a race the bots never act through the platform: the Stage drives them.
+    expect(bot(s, 'bot-gator', c(0))).toBeNull()
+    s = tick(s, c(s.goAt))
+    let out = null
+    for (let i = 0; i < 60 * 240 && !out; i++) {
+      const me = w.karts[0]
+      const human: KartInput = { s: Math.round(autoSteer(w, me) * 10) / 10, g: 1, b: 0, f: 0 }
+      // The phone's page stamps the Stage's reports with the person's own id ('dixxx').
+      const from = players[0].id
+      for (const e of step(w, { [me.id]: human })) {
+        if (e.t === 'lap') s = reduce(s, { playerId: from, type: 'lap', payload: { id: e.id, lap: e.lap, time: e.time } }, c(s.goAt + w.time))
+        if (e.t === 'finish') s = reduce(s, { playerId: from, type: 'finish', payload: { id: e.id, time: e.time } }, c(s.goAt + w.time))
+      }
+      if (i % 30 === 0) {
+        s = reduce(s, { playerId: from, type: 'place', payload: { o: w.order, p: Object.fromEntries(w.karts.map((k) => [k.id, progressOf(w, k)])) } }, c(s.goAt + w.time))
+      }
+      if (i % 12 === 0) s = tick(s, c(s.goAt + w.time))
+      if (bot(s, 'bot-pigeon', c(s.goAt + w.time)) !== null) throw new Error('race bots must not act')
+      out = outcome(s, c(s.goAt + w.time))
+    }
+    expect(out).not.toBeNull()
+    expect(out!.placements).toHaveLength(3)
+    expect(Object.values(s.racers).filter((r) => r.finishMs !== null).length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('a time trial with two idle people and two bots ends with the bots on top', () => {
+    const ps = [players[0], players[1], ...bots]
+    const c = mk(ps, 'apart')
+    let s: KartState = setup(c(0), { track: 'oval' })
+    let now = 0
+    let out = null
+    while (!out && now < TRIAL_MS + 10_000) {
+      now += 200
+      s = tick(s, c(now))
+      for (const b of bots) {
+        const move = bot(s, b.id, c(now))
+        if (move) s = reduce(s, { playerId: b.id, type: move.type, payload: move.payload }, c(now))
+      }
+      out = outcome(s, c(now))
+    }
+    expect(out).not.toBeNull()
+    expect(s.runners['bot-gator'].runs).toHaveLength(3)
+    expect(s.runners['bot-pigeon'].runs).toHaveLength(3)
+    expect(out!.placements.slice(0, 2).map((p) => p.playerId).sort()).toEqual(['bot-gator', 'bot-pigeon'])
+    expect(out!.placements.slice(2).map((p) => p.place)).toEqual([3, 3])
+    // bot laps look like laps
+    for (const t of s.runners['bot-gator'].runs) expect(t).toBeGreaterThan(minLapMs('oval'))
   })
 })

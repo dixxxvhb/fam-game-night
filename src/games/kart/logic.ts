@@ -1,5 +1,5 @@
-import type { GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine/types'
-import { TRACK_DEFS, TRACK_IDS, type TrackId } from './tracks'
+import type { BotMove, GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine/types'
+import { getTrack, TRACK_DEFS, TRACK_IDS, type TrackId } from './tracks'
 import { ITEM_KINDS, minLapMs, type ItemKind } from './sim'
 
 /**
@@ -27,6 +27,8 @@ export interface Runner {
   runs: number[]
   best: number | null
   driving: boolean
+  /** Host time the current run started (bots pace their laps off it). */
+  startedAt: number | null
 }
 
 export interface KartState {
@@ -78,7 +80,10 @@ export function ordinal(n: number): string {
 
 export function setup(ctx: GameCtx, opts: Record<string, string | number>): KartState {
   const ids = ctx.players.map((p) => p.id)
-  const kind = ctx.mode === 'apart' ? 'trial' : 'race'
+  // Apart with two or more people: everyone runs their own time trial. Together, or solo
+  // (one person, maybe with bots), it's a real race: the host screen runs it.
+  const humans = ctx.players.filter((p) => !p.bot).length
+  const kind = ctx.mode === 'apart' && humans >= 2 ? 'trial' : 'race'
   const track = (TRACK_IDS as string[]).includes(String(opts.track)) ? (String(opts.track) as TrackId) : 'oval'
   const laps = Number(opts.laps) === 5 ? 5 : 3
   const gas = opts.gas === 'hold' ? 'hold' : 'auto'
@@ -98,7 +103,7 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Kart
     freezeUntil: 0,
     order: ids,
     racers: kind === 'race' ? Object.fromEntries(ids.map((id) => [id, { lap: 0, lapAt: [], finishMs: null, item: null, prog: 0, hits: 0 }])) : {},
-    runners: kind === 'trial' ? Object.fromEntries(ids.map((id) => [id, { runs: [], best: null, driving: false }])) : {},
+    runners: kind === 'trial' ? Object.fromEntries(ids.map((id) => [id, { runs: [], best: null, driving: false, startedAt: null }])) : {},
   }
 }
 
@@ -113,11 +118,13 @@ function validTime(v: unknown): number | null {
 }
 
 /**
- * Race reports come from the host's own Stage. The contract says '__host'; the TV page
- * currently stamps them with its client id, so anything that isn't a player counts too.
+ * Race reports come from the host's own Stage. The contract says '__host', but the pages stamp
+ * hostAction with the sender's id: the TV's client id (not a player), or, in a solo race on a
+ * phone, that one person's own id. An apart race only happens with one person (see setup), whose
+ * phone is the host, so in apart mode their reports count too. Together, phones can't send them.
  */
 function fromHost(a: PlayerAction, ctx: GameCtx): boolean {
-  return a.playerId === HOST || !ctx.players.some((p) => p.id === a.playerId)
+  return a.playerId === HOST || ctx.mode === 'apart' || !ctx.players.some((p) => p.id === a.playerId)
 }
 
 function freeze(s: KartState, now: number): KartState {
@@ -206,7 +213,7 @@ export function reduce(s: KartState, a: PlayerAction, ctx: GameCtx): KartState {
       if (s.kind !== 'trial' || s.stage !== 'trial') return s
       const r = s.runners[a.playerId]
       if (!r || r.driving || r.runs.length >= TRIAL_RUNS) return s
-      return { ...s, runners: { ...s.runners, [a.playerId]: { ...r, driving: true } } }
+      return { ...s, runners: { ...s.runners, [a.playerId]: { ...r, driving: true, startedAt: ctx.now } } }
     }
     case 'trial:lap': {
       if (s.kind !== 'trial' || s.stage !== 'trial' || !p) return s
@@ -219,7 +226,7 @@ export function reduce(s: KartState, a: PlayerAction, ctx: GameCtx): KartState {
       const runs = [...r.runs, time]
       const next: KartState = {
         ...s,
-        runners: { ...s.runners, [a.playerId]: { runs, best: Math.min(...runs), driving: false } },
+        runners: { ...s.runners, [a.playerId]: { runs, best: Math.min(...runs), driving: false, startedAt: null } },
       }
       return allRunsDone(next) ? freeze(next, ctx.now) : next
     }
@@ -244,6 +251,24 @@ export function tick(s: KartState, ctx: GameCtx): KartState {
       return now >= s.freezeUntil ? { ...s, stage: 'done' } : s
   }
   return s
+}
+
+/**
+ * Bots. In a race they are AI karts driven inside the host Stage's simulation (see botInput in
+ * sim.ts), so there is nothing to send: this returns null and only exists so the platform seats
+ * bots in Kart. In a time trial (apart, two or more people) a bot starts runs and posts a lap time
+ * once a believable lap's worth of time has passed.
+ */
+export function bot(s: KartState, id: string, ctx: GameCtx): BotMove | null {
+  if (s.kind !== 'trial' || s.stage !== 'trial') return null
+  const r = s.runners[id]
+  if (!r || r.runs.length >= TRIAL_RUNS) return null
+  if (!r.driving) return ctx.random() < 0.12 ? { type: 'trial:start' } : null
+  if (r.startedAt === null) return null
+  const clean = (getTrack(s.track).L / 210) * 1000
+  if (ctx.now - r.startedAt < 3000 + clean || ctx.random() > 0.3) return null
+  const time = Math.round(clean * (1.02 + ctx.random() * 0.22))
+  return { type: 'trial:lap', payload: { time, n: r.runs.length + 1 } }
 }
 
 /** Lap durations from cumulative lap times (the first lap includes the standing start). */
