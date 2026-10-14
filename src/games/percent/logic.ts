@@ -1,6 +1,6 @@
 import type { GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
-import { shuffle } from '../../lib/shuffle'
+import { freshFirst, shuffle } from '../../lib/shuffle'
 import { QUESTIONS, type Question } from './questions'
 
 export type Bet = 'muchLower' | 'lower' | 'higher' | 'muchHigher'
@@ -143,7 +143,7 @@ export function setupWith(ctx: GameCtx, opts: Record<string, string | number>, b
   const seat = shuffle(ids, ctx.random)
   const order: string[] = []
   for (let r = 0; r < rounds; r++) order.push(...seat)
-  const picked = shuffle(bank, ctx.random).slice(0, order.length + 1).map((q) => ({ ...q }))
+  const picked = freshFirst(bank, (q) => q.tag, ctx.used, ctx.random).slice(0, order.length + 1).map((q) => ({ ...q }))
   return {
     order,
     round: 0,
@@ -293,5 +293,6 @@ export function outcome(s: PercentState, ctx: GameCtx): GameOutcome | null {
       questions: s.questions.map((q) => q.tag),
       spy: s.history.map((r) => ({ spy: r.spy, guess: r.guess, answer: r.answer })),
     },
+    used: s.questions.map((q) => q.tag),
   }
 }

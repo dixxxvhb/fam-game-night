@@ -1,6 +1,6 @@
 import type { GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
-import { shuffle } from '../../lib/shuffle'
+import { freshFirst, shuffle } from '../../lib/shuffle'
 
 /**
  * The lie engine shared by Bluff (fill the blank in a real fact) and Fake Word
@@ -429,7 +429,7 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
   function setup(ctx: GameCtx, opts: Record<string, string | number>): LieState {
     const length = opts.length === 'short' ? 'short' : 'normal'
     const factors = [...LENGTHS[length]]
-    const deck = shuffle(bank, ctx.random)
+    const deck = freshFirst(bank, (b) => b.id, ctx.used, ctx.random)
     const items = factors.map((_, i) => slim(deck[i % deck.length]))
     const zero = Object.fromEntries(ids(ctx).map((id) => [id, 0]))
     return {
@@ -538,6 +538,7 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
         ? [{ playerId: best.playerId, kind: 'answer', label: best.prompt.slice(0, 200), content: { text: best.text, likes: best.likes } }]
         : [],
       details: { length: s.length, questions: s.items.map((i) => i.id), stats: s.stats },
+      used: s.items.map((i) => i.id),
     }
   }
 

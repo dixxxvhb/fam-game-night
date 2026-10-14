@@ -22,6 +22,7 @@ You are building ONE game for a party platform that Dixon (Dixxx), John (Johnnyb
 - Copy: short, plain, a little funny in the tag, never corporate. No em dashes.
 - John is 17: content stays PG-13 (crude and silly is fine; nothing sexual, no slurs, nothing about drugs).
 - Streams (`useSendStream` / `useStream` from `src/engine/context.tsx`) are for high-rate data you don't need to keep (live strokes, a physics jar snapshot). Max ~12 messages/sec per phone. Anything the game needs to remember goes through `send(type, payload)` into state.
+- Content (prompts, questions, words): in `setup`, order your pool with `freshFirst(pool, idOf, ctx.used, ctx.random)` from `src/lib/shuffle.ts` so the group doesn't see repeats across nights, and return the ids you used in `outcome().used`.
 - `outcome()` returns placements for every player in the game (ties share a place), a one-line `summary`, and up to 6 `highlights` for the Hall of Fame where it makes sense (best answer, wildest moment). Keep highlight content under ~40 KB.
 
 ## Verify before you report

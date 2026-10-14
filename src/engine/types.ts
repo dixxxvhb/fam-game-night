@@ -40,6 +40,11 @@ export interface GameCtx {
   mode: Mode
   /** Seeded-per-call random in [0, 1). Use instead of Math.random. */
   random: () => number
+  /**
+   * Content ids this group has already played in this game (newest last), remembered on
+   * the host device across nights. Prefer unused content in setup; fall back when you run out.
+   */
+  used?: string[]
 }
 
 export interface PlayerAction<P = unknown> {
@@ -67,6 +72,8 @@ export interface GameOutcome {
   summary?: string
   /** Small JSON kept with the result (under ~50 KB). */
   details?: unknown
+  /** Content ids this game used (prompts, questions, words), so the next game avoids them. */
+  used?: string[]
 }
 
 export interface OptionChoice {

@@ -6,6 +6,17 @@ import { lsGet, lsSet, uuid } from '../lib/ids'
 import * as api from '../data/api'
 
 const SAVE_KEY = (code: string) => `gn-host-${code}`
+const USED_KEY = (gameId: string) => `gn-used-${gameId}`
+const USED_CAP = 800
+
+function usedFor(gameId: string): string[] {
+  return lsGet<string[]>(USED_KEY(gameId)) ?? []
+}
+function rememberUsed(gameId: string, ids: string[]) {
+  if (!ids.length) return
+  const seen = usedFor(gameId).filter((x) => !ids.includes(x))
+  lsSet(USED_KEY(gameId), [...seen, ...ids].slice(-USED_CAP))
+}
 const TICK_MS = 200
 const HEARTBEAT_MS = 3000
 
@@ -108,7 +119,7 @@ export class HostEngine {
     const players = ids
       .map((id) => this.state.players.find((p) => p.id === id))
       .filter((p): p is RoomPlayer => Boolean(p))
-    return { now: Date.now(), players, mode: this.state.mode, random: Math.random }
+    return { now: Date.now(), players, mode: this.state.mode, random: Math.random, used: this.state.game ? usedFor(this.state.game.id) : [] }
   }
 
   private gameAction(env: ActionEnvelope) {
@@ -146,6 +157,7 @@ export class HostEngine {
     const g = this.state.game!
     const placements = toPoints(out.placements, g.players.length)
     const ng: NightGame = { resultId: uuid(), gameId: g.id, at: Date.now(), placements, summary: out.summary }
+    if (out.used?.length) rememberUsed(g.id, out.used.slice(0, 200).map(String))
     if (!this.state.nightSaved) {
       // The night only exists in the database once something has been played.
       api.startNight(this.state.nightId, this.state.code, this.state.mode, this.state.players.map((p) => p.id))
@@ -203,7 +215,7 @@ export class HostEngine {
         for (const o of def.options ?? []) opts[o.key] = o.default
         Object.assign(opts, (p.opts as Record<string, string | number>) ?? {})
         const players = ids.map((id) => s.players.find((x) => x.id === id)!)
-        const ctx: GameCtx = { now: Date.now(), players, mode: s.mode, random: Math.random }
+        const ctx: GameCtx = { now: Date.now(), players, mode: s.mode, random: Math.random, used: usedFor(def.id) }
         const gs = def.setup(ctx, opts)
         this.commit({ ...s, phase: 'playing', game: { id: def.id, players: ids, state: gs, startedAt: Date.now(), opts } })
         return
