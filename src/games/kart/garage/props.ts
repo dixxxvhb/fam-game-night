@@ -87,16 +87,29 @@ function palm(w: number, h: number, lean: number): PropArt {
 }
 
 function mangrove(): PropArt {
+  // Reads as a mangrove, not a saucer: a low, lumpy canopy on a short trunk, a cage of arching
+  // prop roots that step out and down into a pool of water, and a few aerial roots hanging straight.
   const w = 160
   const h = 128
   const by = h - BASE
-  const roots = [[40, 18], [62, 10], [80, 6], [98, 10], [120, 18]].map(([x, s]) => tube(`M80 70 Q${x} ${70 + s} ${x} ${by}`, 5, '#8A6A4A')).join('')
-  return {
-    w, h,
-    body: shadow(w, h, 60) + roots +
-      `<g fill="#2F9446" ${S}><circle cx="44" cy="54" r="28"/><circle cx="116" cy="54" r="28"/><circle cx="80" cy="40" r="34"/></g>` +
-      `<g fill="#46B85A"><circle cx="70" cy="30" r="12"/><circle cx="104" cy="44" r="9"/><circle cx="38" cy="46" r="9"/></g>`,
-  }
+  const wy = by - 4
+  const root = '#7A5A3C'
+  const water = `<ellipse cx="80" cy="${wy}" rx="76" ry="9" fill="#5EC3E8" ${S}/>` +
+    `<path d="M18 ${wy + 1} h14 M52 ${wy + 4} h18 M96 ${wy + 3} h16 M128 ${wy} h12" stroke="#BDEBFA" stroke-width="2.4" stroke-linecap="round"/>`
+  const arches: [number, number, number][] = [[74, 72, 12], [74, 80, 34], [76, 90, 56], [86, 72, 148], [86, 80, 126], [84, 90, 104]]
+  const roots = arches.map(([tx, ty, ex]) => {
+    const out = ex - tx
+    const peak = ty - 10 - Math.abs(out) * 0.1
+    return tube(`M${tx} ${ty} C${tx + out * 0.35} ${peak} ${ex - out * 0.08} ${peak} ${ex} ${wy}`, 4, root)
+  }).join('')
+  const aerial = [24, 40, 122, 138].map((x, i) => `<path d="M${x} ${46 + (i % 2) * 6} V${wy}" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M${x} ${46 + (i % 2) * 6} V${wy}" stroke="${root}" stroke-width="2" stroke-linecap="round"/>`).join('')
+  const trunk = `<path d="M71 96 C74 80 74 64 72 46 L88 46 C86 64 86 80 89 96 Z" fill="#8A6A4A" ${S}/>`
+  const blobs: [number, number, number][] = [[22, 38, 14], [42, 28, 17], [64, 21, 17], [96, 21, 17], [118, 28, 17], [138, 38, 14], [40, 42, 13], [80, 32, 19], [120, 42, 13], [60, 40, 14], [100, 40, 14]]
+  const canopy = `<g fill="${INK}">${blobs.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r + 3.5}"/>`).join('')}</g>` +
+    `<g fill="#2E8A42">${blobs.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>` +
+    `<g fill="#46B85A">${[[40, 22, 7], [62, 15, 8], [94, 15, 8], [118, 22, 7], [22, 33, 5], [138, 33, 5]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('')}</g>` +
+    `<g fill="#1F6A32">${[[50, 46, 3.5], [70, 48, 3.5], [90, 48, 3.5], [110, 46, 3.5], [80, 30, 3], [30, 44, 3], [130, 44, 3]].map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r * 1.6}" ry="${r}"/>`).join('')}</g>`
+  return { w, h, body: water + aerial + roots + trunk + canopy }
 }
 
 function reeds(): PropArt {

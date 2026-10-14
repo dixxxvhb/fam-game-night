@@ -7,8 +7,8 @@ import { CUPS, SPEED_NAMES, type SpeedClass } from './contract'
 
 const kart: GameDef<KartState> = {
   id: 'kart',
-  name: 'Kart',
-  tagline: 'Tilt your phone to steer. Items, drifting, zero sportsmanship.',
+  name: 'Turnpike',
+  tagline: 'Eight critters, four-race cups, one turnpike. Florida driving rules apply.',
   instead: 'Instead of Mario Kart',
   minPlayers: 1,
   maxPlayers: 6,

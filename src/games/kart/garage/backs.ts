@@ -7,6 +7,7 @@ import { INK, type CritterId } from '../../board/park/cast'
  */
 
 const o = `stroke="${INK}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"`
+const n = (v: number) => (Math.round(v * 10) / 10).toString()
 const BEAN = 'M60 50 C94 50 100 80 98 104 C96 130 80 136 60 136 C40 136 24 130 22 104 C20 80 26 50 60 50 Z'
 
 function tubeD(d: string, w: number, color: string): string {
@@ -37,28 +38,38 @@ export function critterBack(id: CritterId, side: number): string {
     case 'mattie': {
       const body = '#93A9C2'
       const dark = '#6F86A1'
+      const pale = '#C6D4E3'
+      // Head turned a little toward the nose: the pale whiskered snout shows past the dome, and
+      // both flippers are up on the wheel (elbows out), so she never reads as a plain grey dome.
+      const sn = peek ? 100 : 96
       return `
-        <ellipse cx="18" cy="100" rx="9" ry="16" transform="rotate(28 18 100)" fill="${dark}" ${o}/>
-        <ellipse cx="102" cy="100" rx="9" ry="16" transform="rotate(-28 102 100)" fill="${dark}" ${o}/>
-        ${peek ? `<ellipse cx="${sx(98)}" cy="70" rx="14" ry="12" fill="#C6D4E3" ${o}/>` : ''}
         <path d="M60 30 C88 30 102 56 103 90 C104 122 86 136 60 136 C34 136 16 122 17 90 C18 56 32 30 60 30 Z" fill="${body}" ${o}/>
-        <path d="M38 46 C46 38 74 38 82 46" fill="none" stroke="#B7C7D8" stroke-width="4" stroke-linecap="round"/>
-        <path d="M34 80 C46 86 74 86 86 80" fill="none" stroke="${dark}" stroke-width="3" stroke-linecap="round"/>
-        <path d="M30 96 C44 102 76 102 90 96" fill="none" stroke="${dark}" stroke-width="3" stroke-linecap="round"/>`
+        <path d="M38 44 C46 36 74 36 82 44" fill="none" stroke="#B7C7D8" stroke-width="5" stroke-linecap="round"/>
+        <path d="M30 80 C44 88 76 88 90 80" fill="none" stroke="${dark}" stroke-width="3.4" stroke-linecap="round"/>
+        <path d="M26 96 C42 104 78 104 94 96" fill="none" stroke="${dark}" stroke-width="3.4" stroke-linecap="round"/>
+        <ellipse cx="${sx(sn)}" cy="62" rx="17" ry="13" fill="${pale}" ${o}/>
+        <g fill="${INK}"><circle cx="${sx(sn + 2)}" cy="58" r="1.8"/><circle cx="${sx(sn + 7)}" cy="63" r="1.8"/><circle cx="${sx(sn + 1)}" cy="66" r="1.8"/></g>
+        <path d="M${sx(sn + 12)} 58 L${sx(sn + 24)} 54 M${sx(sn + 13)} 63 L${sx(sn + 26)} 63 M${sx(sn + 12)} 68 L${sx(sn + 23)} 72" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>
+        <ellipse cx="16" cy="84" rx="9" ry="18" transform="rotate(-64 16 84)" fill="${dark}" ${o}/>
+        <ellipse cx="104" cy="84" rx="9" ry="18" transform="rotate(64 104 84)" fill="${dark}" ${o}/>`
     }
     case 'pete': {
       const body = '#F7F5EF'
       const shade = '#D8D2C4'
+      // The long orange bill and its pouch always poke out past the head (longer when the kart
+      // turns), and a big yellow crest sits on top: a white circle alone could be anybody.
+      const tip = peek ? 118 : 108
       return `
         <path d="${BEAN}" fill="${body}" ${o}/>
         <ellipse cx="30" cy="92" rx="12" ry="24" transform="rotate(10 30 92)" fill="${shade}" ${o}/>
         <ellipse cx="90" cy="92" rx="12" ry="24" transform="rotate(-10 90 92)" fill="${shade}" ${o}/>
-        <path d="M24 110 L30 122 L36 112 Z M96 110 L90 122 L84 112 Z" fill="${INK}"/>
-        ${peek ? `<path d="M${sx(70)} 44 L${sx(112)} 48 Q${sx(114)} 54 ${sx(108)} 58 Q${sx(90)} 66 ${sx(72)} 54 Z" fill="#FF8A24" ${o}/>` : ''}
-        <path d="M52 12 Q58 2 62 12 Q68 4 70 14" fill="none" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>
-        <path d="M52 12 Q58 2 62 12 Q68 4 70 14" fill="none" stroke="#F2C230" stroke-width="4" stroke-linecap="round"/>
+        <path d="M24 108 L30 122 L38 110 Z M96 108 L90 122 L82 110 Z" fill="${INK}"/>
+        <path d="M${sx(62)} 46 Q${sx(88)} 88 ${sx(tip - 4)} 58 L${sx(tip - 2)} 52 Z" fill="#FF8A24" ${o}/>
+        <path d="M${sx(62)} 40 L${sx(tip)} 45 Q${sx(tip + 3)} 50 ${sx(tip - 2)} 54 L${sx(64)} 54 Z" fill="#FFB43C" ${o}/>
         <circle cx="60" cy="36" r="24" fill="${body}" ${o}/>
-        <path d="M44 24 Q60 16 76 24" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+        <path d="M46 16 Q50 -2 58 12 Q62 -4 68 12 Q78 0 74 18" fill="none" stroke="${INK}" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M46 16 Q50 -2 58 12 Q62 -4 68 12 Q78 0 74 18" fill="none" stroke="#F2C230" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M44 26 Q60 18 76 26" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
         <path d="M50 52 Q60 58 70 52" fill="none" stroke="${shade}" stroke-width="3" stroke-linecap="round"/>`
     }
     case 'pickles': {
@@ -95,13 +106,23 @@ export function critterBack(id: CritterId, side: number): string {
     case 'ibby': {
       const body = '#FBFAF6'
       const shade = '#DCD8CE'
+      const red = '#F25A55'
+      // Everything below the shoulders hides inside the kart, so the tells live up top: the bare
+      // red face bulging past the side of the head, the long red beak hooking down from it, and
+      // black wingtips on the folded wings at the shoulders.
+      const k = peek ? 1 : 0.8
+      const bx = (x: number) => sx(78 + (x - 78) * k)
+      const beak = `M${bx(78)} 46 C${bx(106)} 46 ${bx(126)} 64 ${bx(130)} ${n(100 - (1 - k) * 40)}`
+      const sweep = Math.sign(side || 1) > 0 ? 0 : 1
+      const face = `M${sx(66)} 57.2 A22 22 0 0 ${sweep} ${sx(82)} 36 C${sx(70)} 38 ${sx(62)} 48 ${sx(66)} 57.2 Z`
       return `
         <path d="M60 54 C90 54 98 78 96 96 C94 114 78 120 60 120 C42 120 26 114 24 96 C22 78 30 54 60 54 Z" fill="${body}" ${o}/>
-        <ellipse cx="30" cy="88" rx="11" ry="20" transform="rotate(10 30 88)" fill="${shade}" ${o}/>
-        <ellipse cx="90" cy="88" rx="11" ry="20" transform="rotate(-10 90 88)" fill="${shade}" ${o}/>
-        <path d="M24 100 C22 110 28 116 34 110 Z M96 100 C98 110 92 116 86 110 Z" fill="${INK}"/>
-        ${peek ? tubeD(`M${sx(70)} 48 C${sx(88)} 54 ${sx(100)} 70 ${sx(106)} 90`, 6, '#EE6E5B') : ''}
+        <ellipse cx="30" cy="84" rx="12" ry="22" transform="rotate(16 30 84)" fill="${shade}" ${o}/>
+        <ellipse cx="90" cy="84" rx="12" ry="22" transform="rotate(-16 90 84)" fill="${shade}" ${o}/>
+        <path d="M26 70 L6 62 L14 72 L4 78 L16 80 L10 88 L28 82 Z M94 70 L114 62 L106 72 L116 78 L104 80 L110 88 L92 82 Z" fill="${INK}" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>
+        ${tubeD(beak, 7, '#EE6E5B')}
         <circle cx="60" cy="36" r="22" fill="${body}" ${o}/>
+        <path d="${face}" fill="${red}" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/>
         <path d="M46 26 Q60 18 74 26" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>`
     }
     case 'shelly': {
