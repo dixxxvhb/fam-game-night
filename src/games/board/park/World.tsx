@@ -1,6 +1,8 @@
 import type { BoardState } from '../logic'
 import type { Who } from '../view'
-import { BoardSvg } from '../BoardSvg'
+import { Mini } from './world/Mini'
+import { Scene3D } from './world/Scene3D'
+import './world/world.css'
 
 /**
  * THE WORLD: the park board the TV shows behind everything (lane "world" owns this file).
@@ -8,7 +10,8 @@ import { BoardSvg } from '../BoardSvg'
  * pull back for the overview), and animates tokens, hops, the dice block and coin pops.
  * The Stage only places it and draws overlays on top.
  *
- * Stub until the world lane lands: the old flat board.
+ * TV: a 3D-tilted park (world/Scene3D). Compact (apart-mode phones): a flat mini map
+ * (world/Mini), whole park visible, no camera moves, sized by its width.
  */
 export interface WorldProps {
   s: BoardState
@@ -21,5 +24,6 @@ export interface WorldProps {
 }
 
 export function World({ s, who, now, compact = false, className }: WorldProps) {
-  return <BoardSvg s={s} who={who} now={now} compact={compact} className={className} />
+  if (compact) return <Mini s={s} who={who} now={now} className={className} />
+  return <Scene3D s={s} who={who} now={now} className={className} />
 }

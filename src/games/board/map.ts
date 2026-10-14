@@ -1,7 +1,11 @@
 /**
- * The board: a 40-space loop drawn clockwise in a 1240 x 560 box, with two forks.
- * Each fork has a long way (5 spaces, mostly blue, bulging out) and a short cut
- * (3 spaces on the edge, mostly red). Static data, never in state.
+ * The board: Party Park, a 40-space loop that winds round an island (1600 x 1100 world
+ * units, y grows toward the camera), with two forks. Each fork has a long way (5 spaces,
+ * mostly blue, scenic) and a short cut (3 spaces on the main path, mostly red).
+ * Clockwise from the Front Gate (space 0, bottom middle): Gator Swamp (the first fork's
+ * long way is the swamp boardwalk), Coaster Hill, the Gift Shop plaza, the Boardwalk (the
+ * second fork's long way runs out on the pier over the water), Palm Beach, back to the gate.
+ * Static data, never in state. Only the coordinates are art; the graph is the rules.
  */
 
 export type SpaceKind = 'blue' | 'red' | 'event' | 'shop' | 'duel' | 'lucky'
@@ -16,18 +20,15 @@ export interface Space {
   lanes?: [string, string]
 }
 
-export const VIEW_W = 1240
-export const VIEW_H = 560
-export const SPACE_R = 24
+/** The world box every coordinate lives in. */
+export const WORLD_W = 1600
+export const WORLD_H = 1100
+/** Kept for older callers: the board's drawing box is the world box. */
+export const VIEW_W = WORLD_W
+export const VIEW_H = WORLD_H
+export const SPACE_R = 27
 
-const LEFT = 70
-const RIGHT = 1170
-const TOP = 125
-const BOTTOM = 435
-const EDGE_STEP = (RIGHT - LEFT) / 16
-const SIDE_STEP = (BOTTOM - TOP) / 4
-
-/** Kinds of the 40 loop spaces, clockwise from the top-left corner. */
+/** Kinds of the 40 loop spaces, clockwise from the Front Gate. */
 const LOOP: SpaceKind[] = [
   'blue', 'blue', 'event', 'blue', 'red', 'shop', 'blue', 'red', 'event', 'red',
   'blue', 'duel', 'blue', 'event', 'blue', 'red', 'blue', 'lucky', 'blue', 'red',
@@ -37,7 +38,7 @@ const LOOP: SpaceKind[] = [
 const LANE_TOP: SpaceKind[] = ['blue', 'lucky', 'blue', 'shop', 'blue']
 const LANE_BOTTOM: SpaceKind[] = ['blue', 'event', 'blue', 'lucky', 'blue']
 
-/** Fork nodes and where their lanes rejoin. */
+/** Fork nodes and where their lanes rejoin. (Names are from the old rectangle board.) */
 export const FORK_TOP = 6
 export const MERGE_TOP = 10
 export const FORK_BOTTOM = 26
@@ -45,45 +46,22 @@ export const MERGE_BOTTOM = 30
 export const LONG_TOP = [40, 41, 42, 43, 44]
 export const LONG_BOTTOM = [45, 46, 47, 48, 49]
 
-function loopXY(i: number): [number, number] {
-  if (i <= 16) return [LEFT + i * EDGE_STEP, TOP]
-  if (i <= 19) return [RIGHT, TOP + (i - 16) * SIDE_STEP]
-  if (i <= 36) return [RIGHT - (i - 20) * EDGE_STEP, BOTTOM]
-  return [LEFT, BOTTOM - (i - 36) * SIDE_STEP]
-}
-
-/** n points spread evenly by arc length along a half ellipse from a to b, bulging by `bulge` (negative = up). */
-function arc(ax: number, bx: number, y: number, bulge: number, n: number): [number, number][] {
-  const cx = (ax + bx) / 2
-  const rx = (bx - ax) / 2
-  const pts: [number, number][] = []
-  const N = 400
-  for (let k = 0; k <= N; k++) {
-    const t = Math.PI - (Math.PI * k) / N
-    pts.push([cx + rx * Math.cos(t), y + bulge * Math.sin(t)])
-  }
-  const acc = [0]
-  for (let k = 1; k < pts.length; k++) acc.push(acc[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]))
-  const total = acc[acc.length - 1]
-  const out: [number, number][] = []
-  for (let j = 1; j <= n; j++) {
-    const want = (total * j) / (n + 1)
-    const k = acc.findIndex((a) => a >= want)
-    out.push([Math.round(pts[k][0] * 10) / 10, Math.round(pts[k][1] * 10) / 10])
-  }
-  return out
-}
+/** Loop space centers: a closed spline through the park, sampled evenly by arc length. */
+const LOOP_XY: [number, number][] = [
+  [800, 990], [723, 999], [646, 997], [570, 982], [496, 957], [428, 921], [364, 878], [307, 826], [262, 764], [235, 691],
+  [230, 614], [247, 539], [283, 471], [334, 413], [383, 353], [429, 291], [490, 243], [562, 216], [637, 225], [705, 262],
+  [777, 288], [854, 281], [924, 248], [993, 214], [1069, 205], [1145, 223], [1212, 260], [1266, 314], [1303, 382], [1325, 456],
+  [1330, 533], [1321, 610], [1299, 683], [1261, 752], [1211, 811], [1149, 856], [1085, 899], [1023, 945], [953, 977], [877, 990],
+]
+/** The swamp boardwalk (long way from the first fork). */
+const SWAMP_XY: [number, number][] = [[291, 905], [216, 880], [165, 821], [149, 743], [173, 668]]
+/** The pier over the water (long way from the second fork). */
+const PIER_XY: [number, number][] = [[1295, 224], [1383, 245], [1439, 315], [1447, 405], [1408, 487]]
 
 function build(): Space[] {
-  const spaces: Space[] = LOOP.map((kind, i) => {
-    const [x, y] = loopXY(i)
-    return { id: i, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10, kind, next: [(i + 1) % LOOP.length] }
-  })
-  const top = arc(loopXY(FORK_TOP)[0], loopXY(MERGE_TOP)[0], TOP, -92, 5)
-  top.forEach(([x, y], j) => spaces.push({ id: LONG_TOP[j], x, y, kind: LANE_TOP[j], next: [j < 4 ? LONG_TOP[j + 1] : MERGE_TOP] }))
-  // The bottom edge runs right to left, so its lane runs from the larger x to the smaller.
-  const bottom = arc(loopXY(MERGE_BOTTOM)[0], loopXY(FORK_BOTTOM)[0], BOTTOM, 92, 5).reverse()
-  bottom.forEach(([x, y], j) => spaces.push({ id: LONG_BOTTOM[j], x, y, kind: LANE_BOTTOM[j], next: [j < 4 ? LONG_BOTTOM[j + 1] : MERGE_BOTTOM] }))
+  const spaces: Space[] = LOOP.map((kind, i) => ({ id: i, x: LOOP_XY[i][0], y: LOOP_XY[i][1], kind, next: [(i + 1) % LOOP.length] }))
+  SWAMP_XY.forEach(([x, y], j) => spaces.push({ id: LONG_TOP[j], x, y, kind: LANE_TOP[j], next: [j < 4 ? LONG_TOP[j + 1] : MERGE_TOP] }))
+  PIER_XY.forEach(([x, y], j) => spaces.push({ id: LONG_BOTTOM[j], x, y, kind: LANE_BOTTOM[j], next: [j < 4 ? LONG_BOTTOM[j + 1] : MERGE_BOTTOM] }))
   spaces[FORK_TOP] = { ...spaces[FORK_TOP], next: [LONG_TOP[0], FORK_TOP + 1], lanes: ['Long way', 'Short cut'] }
   spaces[FORK_BOTTOM] = { ...spaces[FORK_BOTTOM], next: [LONG_BOTTOM[0], FORK_BOTTOM + 1], lanes: ['Long way', 'Short cut'] }
   return spaces
