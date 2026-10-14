@@ -4,13 +4,18 @@ import type { BoardState, MgRun } from './logic'
 import { curId } from './logic'
 import { eventCard } from './events'
 import { minigame } from './minigames/registry'
+import type { CritterId } from './park/cast'
 
 /** Shared words and colors for the TV and the phone. */
 
-export type Who = (id: string) => RoomPlayer
+/** A player as the board sees them: the room player plus the critter they play as. */
+export type Who = (id: string) => RoomPlayer & { char: CritterId | null }
 
-export function whoFrom(players: RoomPlayer[]): Who {
-  return (id: string) => players.find((p) => p.id === id) ?? { id, name: id, color: '#8790B6', guest: true, connected: false }
+export function whoFrom(players: RoomPlayer[], chars: Record<string, CritterId | null> = {}): Who {
+  return (id: string) => {
+    const p = players.find((x) => x.id === id) ?? { id, name: id, color: '#8790B6', guest: true, connected: false }
+    return { ...p, char: chars[id] ?? null }
+  }
 }
 
 export function names(ids: string[], who: Who): string {
@@ -25,12 +30,12 @@ export function fill(text: string, who: Who): string {
 }
 
 export const SPACE_COLOR: Record<SpaceKind, string> = {
-  blue: '#4C7DFF',
-  red: '#FF4D5E',
-  event: '#FFC23D',
-  shop: '#2BC3B4',
-  duel: '#FF6B3D',
-  lucky: '#F27FD0',
+  blue: '#3E7BFA',
+  red: '#F2414F',
+  event: '#2FBF5B',
+  shop: '#FFA51F',
+  duel: '#9B5CF6',
+  lucky: '#FF6FB5',
 }
 
 export const SPACE_NAME: Record<SpaceKind, string> = {
@@ -67,7 +72,10 @@ export function plural(n: number, one: string, many = `${one}s`): string {
 export function caption(s: BoardState, who: Who): string {
   const c = who(curId(s)).name
   switch (s.stage) {
-    case 'intro': return `Board Night. ${s.turns} turns.`
+    case 'intro': return `Welcome to Party Park. ${s.turns} turns.`
+    case 'pick': return 'Pick your critter'
+    case 'order': return 'Hit the block. Highest goes first.'
+    case 'mgSpin': return 'Picking a minigame'
     case 'turnStart': return `New turn. ${who(s.order[0]).name} goes first.`
     case 'lastFive': return s.notice?.text ?? 'Last five turns'
     case 'roll': return `${c} is up. Waiting on the roll.`

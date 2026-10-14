@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GameCtx, PlayerAction, RoomPlayer } from '../../engine/types'
 import {
   BONUS_BEAT_MS, CHOICE_MS, COOP_REWARD, DUEL_STAKE, EVENT_MS, FFA_REWARDS, HEIST_PRICE, HOP_MS, INTRO_MS, LAND_MS,
-  LAST_FIVE_MS, MG_RESULT_MS, ROLLING_MS, ROLL_MS, STAR_PRICE, START_COINS, TEAM_REWARD, TURN_MS,
+  LAST_FIVE_MS, MG_RESULT_MS, MG_SPIN_MS, ORDER_HOLD_MS, ORDER_MS, PICK_MS, ROLLING_MS, ROLL_MS, STAR_PRICE, START_COINS, TEAM_REWARD, TURN_MS,
   autoFork, bonusAwards, bot, clearLeader, curId, isLastFive, mgAwards, outcome, pickFormat, reduce, setup, tick, visualPos,
   type BoardState,
 } from './logic'
@@ -41,6 +41,14 @@ function atRoll(players = THREE, turns = 12, seed = 7): { s: BoardState; now: nu
   let now = T0
   let s = setup(mk(players, now, seed), { turns })
   now += INTRO_MS
+  s = tick(s, mk(players, now, seed))
+  expect(s.stage).toBe('pick')
+  now += PICK_MS
+  s = tick(s, mk(players, now, seed))
+  expect(s.stage).toBe('order')
+  now += ORDER_MS
+  s = tick(s, mk(players, now, seed))
+  now += ORDER_HOLD_MS
   s = tick(s, mk(players, now, seed))
   expect(s.stage).toBe('turnStart')
   now += TURN_MS
@@ -145,12 +153,56 @@ describe('setup and turn flow', () => {
 
   it('a minigame after everyone has moved, then the next turn', () => {
     let { s, now } = atRoll()
-    for (let i = 0; i < 400 && s.stage !== 'mgIntro'; i++) {
+    for (let i = 0; i < 400 && s.stage !== 'mgSpin'; i++) {
       now = Math.max(now + 200, s.endsAt || now + 200)
       s = tick(s, mk(THREE, now))
     }
-    expect(s.stage).toBe('mgIntro')
+    expect(s.stage).toBe('mgSpin')
     expect(s.mg?.kind === 'duel' || s.cur === 3).toBe(true)
+    expect(tick(s, mk(THREE, now + MG_SPIN_MS)).stage).toBe('mgIntro')
+  })
+})
+
+// ---------------- pick + order ----------------
+
+describe('pick a critter and roll for order', () => {
+  function atPick() {
+    const s = setup(mk(THREE, T0), { turns: 12 })
+    return tick(s, mk(THREE, T0 + INTRO_MS))
+  }
+  it('each critter once, then everyone hits the block and the highest goes first', () => {
+    let s = atPick()
+    expect(s.stage).toBe('pick')
+    s = reduce(s, act('dixxx', 'pick', { char: 'chomp' }), mk(THREE, T0))
+    expect(s.chars.dixxx).toBe('chomp')
+    // Taken, unknown, and second picks are ignored.
+    expect(reduce(s, act('torii', 'pick', { char: 'chomp' }), mk(THREE, T0))).toBe(s)
+    expect(reduce(s, act('torii', 'pick', { char: 'mario' }), mk(THREE, T0))).toBe(s)
+    expect(reduce(s, act('dixxx', 'pick', { char: 'pete' }), mk(THREE, T0))).toBe(s)
+    s = reduce(s, act('torii', 'pick', { char: 'ibby' }), mk(THREE, T0))
+    s = reduce(s, act('johnnyboy', 'pick', { char: 'zippy' }), mk(THREE, T0 + 100))
+    expect(s.endsAt).toBe(T0 + 100 + 2200)
+    s = tick(s, mk(THREE, s.endsAt))
+    expect(s.stage).toBe('order')
+    for (const id of ['torii', 'dixxx', 'johnnyboy']) s = reduce(s, act(id, 'hit'), mk(THREE, T0 + 5000))
+    const rolls = Object.values(s.orderRolls) as number[]
+    expect(new Set(rolls).size).toBe(3)
+    expect(reduce(s, act('dixxx', 'hit'), mk(THREE, T0 + 5000))).toBe(s)
+    s = tick(s, mk(THREE, T0 + 5000 + ORDER_HOLD_MS))
+    expect(s.stage).toBe('turnStart')
+    expect(s.order).toEqual([...s.order].sort((a, b) => s.orderRolls[b]! - s.orderRolls[a]!))
+  })
+  it('times out: free critters for anyone who did not pick, auto-hits for anyone who did not hit', () => {
+    let s = atPick()
+    s = reduce(s, act('dixxx', 'pick', { char: 'shelly' }), mk(THREE, T0))
+    s = tick(s, mk(THREE, T0 + INTRO_MS + PICK_MS))
+    expect(s.stage).toBe('order')
+    expect(new Set(Object.values(s.chars)).size).toBe(3)
+    expect(s.chars.dixxx).toBe('shelly')
+    s = tick(s, mk(THREE, s.endsAt))
+    expect(Object.values(s.orderRolls).every((r) => r !== null)).toBe(true)
+    s = tick(s, mk(THREE, s.endsAt))
+    expect(s.stage).toBe('turnStart')
   })
 })
 
@@ -221,12 +273,12 @@ describe('spaces', () => {
     expect(reduce(d, act(id, 'duel', { target: 'nobody' }), mk(THREE, now))).toBe(d)
     const target = d.order.find((x) => x !== id)!
     const m = reduce(d, act(id, 'duel', { target }), mk(THREE, now))
-    expect(m.stage).toBe('mgIntro')
+    expect(m.stage).toBe('mgSpin')
     expect(m.mg).toMatchObject({ format: 'duel', kind: 'duel' })
     expect([...m.mg!.players].sort()).toEqual([id, target].sort())
     expect(minigame(m.mg!.id)!.formats).toContain('duel')
     // Auto-pick after 15 s.
-    expect(tick(d, mk(THREE, now + CHOICE_MS)).stage).toBe('mgIntro')
+    expect(tick(d, mk(THREE, now + CHOICE_MS)).stage).toBe('mgSpin')
   })
 })
 
@@ -541,6 +593,9 @@ describe('minigame format and rewards', () => {
   it('runs a minigame: intro, ready skips the wait, play, result pays out, next turn', () => {
     let s = rig(base, { stage: 'land', then: 'endTurn', cur: 2, endsAt: T0 })
     let now = T0
+    s = tick(s, mk(THREE, now))
+    expect(s.stage).toBe('mgSpin')
+    now += MG_SPIN_MS
     s = tick(s, mk(THREE, now))
     expect(s.stage).toBe('mgIntro')
     expect(s.mg!.kind).toBe('round')

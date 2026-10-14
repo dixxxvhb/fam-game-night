@@ -57,7 +57,11 @@ const SOUNDS: Record<Name, () => void> = {
 
 export const sfx = {
   /** Turn sound on for this screen (TV, or a phone in apart mode). */
-  enable(on: boolean) { enabled = on },
+  enable(on: boolean) { enabled = on; listeners.forEach((l) => l(muted)) },
+  /** True when this screen may make sound (it shows the game and is not muted). */
+  audible() { return enabled && !muted },
+  /** The shared audio context (created on first use), for richer sound like the board's music. */
+  context() { return ac() },
   play(name: Name) {
     if (!enabled || muted) return
     try { SOUNDS[name]() } catch { /* audio not available */ }

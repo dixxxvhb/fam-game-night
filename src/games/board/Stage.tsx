@@ -507,7 +507,7 @@ function Beat({ endsAt, total, now, className }: { endsAt: number; total: number
 
 export function BoardStage({ state: s, room, now, compact, me }: StageProps<BoardState>) {
   useTicker(100)
-  const who = whoFrom(room.players)
+  const who = whoFrom(room.players, s.chars)
   useBoardSounds(s, now)
   const t = now()
 

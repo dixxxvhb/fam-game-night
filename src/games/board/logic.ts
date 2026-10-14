@@ -7,12 +7,18 @@ import { EVENTS, eventCard, type EventCard } from './events'
 import { MINIGAMES, mgUsedId, minigame, supports } from './minigames/registry'
 import type { MgFormat, MgResult } from './minigames/types'
 import { botNoise } from './minigames/util'
+import { CAST_IDS, isCritterId, type CritterId } from './park/cast'
 
 // ---------------- tuning ----------------
 
 export const ROLL_MS = 15_000
 export const CHOICE_MS = 15_000
 export const INTRO_MS = 6000
+export const PICK_MS = 45_000
+export const PICKED_HOLD_MS = 2200
+export const ORDER_MS = 15_000
+export const ORDER_HOLD_MS = 3800
+export const MG_SPIN_MS = 4600
 export const TURN_MS = 2600
 export const LAST_FIVE_MS = 6000
 export const ROLLING_MS = 1400
@@ -42,9 +48,9 @@ export const TURN_CHOICES = [6, 10, 12, 15, 20]
 // ---------------- state ----------------
 
 export type Stage =
-  | 'intro' | 'turnStart' | 'lastFive' | 'roll' | 'rolling' | 'moving' | 'fork' | 'star'
+  | 'intro' | 'pick' | 'order' | 'turnStart' | 'lastFive' | 'roll' | 'rolling' | 'moving' | 'fork' | 'star'
   | 'land' | 'event' | 'eventPick' | 'shop' | 'duelPick'
-  | 'mgIntro' | 'mgPlay' | 'mgResult' | 'bonus' | 'final' | 'done'
+  | 'mgSpin' | 'mgIntro' | 'mgPlay' | 'mgResult' | 'bonus' | 'final' | 'done'
 
 export interface BPlayer {
   pos: number
@@ -109,6 +115,12 @@ export interface BoardState {
   turn: number
   turns: number
   order: string[]
+  /** The critter each player plays as (null until picked). */
+  chars: Record<string, CritterId | null>
+  /** The turn-order roll: each player's block hit (null until they hit it). Distinct numbers, no ties. */
+  orderRolls: Record<string, number | null>
+  /** The numbers still in the order-roll block. */
+  orderBag: number[]
   /** Index into order: whose turn it is. */
   cur: number
   players: Record<string, BPlayer>
@@ -298,6 +310,9 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Boar
     turn: 1,
     turns,
     order,
+    chars: Object.fromEntries(order.map((id) => [id, null])),
+    orderRolls: Object.fromEntries(order.map((id) => [id, null])),
+    orderBag: shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], ctx.random),
     cur: 0,
     players,
     star: randomOf(firstStar, ctx.random),
@@ -609,7 +624,7 @@ function startMg(n: BoardState, ctx: GameCtx, spec: { format: MgFormat; solo: st
   if (!n.used.includes(mgUsedId(id))) n.used = [...n.used, mgUsedId(id)]
   n.mg = { no: n.mgNo, id, ...spec, ready: [], s: null, result: null, awards: null }
   n.notice = null
-  setStage(n, 'mgIntro', ctx, MG_INTRO_MS)
+  setStage(n, 'mgSpin', ctx, MG_SPIN_MS)
 }
 
 function playMg(n: BoardState, ctx: GameCtx) {
@@ -684,6 +699,39 @@ function bonusBeat(n: BoardState, ctx: GameCtx) {
   setStage(n, 'final', ctx, FINAL_MS)
 }
 
+// ---------------- pick a critter + the turn-order roll ----------------
+
+function pickChar(n: BoardState, id: string, c: CritterId) {
+  n.chars[id] = c
+}
+
+/** Everyone without a critter gets a free one (timeout, or bots that never chose). */
+function fillChars(n: BoardState, ctx: GameCtx) {
+  for (const id of n.order) {
+    if (n.chars[id]) continue
+    const free = CAST_IDS.filter((c) => !Object.values(n.chars).includes(c))
+    n.chars[id] = randomOf(free, ctx.random)
+  }
+}
+
+function allPicked(n: Pick<BoardState, 'order' | 'chars'>): boolean {
+  return n.order.every((id) => !!n.chars[id])
+}
+
+function hitOrder(n: BoardState, id: string) {
+  n.orderRolls[id] = n.orderBag[0]
+  n.orderBag = n.orderBag.slice(1)
+}
+
+function allOrdered(n: Pick<BoardState, 'order' | 'orderRolls'>): boolean {
+  return n.order.every((id) => n.orderRolls[id] !== null)
+}
+
+/** Highest block goes first. */
+function settleOrder(n: BoardState) {
+  n.order = [...n.order].sort((a, b) => (n.orderRolls[b] ?? 0) - (n.orderRolls[a] ?? 0))
+}
+
 // ---------------- reduce ----------------
 
 function payloadOf(a: PlayerAction): Record<string, unknown> {
@@ -703,6 +751,22 @@ export function reduce(s: BoardState, a: PlayerAction, ctx: GameCtx): BoardState
     if (next === run.s) return s
     const n: BoardState = { ...s, mg: { ...run, s: next } }
     if (m.done(next, ctx.now)) { const c = clone(n); finishMg(c, ctx); return c }
+    return n
+  }
+
+  if (a.type === 'pick') {
+    if (s.stage !== 'pick' || s.chars[a.playerId] || !isCritterId(p.char) || Object.values(s.chars).includes(p.char)) return s
+    const n = clone(s)
+    pickChar(n, a.playerId, p.char)
+    if (allPicked(n)) n.endsAt = ctx.now + PICKED_HOLD_MS
+    return n
+  }
+
+  if (a.type === 'hit') {
+    if (s.stage !== 'order' || s.orderRolls[a.playerId] !== null || allOrdered(s)) return s
+    const n = clone(s)
+    hitOrder(n, a.playerId)
+    if (allOrdered(n)) n.endsAt = ctx.now + ORDER_HOLD_MS
     return n
   }
 
@@ -837,7 +901,18 @@ export function tick(s: BoardState, ctx: GameCtx): BoardState {
   if (!s.endsAt || ctx.now < s.endsAt) return s
   const n = clone(s)
   switch (s.stage) {
-    case 'intro': beginTurn(n, ctx); break
+    case 'intro': setStage(n, 'pick', ctx, PICK_MS); break
+    case 'pick': fillChars(n, ctx); setStage(n, 'order', ctx, ORDER_MS); break
+    case 'order':
+      if (!allOrdered(n)) {
+        for (const id of n.order) if (n.orderRolls[id] === null) hitOrder(n, id)
+        n.endsAt = ctx.now + ORDER_HOLD_MS
+        break
+      }
+      settleOrder(n)
+      beginTurn(n, ctx)
+      break
+    case 'mgSpin': setStage(n, 'mgIntro', ctx, MG_INTRO_MS); break
     case 'turnStart': afterBanner(n, ctx); break
     case 'lastFive': startPlayer(n, ctx); break
     case 'roll': doRoll(n, ctx, 'die'); break
@@ -929,6 +1004,15 @@ export function bot(s: BoardState, id: string, ctx: GameCtx): BotMove | null {
   const waited = ctx.now - s.stageAt
   const think = 1100 + botNoise(id, s.stageAt) * 1700
 
+  if (s.stage === 'pick') {
+    if (s.chars[id] || waited < 1800 + botNoise(id, s.stageAt, 3) * 3000) return null
+    const free = CAST_IDS.filter((c) => !Object.values(s.chars).includes(c))
+    return free.length ? { type: 'pick', payload: { char: free[Math.floor(botNoise(id, s.stageAt, 4) * free.length) % free.length] } } : null
+  }
+  if (s.stage === 'order') {
+    if (s.orderRolls[id] !== null || waited < 900 + botNoise(id, s.stageAt, 5) * 2200) return null
+    return { type: 'hit' }
+  }
   if (s.stage === 'mgIntro') {
     const run = s.mg
     if (!run || !run.players.includes(id) || run.ready.includes(id) || waited < 1500 + botNoise(id, s.stageAt, 1) * 2500) return null

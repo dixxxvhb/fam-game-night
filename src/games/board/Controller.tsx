@@ -408,7 +408,7 @@ function Bonus({ s, who, me }: { s: BoardState; who: Who; me: string }) {
 
 export function BoardController({ state: s, room, me, now, send }: ControllerProps<BoardState>) {
   useTicker(200)
-  const who = whoFrom(room.players)
+  const who = whoFrom(room.players, s.chars)
   if (!s.players[me]) return <div className="p-6 text-center text-ink-2">You're in the next game. Watch the screen.</div>
   const apart = room.mode === 'apart'
   const mine = curId(s) === me

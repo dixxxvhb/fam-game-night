@@ -5,6 +5,7 @@
 @theme {
   --font-display: "Bungee", "Arial Black", Impact, sans-serif;
   --font-sans: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-party: "Lilita One", "Arial Rounded MT Bold", "Arial Black", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
 
   --color-paper: #0C1130;
@@ -62,6 +63,38 @@
   .no-select { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .touch-none-all { touch-action: none; }
 }
+
+
+/* Party Park (Board Night): critter motion. Transform origin is set inline at the feet. */
+@layer utilities {
+  .pp-bob { animation: pp-bob 1.8s ease-in-out infinite; }
+  .pp-hop { animation: pp-hop 0.42s cubic-bezier(0.3, 0.7, 0.4, 1) infinite; }
+  .pp-cheer { animation: pp-cheer 0.62s cubic-bezier(0.3, 0.8, 0.4, 1) infinite; }
+  .pp-slump { animation: pp-slump 2.6s ease-in-out infinite; }
+  .pp-blink { animation: pp-blink 4.2s steps(1) infinite; transform-box: fill-box; transform-origin: center; }
+  .font-party { font-family: var(--font-party); }
+}
+@keyframes pp-bob { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.03, 0.97); } }
+@keyframes pp-hop {
+  0% { transform: translateY(0) scale(1.1, 0.88); }
+  30% { transform: translateY(-14%) scale(0.94, 1.08); }
+  60% { transform: translateY(-18%) scale(1, 1); }
+  100% { transform: translateY(0) scale(1.1, 0.9); }
+}
+@keyframes pp-cheer {
+  0%, 100% { transform: translateY(0) scale(1.06, 0.94); }
+  45% { transform: translateY(-16%) scale(0.95, 1.06) rotate(-4deg); }
+  70% { transform: translateY(-10%) rotate(3deg); }
+}
+@keyframes pp-slump { 0%, 100% { transform: scale(1.02, 0.95) rotate(-2deg); } 50% { transform: scale(1.04, 0.92) rotate(2deg); } }
+@keyframes pp-banner {
+  0% { transform: translateX(-120vw) skewX(-10deg); }
+  14% { transform: translateX(3vw) skewX(-10deg); }
+  22%, 82% { transform: translateX(0) skewX(0); }
+  100% { transform: translateX(120vw) skewX(-10deg); }
+}
+.pp-banner { animation: pp-banner 2.6s cubic-bezier(0.2, 0.8, 0.3, 1) both; }
+@keyframes pp-blink { 0%, 94% { transform: scaleY(1); } 95%, 97% { transform: scaleY(0.1); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; }

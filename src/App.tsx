@@ -5,6 +5,8 @@ import Join, { Apart, Solo } from './pages/Join'
 import Play from './pages/Play'
 import Season, { NightDetail } from './pages/Season'
 import Hall from './pages/Hall'
+import ParkGallery from './games/board/park/Gallery'
+import MgSandbox from './games/board/park/MgSandbox'
 
 export default function App() {
   return (
@@ -20,6 +22,8 @@ export default function App() {
       <Route path="/season" element={<Season />} />
       <Route path="/night/:id" element={<NightDetail />} />
       <Route path="/hall" element={<Hall />} />
+      <Route path="/park-cast" element={<ParkGallery />} />
+      <Route path="/park-mg/:id" element={<MgSandbox />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
