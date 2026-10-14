@@ -53,10 +53,10 @@ export function PickScreen({ s, who, now }: { s: KartState; who: WhoFn; now: num
                   <span className="font-party text-[32px] leading-none">{c.name}</span>
                   <span className="font-party text-[20px] leading-none" style={{ color: PARK.ink2 }}>{c.kind}</span>
                 </div>
-                <div className="relative mt-1 text-center text-[20px] font-bold leading-[1.15]" style={{ color: PARK.ink2 }}>{c.bio}</div>
+                <div className="relative mt-1 text-center text-[20px] font-bold leading-[1.15] transition-opacity" style={{ color: PARK.ink2, opacity: taken ? 0 : 1 }}>{c.bio}</div>
               </div>
               {by && (
-                <div className="pointer-events-none absolute bottom-[-18px] left-0 right-0 z-10 flex justify-center">
+                <div className="pointer-events-none absolute bottom-[8px] left-0 right-0 z-10 flex justify-center">
                   <div key={by} className="ps-drop rotate-[-4deg] whitespace-nowrap rounded-full border-4 px-5 py-1 font-party text-[30px] leading-none" style={{ borderColor: INK, background: '#FFFFFF', color: INK, boxShadow: `0 4px 0 ${INK}` }}>
                     {who(by).name}
                   </div>

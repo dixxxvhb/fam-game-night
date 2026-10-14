@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { INK, Mingo } from '../../board/park/cast'
 import { Outlined, PARK, SKY_BG } from '../../board/park/ui'
-import { Bubble } from '../../board/park/show/bits'
+import { Bubble, useBox } from '../../board/park/show/bits'
 import { KartArt } from '../garage/art'
 import { cupStandings, fmtMs, trackName, type KartState } from '../logic'
 import { RESULT_LINES } from './lines'
@@ -20,6 +20,7 @@ const SORT_AT = 5000
  */
 export function RaceResult({ s, who, now }: { s: KartState; who: WhoFn; now: number }) {
   const res = s.results[s.results.length - 1]
+  const [boxRef, box] = useBox<HTMLDivElement>()
   if (!res) return null
   const gp = s.tracks.length > 1
   const e = now - s.stageAt
@@ -28,7 +29,7 @@ export function RaceResult({ s, who, now }: { s: KartState; who: WhoFn; now: num
   const sorted = gp && e >= SORT_AT
   const rowOf = (id: string) => (sorted ? cup.findIndex((c) => c.id === id) : byRace.indexOf(id))
   const n = s.ids.length
-  const rowH = Math.min(124, Math.floor(500 / Math.max(1, n)))
+  const rowH = Math.max(56, Math.min(124, Math.floor((box.h || 500) / Math.max(1, n))))
   const count = Math.max(0, Math.min(1, (e - COUNT_AT) / COUNT_MS))
   const ease = 1 - (1 - count) ** 3
   const lastPlace = Math.max(...Object.values(res.places))
@@ -40,7 +41,7 @@ export function RaceResult({ s, who, now }: { s: KartState; who: WhoFn; now: num
           {gp ? `Race ${s.raceNo + 1} of ${s.tracks.length}: ` : ''}{trackName(res.track)}
         </span>
       </div>
-      <div className="relative mt-5" style={{ height: rowH * n }}>
+      <div ref={boxRef} className="relative mt-4 min-h-0 flex-1">
         {byRace.map((id, i) => {
           const w = who(id)
           const place = res.places[id] ?? n
@@ -93,7 +94,7 @@ export function RaceResult({ s, who, now }: { s: KartState; who: WhoFn; now: num
           )
         })}
       </div>
-      <div className="mt-auto flex items-end justify-between gap-6 pb-3">
+      <div className="flex shrink-0 items-end justify-between gap-6 pb-3">
         <div className="flex flex-wrap gap-3 pb-4">
           {res.fastest && (
             <span className="rounded-full border-[3px] bg-white px-4 py-1.5 font-party text-[24px] leading-none" style={{ borderColor: INK, color: INK }}>

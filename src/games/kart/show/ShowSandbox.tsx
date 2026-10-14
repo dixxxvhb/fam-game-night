@@ -6,7 +6,7 @@
  *   show = pick | cupIntro | trackIntro | countdown | race | raceResult | podium
  *   h = people (default 3), n = racers in all (default h; the rest are bots)
  *   race=single  cup=hurricane  track=pier  cam=overview  raceNo=2 (which race of the cup)
- *   compact=1 (draw the apart phone strip at 390 wide)
+ *   compact=1 (draw the apart phone strip at 390 wide)  tvh=660 (the TV page's box under its header)
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -132,7 +132,7 @@ export default function ShowSandbox() {
   return (
     <GameEnvProvider link={null} me={null}>
       <div style={{ position: 'fixed', inset: 0, background: '#1E1838' }}>
-        <div style={{ position: 'absolute', left: 0, top: 0, width: compact ? 390 : 1280, height: compact ? 'auto' : 720, padding: compact ? 12 : 0 }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, width: compact ? 390 : 1280, height: compact ? 'auto' : Number(q.get('tvh') ?? 720) || 720, padding: compact ? 12 : 0 }}>
           <KartStage state={state} room={room} now={() => Date.now()} compact={compact} me={compact ? players[0].id : null} isHost hostAction={hostAction} />
         </div>
       </div>
