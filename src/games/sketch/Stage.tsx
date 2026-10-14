@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react'
 import type { StageProps } from '../../engine/types'
+import { sfx } from '../../ui/sfx'
 import { useTicker } from '../../engine/context'
 import { Avatar, cx, Label } from '../../ui/kit'
 import { Countdown } from '../../ui/Countdown'
@@ -7,6 +9,11 @@ import { hintFor, type SketchState } from './logic'
 
 export function SketchStage({ state: s, room, now, compact, me }: StageProps<SketchState>) {
   useTicker(250)
+  const solvedCount = useRef(s.solved.length)
+  useEffect(() => {
+    if (s.solved.length > solvedCount.current) sfx.play('good')
+    solvedCount.current = s.solved.length
+  }, [s.solved.length])
   const who = (id: string) => room.players.find((p) => p.id === id)
   const drawer = who(s.drawer)
   const frac = s.stageTotal ? 1 - Math.max(0, s.endsAt - now()) / s.stageTotal : 0

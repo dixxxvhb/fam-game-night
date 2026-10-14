@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useRoom } from '../engine/useRoom'
 import { GameEnvProvider } from '../engine/context'
 import { getGame } from '../games/registry'
 import { cleanCode, getTabMe, lsSet } from '../lib/ids'
 import { Avatar, Btn, cx, Label, Spinner } from '../ui/kit'
-import { GameShelf, NightSummary, NightTable, Podium, StatusDot } from '../room/shared'
-import { Share2 } from 'lucide-react'
+import { GameShelf, LostHost, MuteButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
+import { LogOut, Share2 } from 'lucide-react'
 
 /** A phone in the room. In apart mode the hosting phone also runs the room. */
 export default function Play() {
@@ -17,10 +17,19 @@ export default function Play() {
   const [me] = useState(() => getTabMe(code))
   const room = useRoom(code.length === 4 && me ? code : null, { me, host, mode: host ? 'apart' : undefined })
   const s = room.state
+  const nav = useNavigate()
+  useRoomSounds(s, s?.mode === 'apart')
 
   useEffect(() => {
     if (code.length === 4 && me) lsSet('gn-last-room', { code, host, at: Date.now() })
   }, [code, host, me])
+
+  function leave() {
+    if (!me) return
+    room.send('room', 'leave', { id: me.id })
+    lsSet('gn-last-room', null)
+    nav('/', { replace: true })
+  }
 
   // Keep the screen awake while in a room.
   useEffect(() => {
@@ -42,6 +51,12 @@ export default function Play() {
       <span className="font-display text-lg tracking-[0.12em] text-hot">{code}</span>
       <div className="flex-1" />
       <StatusDot status={room.status} />
+      {s?.mode === 'apart' && <MuteButton />}
+      {s?.phase === 'lobby' && !room.isHost && (
+        <button onClick={leave} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="Leave room" title="Leave room">
+          <LogOut size={18} />
+        </button>
+      )}
       <Avatar name={me.name} color={me.color} size={28} />
     </header>
   )
@@ -67,6 +82,7 @@ export default function Play() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {header}
+      <LostHost heardAt={room.heardAt} isHost={room.isHost} what={apart ? 'the host phone' : 'the TV'} />
       <main className="min-h-0 flex-1 overflow-y-auto">
         {s.phase === 'lobby' && <PhoneLobby room={room} />}
 

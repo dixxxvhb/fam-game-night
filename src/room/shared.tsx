@@ -1,4 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Volume2, VolumeX } from 'lucide-react'
+import { sfx } from '../ui/sfx'
+import { useTicker } from '../engine/context'
 import type { GameDef, RoomPlayer, RoomState } from '../engine/types'
 import { GAMES } from '../games/registry'
 import { nightStandings } from '../engine/points'
@@ -238,5 +241,52 @@ export function StatusDot({ status }: { status: string }) {
       <span className={cx('h-2 w-2 rounded-full', color)} />
       <span className="sr-only sm:not-sr-only">{label}</span>
     </span>
+  )
+}
+
+/** Plays the room's sounds on screens that show the game (TV, or phones in apart mode). */
+export function useRoomSounds(state: RoomState | null, enabled: boolean) {
+  const prev = useRef<{ phase: string; players: number; games: number } | null>(null)
+  useEffect(() => { sfx.enable(enabled) }, [enabled])
+  useEffect(() => {
+    if (!state) return
+    const p = prev.current
+    const cur = { phase: state.phase, players: state.players.length, games: state.games.length }
+    prev.current = cur
+    if (!p) return
+    if (cur.players > p.players) sfx.play('join')
+    if (cur.phase !== p.phase) {
+      if (cur.phase === 'playing') sfx.play('start')
+      if (cur.phase === 'results') sfx.play('reveal')
+      if (cur.phase === 'summary') sfx.play('win')
+    }
+  }, [state])
+}
+
+export function MuteButton() {
+  const [m, setM] = useState(sfx.isMuted())
+  useEffect(() => sfx.onMuted(setM), [])
+  return (
+    <button
+      onClick={() => sfx.setMuted(!m)}
+      className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink"
+      aria-label={m ? 'Sound off. Turn on' : 'Sound on. Turn off'}
+      title={m ? 'Sound off' : 'Sound on'}
+    >
+      {m ? <VolumeX size={18} /> : <Volume2 size={18} />}
+    </button>
+  )
+}
+
+/** Shows up when a phone hasn't heard the host for a while. */
+export function LostHost({ heardAt, isHost, what = 'the TV' }: { heardAt: () => number; isHost: boolean; what?: string }) {
+  useTicker(1000)
+  if (isHost) return null
+  const gone = Date.now() - heardAt() > 10_000
+  if (!gone) return null
+  return (
+    <div className="border-b border-hot/40 bg-hot/15 px-4 py-2 text-center text-sm text-hot-ink" role="status">
+      Lost {what}. Waiting for it to come back.
+    </div>
   )
 }
