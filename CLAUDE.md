@@ -10,7 +10,7 @@ Dixon, Johnnyboy (John) and Torii's game night. The TV (or any browser) is the c
 React 19 + TS + Vite 7 + Tailwind v4 + react-router (HashRouter) on GitHub Pages (`base: '/fam-game-night/'`). Realtime + saving via Supabase, **inside figgg's project** (`swjqlfcqvcrnydpyjyog`) in its own `gamenight` schema, reached only through `public.gn_*` security-definer functions (`supabase/gamenight.sql`). Never add game-night tables to figgg's `public` schema (figgg's export/wipe enumerates it).
 
 ## Games (18, all live)
-Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Party Park (id `board`, Mario Party, 15 minigames), Kart, Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together only), Bowl (Wii Bowling), Arena (Bomberman, together only). Every game has a `bot()` policy.
+Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Party Park (id `board`, Mario Party, 15 minigames), Turnpike (id `kart`, Mario Kart), Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together only), Bowl (Wii Bowling), Arena (Bomberman, together only). Every game has a `bot()` policy.
 
 ## Platform features
 - Bots (Gator, Pigeon, Toaster, Nana, Roomba) can sit in any lobby; any game with a bot is practice and never saved. "Play solo" = one device hosts with two bots.
@@ -52,6 +52,14 @@ Its own bright daytime world (not the riso look): a bootleg Florida theme park h
 - Minigames: 11 tap games (`minigames/*.ts` + `.view.tsx`, park scenes) and 4 real-time ones (coconut, frenzy, tubes, paint) on `minigames/rt.ts`: each phone owns its critter and streams position on `board:rt`, the host judges reports, bots run a deterministic sim every screen shares.
 - Dev pages: `#/park-cast` (cast sheet), `#/park-mg/<id>?format=ffa|1v2|coop|duel&bots=1` (one minigame with bots, TV + pad side by side), `#/park-music` (every track and stinger). `node scripts/_render-music.mjs <base> <dir>` renders the soundtrack to WAV offline for level/tempo checks. `node scripts/_shot.mjs <url> <png> [w] [h] [waitMs]` for quick shots.
 - Room QA: `--name "Party Park" --opts Short --driver scripts/drivers/board.mjs` (the driver picks critters and hits the order block with real taps).
+
+## Turnpike (id `kart`, rebuilt 2026-10-14)
+Kart rebuilt as a real kart racer in the Party Park universe: the eight critters drive, Mingo runs the track. Brief + lane map: `docs/plans/2026-10-14-turnpike.md`; `src/games/kart/contract.ts` is the shared contract (stages, cups, tracks, items, scene shape).
+- Flow: pick → cupIntro → (trackIntro → countdown → race → freeze → raceResult) x4 → podium. Two cups (Sunshine: oval/eight/swamp/night; Hurricane: pier/coaster/keys/launch), or a single race. Apart mode is a real race (host phone runs the sim); Time trial is an option.
+- `logic.ts` flow + cup points, `sim.ts` (mini-turbo tiers, rocket start, slipstream, coins, pads, ramps, nine Florida items, hazards, bots), `tracks.ts` (geometry, features, look, props), `snap.ts` (kart:pos snapshots, SnapBuffer, hudOf).
+- `view/` WebGL Mode 7 chase cam, split screen, overview, flyover, minimap (`#/kart-view?track=&n=&cam=split|overview|flyover|single`, `&show=<stage>` previews the real Stage). `garage/` all sprites (critter karts in 8 views x 6 poses, props, items; `#/kart-garage`); call `preloadGarage` before a race. `show/` TV stages (host sim in `show/useHostRace.ts`, `show/live.ts` shares it with the apart host's Controller). `phone/` controller screens. Music: `src/games/kart/music.ts` on the park engine (a theme per track + final-lap variants).
+- Never import `view/` or `garage/` statically from anything the registry loads (they need a DOM; host.test runs in node): lazy-load them.
+- Room QA: `--name "Turnpike" --driver scripts/drivers/kart.mjs` (also `--mode apart|solo`).
 
 ## Deploy
 Push to `main` → GitHub Actions → Pages (secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` = figgg's URL + publishable key). Verify with `gh run list --limit 1`.
