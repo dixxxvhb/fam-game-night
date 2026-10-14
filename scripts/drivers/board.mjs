@@ -1,6 +1,6 @@
-// QA driver for Board Night. Start it with --opts Short so the game is 6 turns.
+// QA driver for Board Night (Party Park). Start it with --opts Short so the game is 6 turns.
 // Every phone runs its own loop and plays through the phone UI the way a person would:
-// roll (sometimes using an item first), pick forks, buy Stars, shop, pick duel and steal
+// pick a free critter, hit the turn-order block, roll (sometimes using an item first), pick forks, buy Stars, shop, pick duel and steal
 // targets, tap Ready, and play every minigame with real taps (mash, wait for NOW, stop the
 // clock near 10, repeat the Memory colors it watched, find the odd tile, pass the bomb,
 // tap the Eight Count on the lit counts, read the Stroop ink, solve the sums, guess a number,
@@ -14,7 +14,7 @@ export default async function ({ tv, phones, shot, wait }) {
   const failures = []
   let over = false
   const seenMg = new Set()
-  const counts = { rolls: 0, items: 0, forks: 0, stars: 0, shops: 0, picks: 0, ready: 0, mash: 0, qd: 0, early: 0, stops: 0, mem: 0, odd: 0, pass: 0, eight: 0, stroop: 0, math: 0, guess: 0, reflex: 0 }
+  const counts = { chars: 0, hits: 0, rolls: 0, items: 0, forks: 0, stars: 0, shops: 0, picks: 0, ready: 0, mash: 0, qd: 0, early: 0, stops: 0, mem: 0, odd: 0, pass: 0, eight: 0, stroop: 0, math: 0, guess: 0, reflex: 0 }
 
   const rand = (a, b) => a + Math.random() * (b - a)
   const vis = async (p, sel) => { try { const l = p.locator(sel).first(); return (await l.count()) > 0 && (await l.isVisible()) } catch { return false } }
@@ -224,6 +224,24 @@ export default async function ({ tv, phones, shot, wait }) {
         } else await wait(200)
         continue
       }
+      if (st.stage === 'pick') {
+        // Stagger the picks so the screens catch both states (picked, still choosing).
+        if (await vis(p, '[data-board^="pick-"]:not([disabled])')) {
+          await wait(1200 + i * 1200)
+          const free = await p.locator('[data-board^="pick-"]:not([disabled])').evaluateAll((els) => els.map((e) => e.getAttribute('data-board'))).catch(() => [])
+          if (free.length && (await click(p, `[data-board="${free[Math.floor(Math.random() * free.length)]}"]`))) counts.chars += 1
+          await wait(600)
+        } else await wait(250)
+        continue
+      }
+      if (st.stage === 'order') {
+        if (await vis(p, '[data-board="hit"]:not([disabled])')) {
+          await wait(1000 + i * 900)
+          if (await click(p, '[data-board="hit"]')) counts.hits += 1
+          await wait(500)
+        } else await wait(250)
+        continue
+      }
       if (await vis(p, '[data-board="ready"]:not([disabled])')) { await wait(rand(300, 1500)); await click(p, '[data-board="ready"]'); counts.ready += 1; continue }
       if (await vis(p, '[data-board="roll"]')) {
         await wait(rand(400, 1400))
@@ -268,10 +286,12 @@ export default async function ({ tv, phones, shot, wait }) {
       if (key !== last) {
         last = key
         const tag = `t${st.turn}`
-        if (st.stage === 'turnStart' && st.turn !== lastTurn) { lastTurn = st.turn; await wait(600); await shot(`${tag}-start`) }
+        if (st.stage === 'pick') { await wait(600); await shot('pick'); await wait(2400); await shot('pick-2') }
+        else if (st.stage === 'order') { await wait(500); await shot('order'); await wait(1800); await shot('order-2'); await wait(1300); await shot('order-3') }
+        else if (st.stage === 'turnStart' && st.turn !== lastTurn) { lastTurn = st.turn; await wait(600); await shot(`${tag}-start`) }
         else if (st.stage === 'moving' && (notable[`move-${st.turn}`] ?? 0) < 1) { notable[`move-${st.turn}`] = 1; await wait(500); await shot(`${tag}-moving`) }
         else if (st.stage === 'roll' && (st.turn === 1 || (notable[`roll-${st.turn}`] ?? 0) < 1)) { notable[`roll-${st.turn}`] = (notable[`roll-${st.turn}`] ?? 0) + 1; await wait(400); await shot(`${tag}-roll-${st.cur}`) }
-        else if (['fork', 'star', 'shop', 'event', 'eventPick', 'duelPick', 'lastFive', 'intro'].includes(st.stage) && (notable[st.stage] ?? 0) < 2) { notable[st.stage] = (notable[st.stage] ?? 0) + 1; await wait(700); await shot(`${tag}-${st.stage}`) }
+        else if (['fork', 'star', 'shop', 'event', 'eventPick', 'duelPick', 'lastFive', 'intro', 'mgSpin'].includes(st.stage) && (notable[st.stage] ?? 0) < 2) { notable[st.stage] = (notable[st.stage] ?? 0) + 1; await wait(700); await shot(`${tag}-${st.stage}`) }
         else if (st.stage === 'land' && (notable[`land-${st.turn}`] ?? 0) < 1) { notable[`land-${st.turn}`] = 1; await wait(500); await shot(`${tag}-land`) }
         else if (st.stage === 'mgIntro') { seenMg.add(st.mg); await wait(900); await shot(`mg${st.no}-${st.mg}-intro`) }
         else if (st.stage === 'mgPlay') {
@@ -294,6 +314,8 @@ export default async function ({ tv, phones, shot, wait }) {
   await Promise.all([watcher(), ...phones.map((p, i) => phoneLoop(p, i))])
 
   if (!(await resultsUp())) failures.push('never reached results')
+  if (counts.chars < phones.length) failures.push(`only ${counts.chars} of ${phones.length} phones picked a critter by tapping`)
+  if (counts.hits < phones.length) failures.push(`only ${counts.hits} of ${phones.length} phones hit the order block by tapping`)
   await wait(1500)
   await shot('results')
   const where = tv ?? phones[0]
