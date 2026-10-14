@@ -5,12 +5,15 @@ import { Countdown } from '../../ui/Countdown'
 import { SketchCanvas } from './Canvas'
 import { hintFor, type SketchState } from './logic'
 
-export function SketchStage({ state: s, room, now, compact }: StageProps<SketchState>) {
+export function SketchStage({ state: s, room, now, compact, me }: StageProps<SketchState>) {
   useTicker(250)
   const who = (id: string) => room.players.find((p) => p.id === id)
   const drawer = who(s.drawer)
   const frac = s.stageTotal ? 1 - Math.max(0, s.endsAt - now()) / s.stageTotal : 0
   const ranked = room.gamePlayers.map((id) => ({ id, score: s.scores[id] ?? 0 })).sort((a, b) => b.score - a.score)
+
+  // On the drawer's own phone (apart mode) the pad below already shows the drawing.
+  const drawerHere = compact && me === s.drawer && (s.stage === 'draw' || s.stage === 'choose')
 
   const headline =
     s.stage === 'choose' ? `${drawer?.name ?? 'Someone'} is picking a word`
@@ -29,15 +32,15 @@ export function SketchStage({ state: s, room, now, compact }: StageProps<SketchS
           <Label>Drawing {Math.min(s.turn + 1, s.order.length)} of {s.order.length}</Label>
         </div>
 
-        {s.stage !== 'done' && <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} className="w-full" />}
+        {s.stage !== 'done' && !compact && <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} className="w-full" />}
 
-        {s.stage === 'draw' && (
+        {s.stage === 'draw' && !drawerHere && (
           <div className={cx('font-mono tracking-[0.2em] text-ink', compact ? 'text-xl' : 'text-3xl')} aria-label="Word hint">
             {hintFor(s.word, frac)}
           </div>
         )}
 
-        <div
+        {!drawerHere && <div
           className="relative w-full"
           style={{ maxWidth: compact ? 'min(100%, 46vh)' : 'min(100%, calc(100vh - 250px))' }}
         >
@@ -58,7 +61,7 @@ export function SketchStage({ state: s, room, now, compact }: StageProps<SketchS
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
       </div>
 

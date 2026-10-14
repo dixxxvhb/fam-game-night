@@ -97,6 +97,8 @@ export interface StageProps<S> {
   now: () => number
   /** True on phones in apart mode: render small, the Controller sits below. */
   compact: boolean
+  /** The player whose phone this is (apart mode), or null on a TV. Use it to skip what the Controller below already shows. */
+  me?: string | null
   /** True if this device is the host (it runs the logic). */
   isHost: boolean
   /** Host-only: raise an action from the stage itself (playerId '__host'). For host-run real-time sims. */

@@ -74,7 +74,7 @@ export default function Play() {
           <GameEnvProvider link={room.link} me={me.id}>
             {apart && (
               <div className="border-b border-line p-3">
-                <def.Stage state={s.game.state} room={roomView} now={room.now} compact isHost={room.isHost} hostAction={(t, p) => room.send('game', t, p)} />
+                <def.Stage state={s.game.state} room={roomView} now={room.now} compact me={me.id} isHost={room.isHost} hostAction={(t, p) => room.send('game', t, p)} />
               </div>
             )}
             <def.Controller state={s.game.state} room={roomView} me={me.id} now={room.now} send={(t, p) => room.send('game', t, p)} />

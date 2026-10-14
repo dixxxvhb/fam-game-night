@@ -66,6 +66,7 @@ export default function Host() {
               room={roomView}
               now={room.now}
               compact={false}
+              me={null}
               isHost
               hostAction={(type, payload) => room.send('game', type, payload)}
             />
