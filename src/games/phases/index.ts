@@ -2,6 +2,7 @@ import type { GameDef } from '../../engine/types'
 import { outcome, reduce, setup, tick, type PhasesState } from './logic'
 import { PhasesStage } from './Stage'
 import { PhasesController } from './Controller'
+import { bot } from './bot'
 
 const phases: GameDef<PhasesState> = {
   id: 'phases',
@@ -30,6 +31,7 @@ const phases: GameDef<PhasesState> = {
   outcome,
   Stage: PhasesStage,
   Controller: PhasesController,
+  bot,
 }
 
 export default phases

@@ -42,6 +42,7 @@ const bluff: GameDef<LieState> = {
   outcome: engine.outcome,
   Stage: views.Stage,
   Controller: views.Controller,
+  bot: engine.bot,
 }
 
 export default bluff

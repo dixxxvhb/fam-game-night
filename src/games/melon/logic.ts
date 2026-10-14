@@ -1,6 +1,7 @@
 import type { GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
 import { fmt, fruit, isTier, MAX_JUNK, TIERS, withArticle } from './fruits'
+import type { JunkIn } from './botjar'
 
 /**
  * Melon: every phone runs its own physics jar (see physics.ts). The host only keeps
@@ -21,6 +22,10 @@ export interface MelonPlayer {
   outAt: number | null
   /** Attack only: junk to drop into this jar, cleared by 'absorb'. */
   incoming: Incoming[]
+  /** Bots only (their jar is a model, see botjar.ts): attacks thrown so far. */
+  sent?: number
+  /** Bots only: junk taken in, so every screen can rebuild the bot's jar. */
+  junkIn?: JunkIn[]
 }
 
 export interface MelonState {
@@ -80,6 +85,10 @@ export function pickTarget(s: MelonState, from: string, random: () => number): s
   return alive[Math.min(alive.length - 1, Math.floor(random() * alive.length))]
 }
 
+function isBot(ctx: GameCtx, id: string): boolean {
+  return Boolean(ctx.players.find((p) => p.id === id)?.bot)
+}
+
 function readScore(payload: unknown): number | null {
   const v = (payload as { score?: unknown } | null)?.score
   if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > MAX_SCORE) return null
@@ -120,13 +129,17 @@ export function reduce(s: MelonState, a: PlayerAction, ctx: GameCtx): MelonState
       if (!to) return s
       const target = s.players[to]
       if (target.incoming.length >= MAX_INCOMING) return s
-      const next = withPlayer(s, to, { ...target, incoming: [...target.incoming, { id: s.nextId, n, from: a.playerId }] })
+      let next = withPlayer(s, to, { ...target, incoming: [...target.incoming, { id: s.nextId, n, from: a.playerId }] })
+      if (isBot(ctx, a.playerId)) next = withPlayer(next, a.playerId, { ...me, sent: (me.sent ?? 0) + 1 })
       return { ...next, nextId: s.nextId + 1, lastHit: { from: a.playerId, to, n, at: ctx.now } }
     }
     case 'absorb': {
       const id = (a.payload as { id?: unknown } | null)?.id
-      if (typeof id !== 'number' || !me.incoming.some((x) => x.id === id)) return s
-      return withPlayer(s, a.playerId, { ...me, incoming: me.incoming.filter((x) => x.id !== id) })
+      const got = typeof id === 'number' ? me.incoming.find((x) => x.id === id) : undefined
+      if (!got) return s
+      const incoming = me.incoming.filter((x) => x.id !== id)
+      if (isBot(ctx, a.playerId)) return withPlayer(s, a.playerId, { ...me, incoming, junkIn: [...(me.junkIn ?? []), { at: ctx.now, n: got.n }] })
+      return withPlayer(s, a.playerId, { ...me, incoming })
     }
   }
   return s
