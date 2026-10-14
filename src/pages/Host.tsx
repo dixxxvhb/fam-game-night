@@ -6,7 +6,7 @@ import { getGame } from '../games/registry'
 import { cleanCode, lsSet, makeRoomCode } from '../lib/ids'
 import { Avatar, Btn, cx, Label, LinkBtn } from '../ui/kit'
 import { QR } from '../ui/QR'
-import { GameShelf, joinUrl, MuteButton, NightSummary, NightTable, Podium, shortJoinUrl, StatusDot, useRoomSounds } from '../room/shared'
+import { BotControls, GameShelf, joinUrl, MuteButton, NightSummary, NightTable, Podium, shortJoinUrl, StatusDot, useRoomSounds } from '../room/shared'
 import { getSaveStatus, loadSeason, onSaveStatus, type SaveStatus, type SeasonData } from '../data/api'
 import { seasonStats } from '../data/season'
 
@@ -122,7 +122,7 @@ function TvLobby({ room }: { room: ReturnType<typeof useRoom> }) {
           <Label>{s.players.length ? 'In the room' : 'Nobody yet'}</Label>
           {s.players.length === 0 && <div className="text-xl text-ink-2">Scan the code. Pick your name. That's it.</div>}
           <div className="flex flex-wrap gap-4">
-            {s.players.map((p) => (
+            {s.players.filter((p) => !p.bot).map((p) => (
               <div key={p.id} className={cx('flex items-center gap-3 rounded-2xl bg-tile py-2 pl-2 pr-5 animate-pop', !p.connected && 'opacity-40')}>
                 <Avatar name={p.name} color={p.color} size={48} />
                 <div className="grid">
@@ -133,6 +133,8 @@ function TvLobby({ room }: { room: ReturnType<typeof useRoom> }) {
             ))}
           </div>
         </div>
+
+        <BotControls state={s} big send={(type, payload) => room.send('room', type, payload)} />
 
         <NightTable state={s} big />
         {s.games.length > 0 && (

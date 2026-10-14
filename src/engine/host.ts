@@ -4,6 +4,7 @@ import { getGame } from '../games/registry'
 import { nightStandings, toPoints, winnersOf } from './points'
 import { lsGet, lsSet, uuid } from '../lib/ids'
 import * as api from '../data/api'
+import { BOTS } from '../lib/players'
 
 const SAVE_KEY = (code: string) => `gn-host-${code}`
 const USED_KEY = (gameId: string) => `gn-used-${gameId}`
@@ -135,13 +136,34 @@ export class HostEngine {
   private tick() {
     const g = this.state.game
     const def = this.def()
-    if (this.state.phase !== 'playing' || !g || !def?.tick) return
+    if (this.state.phase !== 'playing' || !g || !def) return
     try {
-      const next = def.tick(g.state, this.ctx())
-      if (next !== g.state) this.commit({ ...this.state, game: { ...g, state: next } })
-      this.checkOutcome()
+      if (def.tick) {
+        const next = def.tick(g.state, this.ctx())
+        if (next !== g.state) this.commit({ ...this.state, game: { ...g, state: next } })
+        this.checkOutcome()
+      }
+      this.runBots()
     } catch (err) {
       console.error('Game tick failed', err)
+    }
+  }
+
+  /** Let every bot in the game take its move, if it wants one. */
+  private runBots() {
+    const def = this.def()
+    if (!def?.bot) return
+    const botIds = (this.state.game?.players ?? []).filter((id) => this.state.players.find((p) => p.id === id)?.bot)
+    for (const id of botIds) {
+      const g = this.state.game
+      if (this.state.phase !== 'playing' || !g) return
+      let move = null
+      try {
+        move = def.bot(g.state, id, this.ctx())
+      } catch (err) {
+        console.error('Bot failed', id, err)
+      }
+      if (move) this.gameAction({ aid: uuid(), from: id, kind: 'game', type: move.type, payload: move.payload })
     }
   }
 
@@ -156,8 +178,14 @@ export class HostEngine {
   private finish(out: GameOutcome) {
     const g = this.state.game!
     const placements = toPoints(out.placements, g.players.length)
-    const ng: NightGame = { resultId: uuid(), gameId: g.id, at: Date.now(), placements, summary: out.summary }
+    const practice = g.players.some((id) => this.state.players.find((p) => p.id === id)?.bot)
+    const ng: NightGame = { resultId: uuid(), gameId: g.id, at: Date.now(), placements, summary: out.summary, ...(practice ? { practice: true } : {}) }
     if (out.used?.length) rememberUsed(g.id, out.used.slice(0, 200).map(String))
+    if (practice) {
+      // Bots in the game: show it, never save it.
+      this.commit({ ...this.state, phase: 'results', games: [...this.state.games, ng] })
+      return
+    }
     if (!this.state.nightSaved) {
       // The night only exists in the database once something has been played.
       api.startNight(this.state.nightId, this.state.code, this.state.mode, this.state.players.map((p) => p.id))
@@ -209,7 +237,8 @@ export class HostEngine {
         if (s.phase === 'playing' || s.phase === 'summary') return
         const def = getGame(String(p.gameId ?? ''))
         if (!def) return
-        const ids = this.seated().filter((x) => x.connected).map((x) => x.id)
+        // Bots only sit in games that know how to play them.
+        const ids = this.seated().filter((x) => x.connected && (!x.bot || def.bot)).map((x) => x.id)
         if (ids.length < def.minPlayers || ids.length > def.maxPlayers) return
         const opts: Record<string, string | number> = {}
         for (const o of def.options ?? []) opts[o.key] = o.default
@@ -239,7 +268,9 @@ export class HostEngine {
       }
       case 'endNight': {
         if (s.phase === 'playing') return
-        const standings = nightStandings(s.games, s.players.map((x) => x.id))
+        const real = s.games.filter((x) => !x.practice)
+        const counted = real.length ? real : s.games
+        const standings = nightStandings(counted, s.players.map((x) => x.id))
         const winners = winnersOf(standings)
         this.commit({
           ...s,
@@ -247,9 +278,23 @@ export class HostEngine {
           game: null,
           night: { standings: standings.map((x) => ({ playerId: x.playerId, points: x.points })), winners },
         })
-        if (s.games.length) {
+        if (real.length) {
           api.endNight(s.nightId, standings.map((x) => ({ player_id: x.playerId, points: x.points })), winners)
         }
+        return
+      }
+      case 'addBot': {
+        if (s.phase === 'playing' || s.players.length >= 8) return
+        const next = BOTS.find((b) => !s.players.some((x) => x.id === b.id))
+        if (!next) return
+        this.commit({ ...s, players: [...s.players, { id: next.id, name: next.name, color: next.color, guest: true, connected: true, bot: true }] })
+        return
+      }
+      case 'removeBot': {
+        const id = String(p.id ?? '')
+        const bot = s.players.find((x) => x.id === id && x.bot)
+        if (!bot || (s.phase === 'playing' && s.game?.players.includes(id))) return
+        this.commit({ ...s, players: s.players.filter((x) => x.id !== id) })
         return
       }
       case 'newNight': {
@@ -274,7 +319,7 @@ export class HostEngine {
     const players = this.state.players.map((p) => {
       // The host device's own player (apart mode) is always connected, and a fresh join
       // counts as connected until presence catches up.
-      const connected = live.has(p.id) || this.localPlayers.has(p.id) || now - (this.joinedAt.get(p.id) ?? 0) < 8000
+      const connected = p.bot || live.has(p.id) || this.localPlayers.has(p.id) || now - (this.joinedAt.get(p.id) ?? 0) < 8000
       if (connected !== p.connected) changed = true
       return connected === p.connected ? p : { ...p, connected }
     })

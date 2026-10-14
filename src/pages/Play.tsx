@@ -5,7 +5,7 @@ import { GameEnvProvider } from '../engine/context'
 import { getGame } from '../games/registry'
 import { cleanCode, getTabMe, lsSet } from '../lib/ids'
 import { Avatar, Btn, cx, Label, Spinner } from '../ui/kit'
-import { GameShelf, LostHost, MuteButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
+import { BotControls, GameShelf, LostHost, MuteButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
 import { LogOut, Share2, X } from 'lucide-react'
 
 /** A phone in the room. In apart mode the hosting phone also runs the room. */
@@ -18,6 +18,13 @@ export default function Play() {
   const room = useRoom(code.length === 4 && me ? code : null, { me, host, mode: host ? 'apart' : undefined })
   const s = room.state
   const nav = useNavigate()
+  const solo = search.get('solo') === '1'
+  useEffect(() => {
+    if (!solo || !room.isHost || !s || s.phase !== 'lobby') return
+    const key = `gn-solo-seeded-${code}`
+    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1') } catch { /* ignore */ }
+    if (!s.players.some((p) => p.bot)) { room.send('room', 'addBot'); room.send('room', 'addBot') }
+  }, [solo, room, s, code])
   const [confirmEnd, setConfirmEnd] = useState(false)
   useRoomSounds(s, s?.mode === 'apart')
 
@@ -153,7 +160,11 @@ function PhoneLobby({ room }: { room: ReturnType<typeof useRoom> }) {
     <div className="grid gap-6 p-4">
       <div className="grid gap-1">
         <div className="font-display text-3xl">You're in.</div>
-        <div className="text-ink-2">{apart ? 'Send the code to the others. Everyone plays on their own phone.' : 'Watch the TV. Pick a game here or there.'}</div>
+        <div className="text-ink-2">
+          {s.players.some((p) => p.bot) && s.players.filter((p) => !p.bot).length === 1
+            ? 'Just you and the bots. Games with bots are practice and never count.'
+            : apart ? 'Send the code to the others. Everyone plays on their own phone.' : 'Watch the TV. Pick a game here or there.'}
+        </div>
       </div>
 
       {apart && (
@@ -167,13 +178,15 @@ function PhoneLobby({ room }: { room: ReturnType<typeof useRoom> }) {
       )}
 
       <div className="flex flex-wrap gap-3">
-        {s.players.map((p) => (
+        {s.players.filter((p) => !p.bot).map((p) => (
           <span key={p.id} className={cx('flex items-center gap-2 rounded-full bg-tile py-1 pl-1 pr-3', !p.connected && 'opacity-40')}>
             <Avatar name={p.name} color={p.color} size={28} />
             <span className="font-bold">{p.name}</span>
           </span>
         ))}
       </div>
+
+      <BotControls state={s} send={(type, payload) => room.send('room', type, payload)} />
 
       <div className="grid gap-3">
         <Label>Pick a game</Label>

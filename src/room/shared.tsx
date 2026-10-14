@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Volume2, VolumeX } from 'lucide-react'
+import { Bot, Volume2, VolumeX, X } from 'lucide-react'
 import { sfx } from '../ui/sfx'
 import { useTicker } from '../engine/context'
 import type { GameDef, RoomPlayer, RoomState } from '../engine/types'
@@ -36,7 +36,8 @@ export function GameShelf({
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const [opts, setOpts] = useState<Record<string, string | number>>({})
-  const ready = state.players.filter((p) => p.connected).length
+  const humans = state.players.filter((p) => p.connected && !p.bot).length
+  const bots = state.players.filter((p) => p.bot).length
   const playable = GAMES.filter((g) => g.modes.includes(state.mode))
 
   function choose(g: GameDef) {
@@ -50,6 +51,8 @@ export function GameShelf({
   return (
     <div className={cx('grid gap-3', !compact && 'sm:grid-cols-2')}>
       {playable.map((g) => {
+        // Bots only sit in games that can play them.
+        const ready = humans + (g.bot ? bots : 0)
         const tooFew = ready < g.minPlayers
         const tooMany = ready > g.maxPlayers
         const isOpen = open === g.id
@@ -63,6 +66,7 @@ export function GameShelf({
               </div>
               <span className="text-ink-2">{g.tagline}</span>
               {g.instead && <span className="text-sm text-ink-3">{g.instead}</span>}
+              {bots > 0 && !g.bot && <span className="text-sm text-hot-ink">Bots sit this one out</span>}
             </button>
             {isOpen && (
               <div className="mt-4 grid gap-4 animate-rise">
@@ -100,7 +104,7 @@ export function NightTable({ state, big = false }: { state: RoomState; big?: boo
   if (!state.games.length) return null
   return (
     <div className="grid gap-2">
-      <Label>Tonight · {state.games.length} {state.games.length === 1 ? 'game' : 'games'}</Label>
+      <Label>Tonight · {state.games.length} {state.games.length === 1 ? 'game' : 'games'}{state.games.some((g) => g.practice) ? ' · games with bots are practice' : ''}</Label>
       {standings.map((s, i) => {
         const p = playerById(state, s.playerId)
         const tied = i > 0 && standings[i - 1].points === s.points
@@ -127,6 +131,7 @@ export function Podium({ state, big = false }: { state: RoomState; big?: boolean
       <div className="grid gap-1 text-center">
         <Label>{game?.name ?? last.gameId}</Label>
         {last.summary && <div className={cx('text-ink-2', big && 'text-xl')}>{last.summary}</div>}
+        {last.practice && <div className="mx-auto rounded-full border border-line px-3 py-0.5 font-mono text-xs uppercase tracking-[0.12em] text-ink-3">Practice · not saved</div>}
       </div>
       <div className="grid gap-2">
         {last.placements.map((pl, i) => {
@@ -166,7 +171,7 @@ export function NightSummary({ state, big = false }: { state: RoomState; big?: b
         ) : (
           <div className={cx('font-display', big ? 'text-5xl' : 'text-3xl')}>No games, no winner</div>
         )}
-        <div className="text-ink-2">{state.games.length} {state.games.length === 1 ? 'game' : 'games'} played. {getSaveStatus() === 'off' ? 'Test mode, not saved.' : 'Saved to the season.'}</div>
+        <div className="text-ink-2">{state.games.length} {state.games.length === 1 ? 'game' : 'games'} played. {state.games.every((g) => g.practice) ? 'Practice night with bots. Nothing saved.' : getSaveStatus() === 'off' ? 'Test mode, not saved.' : 'Saved to the season.'}</div>
         <BeltCall state={state} big={big} />
       </div>
       <div className="mx-auto grid w-full max-w-md gap-2 text-left">
@@ -323,4 +328,29 @@ export function BeltCall({ state, big = false }: { state: RoomState; big?: boole
   }, [night, state.nightId, state.games.length]) // eslint-disable-line react-hooks/exhaustive-deps
   if (!line) return null
   return <div className={cx('mx-auto mt-2 rounded-full bg-hot/15 px-5 py-2 font-bold text-hot-ink animate-pop', big ? 'text-2xl' : 'text-base')}>{line}</div>
+}
+
+/** Bots in the room: add one, or send one home. Bots only play games that support them. */
+export function BotControls({ state, send, big = false }: { state: RoomState; send: (type: string, payload?: unknown) => void; big?: boolean }) {
+  const bots = state.players.filter((p) => p.bot)
+  const canAdd = state.players.length < 8 && bots.length < 5 && state.phase !== 'playing'
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {bots.map((b) => (
+        <span key={b.id} className={cx('flex items-center gap-2 rounded-full border border-dashed border-line py-1 pl-1 pr-1', big && 'py-1.5')}>
+          <Avatar name={b.name} color={b.color} size={big ? 32 : 26} />
+          <span className={cx('font-bold', big ? 'text-lg' : 'text-sm')}>{b.name}</span>
+          <span className="font-mono text-[0.65rem] uppercase tracking-[0.12em] text-ink-3">bot</span>
+          <button onClick={() => send('removeBot', { id: b.id })} className="grid h-8 w-8 place-items-center rounded-full text-ink-3 hover:text-ink" aria-label={`Remove ${b.name}`}>
+            <X size={16} />
+          </button>
+        </span>
+      ))}
+      {canAdd && (
+        <Btn size="sm" variant="ghost" onClick={() => send('addBot')}>
+          <Bot size={16} />{bots.length ? 'Another bot' : 'Add a bot'}
+        </Btn>
+      )}
+    </div>
+  )
 }

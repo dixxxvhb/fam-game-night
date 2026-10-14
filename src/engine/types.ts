@@ -30,6 +30,8 @@ export interface RoomPlayer {
   guest: boolean
   /** Live presence. A player can drop and come back; their seat stays. */
   connected: boolean
+  /** A computer player. Games with a bot in them are practice and never saved. */
+  bot?: boolean
 }
 
 export interface GameCtx {
@@ -144,6 +146,19 @@ export interface GameDef<S = any> {
   outcome(state: S, ctx: GameCtx): GameOutcome | null
   Stage: ComponentType<StageProps<S>>
   Controller: ComponentType<ControllerProps<S>>
+  /**
+   * How a bot plays. The host calls this about 5 times a second for every bot in the game.
+   * Return a move to make now (sent as if that bot's phone sent it), or null to wait.
+   * Pace it like a person: act on a random chance per call (e.g. ctx.random() < 0.15) or after
+   * a delay you track in state. Bots may read the whole state (they're allowed to cheat a
+   * little); keep them beatable with ctx.random. Games without `bot` start without the bots.
+   */
+  bot?(state: S, botId: string, ctx: GameCtx): BotMove | null
+}
+
+export interface BotMove {
+  type: string
+  payload?: unknown
 }
 
 // ---------------- room state (host-owned, broadcast whole) ----------------
@@ -163,6 +178,8 @@ export interface NightGame {
   at: number
   placements: PlacementPoints[]
   summary?: string
+  /** Played with a bot: shown, never saved to the season. */
+  practice?: boolean
 }
 
 export interface RoomState {
