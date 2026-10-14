@@ -7,6 +7,7 @@ import Season, { NightDetail } from './pages/Season'
 import Hall from './pages/Hall'
 import ParkGallery from './games/board/park/Gallery'
 import MgSandbox from './games/board/park/MgSandbox'
+import MusicBox from './games/board/park/MusicBox'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/hall" element={<Hall />} />
       <Route path="/park-cast" element={<ParkGallery />} />
       <Route path="/park-mg/:id" element={<MgSandbox />} />
+      <Route path="/park-music" element={<MusicBox />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
