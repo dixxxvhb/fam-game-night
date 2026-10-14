@@ -8,6 +8,8 @@ import Hall from './pages/Hall'
 import ParkGallery from './games/board/park/Gallery'
 import MgSandbox from './games/board/park/MgSandbox'
 import MusicBox from './games/board/park/MusicBox'
+import KartView from './games/kart/view/ViewSandbox'
+import KartGarage from './games/kart/garage/Gallery'
 
 export default function App() {
   return (
@@ -26,6 +28,8 @@ export default function App() {
       <Route path="/park-cast" element={<ParkGallery />} />
       <Route path="/park-mg/:id" element={<MgSandbox />} />
       <Route path="/park-music" element={<MusicBox />} />
+      <Route path="/kart-view" element={<KartView />} />
+      <Route path="/kart-garage" element={<KartGarage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
