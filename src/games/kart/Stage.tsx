@@ -3,20 +3,21 @@ import type { RoomPlayer, StageProps } from '../../engine/types'
 import { useSendStream, useStream, useTicker } from '../../engine/context'
 import { Avatar, cx, Label } from '../../ui/kit'
 import { Countdown } from '../../ui/Countdown'
-import { FINISH_WINDOW_MS, fmtMs, ordinal, standings, trackName, TRIAL_MS, TRIAL_RUNS, type KartState } from './logic'
+import { charOf, cupStandings, FINISH_WINDOW_MS, fmtMs, gridOf, ordinal, standings, trackName, TRIAL_MS, TRIAL_RUNS, type KartState } from './logic'
 import {
-  autoSteer, ITEM_NAMES, makeWorld, NEUTRAL, progressOf, snapshot, step, STEP,
-  type ItemKind, type KartInput, type PosSnapshot, type SimEvent, type World,
+  autoSteer, ITEM_NAMES, makeWorld, NEUTRAL, prestep, progressOf, snapshot, step, STEP,
+  type ItemKind, type KartInput, type SimEvent, type World,
 } from './sim'
+import { INTERP_DELAY_MS, POS_EVERY_MS, SnapBuffer } from './snap'
 import { localInputs, sanitizeInput, SOLO_PADS_H } from './input'
 import { useLandscape } from './useLandscape'
 import { getTrack } from './tracks'
-import { levelFor, sceneFromWorld, type Scene, type SceneKart } from './render'
+import { sceneFromWorld } from './render'
 import { useTrackCanvas } from './useTrackCanvas'
 import { ItemIcon } from './ItemIcon'
 
-/** Flip on when a non-host screen renders races from 'kart:pos'. */
-const SECOND_SCREEN = false
+/** Stages where the host sim runs (and screens draw the race). */
+const RACING = new Set(['countdown', 'race', 'freeze'])
 
 export function KartStage(props: StageProps<KartState>) {
   if (props.state.kind === 'trial') return <TrialBoard {...props} />
@@ -82,11 +83,15 @@ const KART_SIZE = 1.2
 function feedFor(e: SimEvent, name: (id: string) => { t: string; c?: string }, n: number): FeedLine['parts'] | null {
   switch (e.t) {
     case 'hit':
-      if (e.kind === 'missile' && e.by) return [name(e.by), { t: ' missiled ' }, name(e.id)]
-      if (e.kind === 'peel' && e.by === e.id) return [name(e.id), { t: ' slipped on their own peel' }]
-      if (e.kind === 'peel' && e.by) return [name(e.id), { t: ' ate ' }, { ...name(e.by), t: `${name(e.by).t}'s` }, { t: ' peel' }]
+      if ((e.kind === 'coconut' || e.kind === 'pelican') && e.by && e.by !== e.id) return [name(e.by), { t: e.kind === 'pelican' ? ' sent a pelican at ' : ' coconutted ' }, name(e.id)]
+      if (e.kind === 'mango' && e.by === e.id) return [name(e.id), { t: ' slipped on their own mango' }]
+      if (e.kind === 'mango' && e.by) return [name(e.id), { t: ' ate ' }, { ...name(e.by), t: `${name(e.by).t}'s` }, { t: ' mango' }]
+      if (e.kind === 'hurricane') return [name(e.id), { t: ' made landfall' }]
+      if (e.kind === 'wave') return [{ t: 'The Gulf got ' }, name(e.id)]
       if (e.kind === 'gator') return n % 2 === 0 ? [{ t: 'The gator got ' }, name(e.id)] : [{ t: 'Florida claims ' }, name(e.id)]
       return null
+    case 'storm':
+      return [name(e.by), { t: ' called in a storm' }]
     case 'block':
       return [{ ...name(e.id), t: `${name(e.id).t}'s` }, { t: ' shield ate it' }]
     case 'lead':
@@ -104,19 +109,21 @@ declare global {
 function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: StageProps<KartState>) {
   useTicker(100)
   const track = getTrack(s.track)
-  // On a phone (solo race) the track is cropped and turned to fill the screen.
-  const { boxRef, canvasRef, view, draw } = useTrackCanvas(track, compact)
+  // The track is cropped to its own box (worlds are bigger now); a phone turns it to fill the screen.
+  const { boxRef, canvasRef, view, draw } = useTrackCanvas(track, true)
+  const kartSize = KART_SIZE * Math.max(1, (track.w - 600) / 1500)
   const land = useLandscape()
   const sendStream = useSendStream()
 
-  const playerKey = room.gamePlayers.map((id) => {
+  // Grid order (pole first): the sim seats karts in this order, snapshots name them by seat.
+  const playerKey = gridOf(s).filter((id) => room.gamePlayers.includes(id)).map((id) => {
     const p = room.players.find((x) => x.id === id)
-    return `${id}|${p?.name ?? id}|${p?.color ?? ''}|${p?.bot ? 1 : 0}`
+    return `${id}|${p?.name ?? id}|${p?.color ?? ''}|${p?.bot ? 1 : 0}|${charOf(s, id) ?? ''}`
   }).join(',')
   const racers = useMemo(
     () => playerKey.split(',').filter(Boolean).map((row) => {
-      const [id, name, color, bot] = row.split('|')
-      return { id, name, color: color || '#8790B6', bot: bot === '1' }
+      const [id, name, color, bot, char] = row.split('|')
+      return { id, name, color: color || '#8790B6', bot: bot === '1', char: (char || null) as ReturnType<typeof charOf> }
     }),
     [playerKey],
   )
@@ -134,6 +141,9 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
   whoRef.current = who
   const compactRef = useRef(compact)
   compactRef.current = compact
+  // A second screen draws this race from 'kart:pos' (apart races with more than one person).
+  const secondRef = useRef(false)
+  secondRef.current = room.mode === 'apart' && room.players.filter((p) => room.gamePlayers.includes(p.id) && !p.bot).length > 1
   const meRef = useRef(me ?? null)
   meRef.current = me ?? null
 
@@ -142,10 +152,10 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
   const [banner, setBanner] = useState<{ text: string; color: string; until: number } | null>(null)
 
   // ----- host: the simulation -----
-  const worldKey = `${s.goAt}:${s.seed}:${playerKey}`
+  const worldKey = `${s.track}:${s.goAt}:${s.seed}:${playerKey}`
   const worldRef = useRef<{ key: string; w: World } | null>(null)
   if (isHost && worldRef.current?.key !== worldKey) {
-    const w = makeWorld({ trackId: s.track, laps: s.laps, racers, seed: s.seed })
+    const w = makeWorld({ trackId: s.track, laps: s.laps, racers, seed: s.seed, speed: s.speed, gas: s.gas })
     // Picking up a race already under way (the TV reloaded): keep laps, items and finishes.
     for (const k of w.karts) {
       const r = s.racers[k.id]
@@ -219,9 +229,9 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
     }
     const simulate = () => {
       const st = sRef.current
-      if (st.stage === 'done') return
+      if (!RACING.has(st.stage)) return
       const target = nowRef.current() - st.goAt
-      if (target <= 0) return
+      if (target <= 0) { prestep(w, collect(), -target); return }
       if (target - w.time > 1500) w.time = target - 1500
       let n = 0
       while (w.time + STEP * 1000 <= target && n < 120) {
@@ -232,9 +242,9 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
     const report = () => {
       const st = sRef.current
       const t = performance.now()
-      // No screen renders 'kart:pos' yet (together = one TV, solo = the host phone), so
-      // positions only go out when a second screen asks for them. Saves the room's message budget.
-      if (SECOND_SCREEN && w.time > 0 && t - lastPos >= 125) {
+      // Apart races: every other phone draws from 'kart:pos'. Together, only the TV draws, so
+      // nothing goes out (saves the room's message budget; wave 2 decides on phone HUD data).
+      if (secondRef.current && w.time > 0 && RACING.has(st.stage) && t - lastPos >= POS_EVERY_MS) {
         lastPos = t
         sendRef.current('kart:pos', snapshot(w))
       }
@@ -245,6 +255,9 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
           i: Object.fromEntries(w.karts.map((k) => [k.id, k.item])),
           p: Object.fromEntries(w.karts.map((k) => [k.id, progressOf(w, k)])),
           h: Object.fromEntries(w.karts.map((k) => [k.id, k.hits])),
+          c: Object.fromEntries(w.karts.map((k) => [k.id, k.coins])),
+          k: Object.fromEntries(w.karts.map((k) => [k.id, Math.min(1, k.rockets)])),
+          r: w.karts.filter((k) => k.rolling > 0).map((k) => k.id),
         }
         const key = JSON.stringify(payload)
         if (key !== lastPlaceKey) {
@@ -266,7 +279,7 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
       lastFrame = performance.now()
       simulate()
       report()
-      draw({ ...sceneFromWorld(w), mine: compactRef.current ? meRef.current : null }, compactRef.current ? 1.5 : KART_SIZE)
+      draw({ ...sceneFromWorld(w), mine: compactRef.current ? meRef.current : null }, compactRef.current ? (1.5 * kartSize) / KART_SIZE : kartSize)
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
@@ -287,64 +300,28 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
       clearInterval(iv)
       delete window.__kartQA
     }
-  }, [isHost, worldKey, draw])
+  }, [isHost, worldKey, draw, kartSize])
 
   // ----- everyone else: draw from 'kart:pos' snapshots -----
-  const snaps = useRef<{ at: number; d: PosSnapshot }[]>([])
+  const snaps = useRef(new SnapBuffer())
   useStream('kart:pos', (m) => {
     if (isHost) return
-    const d = m.d as PosSnapshot
-    if (!d || !Array.isArray(d.k)) return
-    snaps.current = [...snaps.current.slice(-9), { at: performance.now(), d }]
+    snaps.current.push(m.d, performance.now())
   })
-  const remoteWorld = useMemo(() => (isHost ? null : makeWorld({ trackId: s.track, laps: s.laps, racers, seed: s.seed })), [isHost, s.track, s.laps, s.seed, racers])
   useEffect(() => {
-    if (isHost || !remoteWorld) return
+    if (isHost) return
+    snaps.current.clear()
     let raf = 0
-    const hints = new Map<number, number>()
-    const base = sceneFromWorld(remoteWorld)
+    const roster = racers.map((r) => ({ id: r.id, name: r.name, color: r.color, char: r.char }))
+    const base = sceneFromWorld(makeWorld({ trackId: s.track, laps: s.laps, racers, seed: s.seed, speed: s.speed }))
     const frame = () => {
-      const list = snaps.current
-      const scene: Scene = { ...base, time: performance.now() }
-      if (list.length) {
-        const renderAt = performance.now() - 180
-        let a = list[0]
-        let b = list[list.length - 1]
-        for (let i = 0; i < list.length - 1; i++) {
-          if (list[i].at <= renderAt && list[i + 1].at >= renderAt) { a = list[i]; b = list[i + 1]; break }
-        }
-        const span = b.at - a.at
-        const u = span > 0 ? Math.max(0, Math.min(1, (renderAt - a.at) / span)) : 1
-        const karts: SceneKart[] = []
-        for (const row of b.d.k) {
-          const prev = a.d.k.find((r) => r[0] === row[0]) ?? row
-          const r = racers[row[0]]
-          if (!r) continue
-          const x = prev[1] + (row[1] - prev[1]) * u
-          const y = prev[2] + (row[2] - prev[2]) * u
-          let da = (row[3] - prev[3]) / 100
-          if (da > Math.PI) da -= Math.PI * 2
-          if (da < -Math.PI) da += Math.PI * 2
-          const f = row[5]
-          karts.push({
-            id: r.id, seat: row[0], color: r.color, initial: r.name.slice(0, 1).toUpperCase(), x, y, a: prev[3] / 100 + da * u,
-            level: levelFor(remoteWorld.track, x, y, hints, row[0]),
-            spin: (f & 1) > 0, shield: (f & 2) > 0, boost: (f & 4) > 0, drift: (f & 8) > 0, charged: (f & 16) > 0,
-            charge: (f & 16) > 0 ? 1.3 : 0.6, wet: false, steer: 0,
-          })
-        }
-        scene.karts = karts
-        scene.peels = b.d.pe.map(([x, y]) => ({ x, y, level: 0 }))
-        scene.missiles = b.d.mi.map(([x, y, a2]) => ({ x, y, a: a2 / 100 }))
-        scene.boxes = base.boxes.map((bx, i) => ({ ...bx, on: b.d.bx[i] !== 0 }))
-        scene.gatorExt = b.d.g / 100
-      }
-      draw(scene, KART_SIZE)
+      const scene = snaps.current.scene(track, roster, s.laps, performance.now() - INTERP_DELAY_MS)
+      draw({ ...(scene ?? base), mine: compactRef.current ? meRef.current : null }, compactRef.current ? (1.5 * kartSize) / KART_SIZE : kartSize)
       raf = requestAnimationFrame(frame)
     }
     raf = requestAnimationFrame(frame)
     return () => cancelAnimationFrame(raf)
-  }, [isHost, remoteWorld, racers, draw])
+  }, [isHost, racers, draw, track, s.track, s.laps, s.seed, s.speed, kartSize])
 
   // ----- overlays -----
   const t = now()
@@ -426,7 +403,7 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
         </div>
 
         {/* countdown */}
-        {s.stage !== 'freeze' && s.stage !== 'done' && toGo > -900 && (
+        {RACING.has(s.stage) && s.stage !== 'freeze' && toGo > -900 && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center">
             {toGo > 3000 ? (
               <div className="grid justify-items-center gap-2 rounded-2xl bg-paper/90 px-10 py-6 text-center animate-pop">
@@ -451,12 +428,33 @@ function RaceScreen({ state: s, room, now, isHost, hostAction, compact, me }: St
           </div>
         )}
 
+        {/* pick + intros (wave 2 replaces all of this) */}
+        {(s.stage === 'pick' || s.stage === 'cupIntro' || s.stage === 'trackIntro') && (
+          <div className="absolute inset-0 grid place-items-center bg-paper/60">
+            <div className={cx('grid gap-2 rounded-2xl border border-line bg-tile p-6 animate-pop', big ? 'w-[520px]' : 'w-[260px]')}>
+              <div className={cx('text-center font-display text-hot riso', big ? 'text-5xl' : 'text-2xl')}>
+                {s.stage === 'pick' ? 'Pick a critter' : s.stage === 'cupIntro' ? (s.cup === 'hurricane' ? 'Hurricane Cup' : 'Sunshine Cup') : trackName(s.track)}
+              </div>
+              {s.stage === 'pick'
+                ? s.ids.map((id) => <div key={id} className={cx('font-bold', big ? 'text-2xl' : 'text-sm')}>{who(id)?.name ?? id}: {charOf(s, id) ?? '...'}</div>)
+                : s.tracks.map((t, i) => <div key={t} className={cx(i === s.raceNo && s.stage === 'trackIntro' ? 'text-hot' : 'text-ink-2', 'font-bold', big ? 'text-2xl' : 'text-sm')}>{i + 1}. {trackName(t)}</div>)}
+            </div>
+          </div>
+        )}
+
         {/* results freeze */}
-        {(s.stage === 'freeze' || s.stage === 'done') && (
+        {(s.stage === 'freeze' || s.stage === 'raceResult' || s.stage === 'podium' || s.stage === 'done') && (
           <div className="absolute inset-0 grid place-items-center bg-paper/60">
             <div className={cx('grid gap-3 rounded-2xl border border-line bg-tile p-6 animate-pop', big ? 'w-[520px]' : 'w-[260px]')}>
-              <div className={cx('text-center font-display text-hot riso', big ? 'text-5xl' : 'text-2xl')}>Finish</div>
-              {standings(s).map(({ id, place }) => {
+              <div className={cx('text-center font-display text-hot riso', big ? 'text-5xl' : 'text-2xl')}>{s.stage === 'podium' || s.stage === 'done' ? 'Cup' : 'Finish'}</div>
+              {(s.stage === 'podium' || s.stage === 'done') && cupStandings(s).map(({ id, place, pts }) => (
+                <div key={id} className={cx('flex items-center gap-3 font-bold', big ? 'text-2xl' : 'text-sm')}>
+                  <span className="w-8 text-center font-display">{place}</span>
+                  <span className="min-w-0 flex-1 truncate">{who(id)?.name ?? id}</span>
+                  <span className="font-mono tabular">{pts} pts</span>
+                </div>
+              ))}
+              {s.stage !== 'podium' && s.stage !== 'done' && standings(s).map(({ id, place }) => {
                 const p = who(id)
                 const r = s.racers[id]
                 return (
@@ -545,7 +543,7 @@ function PhoneRace({ s, order, me, myLap, who, land, toGo, endsIn, feed, banner,
             )}
           </div>
         </div>
-        {s.stage !== 'freeze' && s.stage !== 'done' && toGo > -900 && (
+        {RACING.has(s.stage) && s.stage !== 'freeze' && toGo > -900 && (
           <div className="pointer-events-none absolute inset-0 grid place-items-center p-4 text-center">
             {toGo > 3000 ? (
               <div className="grid justify-items-center gap-1 rounded-2xl bg-paper/90 px-6 py-4 animate-pop">
@@ -565,7 +563,7 @@ function PhoneRace({ s, order, me, myLap, who, land, toGo, endsIn, feed, banner,
             <div className="rounded-2xl bg-paper/90 px-5 py-3 font-display text-2xl animate-pop" style={{ color: banner.color }}>{banner.text}</div>
           </div>
         )}
-        {(s.stage === 'freeze' || s.stage === 'done') && (
+        {(s.stage === 'freeze' || s.stage === 'raceResult' || s.stage === 'podium' || s.stage === 'done') && (
           <div className="absolute inset-0 grid place-items-center bg-paper/60 p-3">
             <div className="grid w-full max-w-[300px] gap-2 rounded-2xl border border-line bg-tile p-4 animate-pop">
               <div className="text-center font-display text-3xl text-hot riso">Finish</div>

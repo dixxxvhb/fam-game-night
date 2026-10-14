@@ -2,7 +2,8 @@
  * Canvas drawing for Kart: TV and phone. Works from a Scene, which comes either straight from
  * the host's World or from interpolated 'kart:pos' snapshots.
  */
-import { KART_R, type Kart, type World } from './sim'
+import { KART_R, turnpikeScene, type Kart, type World } from './sim'
+import type { TurnpikeKartFx, TurnpikeSceneExtra } from './contract'
 import { offsetAt, pointAt, project, levelAt, trackBounds, WORLD_H, WORLD_W, type Bounds, type Level, type Track } from './tracks'
 
 export { trackBounds }
@@ -37,6 +38,34 @@ export interface Scene {
   gatorWarn: boolean
   /** Ring this kart (your own, on a phone racing bots). */
   mine?: string | null
+}
+
+/** Per-kart extras beyond the contract's TurnpikeKartFx (engine lane; optional for renderers). */
+export interface EngineKartFx extends TurnpikeKartFx {
+  /** Triple Cafecito uses left (0 otherwise). */
+  uses: number
+  /** Slipstream boost just fired (draw wind lines). */
+  slip: boolean
+  /** Jumped the start: engine sputters (draw smoke puffs). */
+  sputter: boolean
+  /** On the grass/sand/mud off the road (draw dust). Water off-road is SceneKart.wet. */
+  off: boolean
+  /** Rocket start boost burning. */
+  rocket: boolean
+}
+
+/**
+ * The full Turnpike scene: render.ts Scene (old renderer) + the contract extras + a few engine
+ * extras. Host: turnpikeScene(world). Everyone else: snap.ts decodes 'kart:pos' into the same shape.
+ */
+export type TurnpikeScene = Scene & TurnpikeSceneExtra & {
+  fx: Record<string, EngineKartFx>
+  /** Pier waves: 0 calm, 0..1 building (warning), 1 splashing. Where: track.waveAt. */
+  wave: number
+  /** Launch Pad smoke 0..1 around track.pad (karts in it are slowed). */
+  smoke: number
+  /** Swamp gator is about to lunge (bubbles). */
+  gatorWarnOn: boolean
 }
 
 export interface View {
@@ -666,21 +695,13 @@ export function sceneKart(k: Kart): SceneKart {
   return {
     id: k.id, seat: k.seat, color: k.color, initial: k.name.slice(0, 1).toUpperCase(),
     x: k.x, y: k.y, a: k.a, level: k.level, spin: k.spin > 0, shield: k.shield > 0, boost: k.boost > 0,
-    drift: k.drift !== 0, charged: k.charge >= 1.25, charge: k.charge, wet: k.wet, steer: k.steer,
+    drift: k.drift !== 0, charged: k.charge >= 1.15, charge: k.charge, wet: k.wet, steer: k.steer,
   }
 }
 
-export function sceneFromWorld(w: World): Scene {
-  return {
-    track: w.track,
-    time: w.time,
-    karts: w.karts.map(sceneKart),
-    boxes: w.boxes.map((b) => ({ x: b.x, y: b.y, on: b.respawn <= 0, level: b.level })),
-    peels: w.peels.map((p) => ({ x: p.x, y: p.y, level: p.level })),
-    missiles: w.missiles.map((m) => ({ x: m.x, y: m.y, a: m.a })),
-    gatorExt: w.gator?.ext ?? 0,
-    gatorWarn: w.gator?.phase === 'warn',
-  }
+/** The host's scene: the whole Turnpike scene (a superset of the old Scene). */
+export function sceneFromWorld(w: World): TurnpikeScene {
+  return turnpikeScene(w)
 }
 
 /** Level for an interpolated kart, with a per-seat index hint so the bridge stays right. */
