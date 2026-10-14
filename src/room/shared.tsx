@@ -8,6 +8,8 @@ import { nightStandings } from '../engine/points'
 import { Avatar, Btn, cx, Label } from '../ui/kit'
 import { CORE, GUEST_COLORS, guestId } from '../lib/players'
 import type { SavedMe } from '../lib/ids'
+import { loadSeason } from '../data/api'
+import { seasonStats } from '../data/season'
 
 export function joinUrl(code: string) {
   const base = `${window.location.origin}${window.location.pathname}`
@@ -165,6 +167,7 @@ export function NightSummary({ state, big = false }: { state: RoomState; big?: b
           <div className={cx('font-display', big ? 'text-5xl' : 'text-3xl')}>No games, no winner</div>
         )}
         <div className="text-ink-2">{state.games.length} {state.games.length === 1 ? 'game' : 'games'} played. Saved to the season.</div>
+        <BeltCall state={state} big={big} />
       </div>
       <div className="mx-auto grid w-full max-w-md gap-2 text-left">
         {night.standings.map((s, i) => {
@@ -289,4 +292,35 @@ export function LostHost({ heardAt, isHost, what = 'the TV' }: { heardAt: () => 
       Lost {what}. Waiting for it to come back.
     </div>
   )
+}
+
+/** "Torii takes the Belt from Dixxx." Season leader before tonight vs after tonight. */
+export function BeltCall({ state, big = false }: { state: RoomState; big?: boolean }) {
+  const [line, setLine] = useState<string | null>(null)
+  const night = state.night
+  useEffect(() => {
+    if (!night || !state.games.length) return
+    let alive = true
+    loadSeason().then((d) => {
+      if (!alive || !d) return
+      const prior = { ...d, nights: d.nights.filter((n) => n.id !== state.nightId) }
+      const before = seasonStats(prior)
+      const totals = new Map(before.standings.map((r) => [r.playerId, r.points]))
+      for (const s of night.standings) totals.set(s.playerId, (totals.get(s.playerId) ?? 0) + s.points)
+      const ranked = [...totals.entries()].sort((a, b) => b[1] - a[1])
+      if (!ranked.length || ranked[0][1] <= 0) return
+      if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) {
+        setLine('The Belt is tied. Somebody has to want it.')
+        return
+      }
+      const name = (id: string) => playerById(state, id)?.name ?? d.players.find((p) => p.id === id)?.name ?? id
+      const after = ranked[0][0]
+      if (!before.belt) setLine(`${name(after)} takes the first Belt of the season.`)
+      else if (before.belt === after) setLine(`${name(after)} keeps the Belt.`)
+      else setLine(`${name(after)} takes the Belt from ${name(before.belt)}.`)
+    })
+    return () => { alive = false }
+  }, [night, state.nightId, state.games.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!line) return null
+  return <div className={cx('mx-auto mt-2 rounded-full bg-hot/15 px-5 py-2 font-bold text-hot-ink animate-pop', big ? 'text-2xl' : 'text-base')}>{line}</div>
 }
