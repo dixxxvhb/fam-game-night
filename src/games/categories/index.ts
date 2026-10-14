@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type CategoriesState } from './logic'
+import { bot, outcome, reduce, setup, tick, type CategoriesState } from './logic'
 import { CategoriesStage } from './Stage'
 import { CategoriesController } from './Controller'
 
@@ -17,6 +17,7 @@ const categories: GameDef<CategoriesState> = {
   tick,
   outcome,
   Stage: CategoriesStage,
+  bot,
   Controller: CategoriesController,
 }
 

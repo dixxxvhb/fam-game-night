@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type ForeheadState } from './logic'
+import { bot, outcome, reduce, setup, tick, type ForeheadState } from './logic'
 import { ForeheadStage } from './Stage'
 import { ForeheadController } from './Controller'
 import { DECK_OPTIONS } from './decks'
@@ -22,6 +22,7 @@ const forehead: GameDef<ForeheadState> = {
   tick,
   outcome,
   Stage: ForeheadStage,
+  bot,
   Controller: ForeheadController,
 }
 

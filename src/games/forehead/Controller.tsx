@@ -6,6 +6,7 @@ import { Countdown } from '../../ui/Countdown'
 import { DEBOUNCE_MS, type ForeheadState } from './logic'
 import { freshTilt, landscapeTurn, tiltStep, type Call } from './tilt'
 import { fitFont } from './fit'
+import { useBox } from './useBox'
 
 type Send = ControllerProps<ForeheadState>['send']
 type Input = 'tilt' | 'buttons'
@@ -77,7 +78,7 @@ export function ForeheadController({ state: s, room, me, now, send }: Controller
           {g && <Avatar name={g.name} color={g.color} size={40} />}
           <div className="font-display text-3xl" style={{ color: g?.color }}>{gName}</div>
         </div>
-        <div className="text-xl font-bold">is the Guesser.</div>
+        <div className="text-xl font-bold">is the Guesser.{g?.bot ? ' (A bot. It guesses at random.)' : ''}</div>
         <div className="text-ink-2">You act. Mime it, hum it, describe it. Saying the word is the one crime.</div>
       </div>
     )
@@ -96,9 +97,7 @@ export function ForeheadController({ state: s, room, me, now, send }: Controller
         {s.stage === 'set' ? (
           <div className="font-display text-4xl text-ink-2">Get ready</div>
         ) : (
-          <div key={s.word} className="grid min-h-40 place-items-center rounded-2xl bg-tile p-4 animate-pop">
-            <div className="break-words font-display text-5xl uppercase leading-tight text-hot">{s.word}</div>
-          </div>
+          <ActorWord key={s.word} word={s.word} />
         )}
         <div className="text-ink-2">Act it out. Don't say it.</div>
         <div className="font-mono text-sm text-ink-3">{got} got so far · you get one for each</div>
@@ -119,6 +118,17 @@ export function ForeheadController({ state: s, room, me, now, send }: Controller
   }
 
   return <div className="p-6 text-center text-ink-2">Adding it up.</div>
+}
+
+/** The word for the actors, as big as fits the phone without spilling sideways. */
+function ActorWord({ word }: { word: string }) {
+  const [box, { w }] = useBox<HTMLDivElement>({ w: 300, h: 0 })
+  const fs = fitFont(word, Math.max(120, w - 8), 150, 52, 20)
+  return (
+    <div className="grid min-h-40 place-items-center overflow-hidden rounded-2xl bg-tile p-4 animate-pop">
+      <div ref={box} className="w-full text-center font-display uppercase leading-[1.08] text-hot" style={{ fontSize: fs }}>{word}</div>
+    </div>
+  )
 }
 
 function ReadyPad({ s, now, send, setInput }: { s: ForeheadState; now: () => number; send: Send; setInput: (i: Input) => void }) {

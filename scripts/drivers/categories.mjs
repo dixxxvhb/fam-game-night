@@ -76,17 +76,24 @@ export default async function ({ phones, shot, wait }) {
     // Judging, category by category.
     for (let idx = 0; idx < 8; idx++) {
       const tag = `Category ${idx + 1} of 8`
-      const here = await until(async () => (await Promise.all(phones.map((p) => p.getByText(tag).first().isVisible().catch(() => false)))).every(Boolean), 20000, 150)
+      // The first category can wait on bots still writing (solo mode), so give it the whole clock.
+      const here = await until(async () => (await Promise.all(phones.map((p) => p.getByText(tag).first().isVisible().catch(() => false)))).every(Boolean), idx === 0 ? 130000 : 20000, 150)
       if (!here) { console.log(`round ${round + 1}: never saw ${tag}`); break }
       await wait(350)
       if (round === 0 && idx === 1) {
-        // Dixxx and Torii love Johnnyboy's alliteration.
-        await phones[1].getByRole('button', { name: `Thumbs up for ${NAMES[phones[0].playerId]}` }).click()
-        await phones[2].getByRole('button', { name: `Thumbs up for ${NAMES[phones[0].playerId]}` }).click()
+        if (phones.length >= 3) {
+          // Dixxx and Torii love Johnnyboy's alliteration.
+          await phones[1].getByRole('button', { name: `Thumbs up for ${NAMES[phones[0].playerId]}` }).click()
+          await phones[2].getByRole('button', { name: `Thumbs up for ${NAMES[phones[0].playerId]}` }).click()
+        } else {
+          // Solo: the human gives a bot a thumbs up if there's anything to like.
+          const up = phones[0].locator('button[aria-label^="Thumbs up for"]:not([disabled])').first()
+          if (await up.count()) await up.click()
+        }
         await wait(500)
         await shot('r1-judge-thumbs-up')
       }
-      if (round === 0 && idx === 4) {
+      if (round === 0 && idx === 4 && phones.length >= 3) {
         // Challenge: the other two vote Johnnyboy's answer down. Majority of the others = out.
         await phones[1].getByRole('button', { name: `Thumbs down for ${NAMES[phones[0].playerId]}` }).click()
         await wait(400)

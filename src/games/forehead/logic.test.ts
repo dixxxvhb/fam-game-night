@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, RoomPlayer } from '../../engine/types'
 import { DECKS } from './decks'
-import { DEBOUNCE_MS, outcome, READY_MS, reduce, SET_MS, setup, tick, TURN_END_MS, TURN_MS, type ForeheadState } from './logic'
+import { bot, DEBOUNCE_MS, outcome, READY_MS, reduce, SET_MS, setup, tick, TURN_END_MS, TURN_MS, type ForeheadState } from './logic'
 import { facing, freshTilt, landscapeTurn, REARM_MS, tiltStep, type TiltState } from './tilt'
 
 const players: RoomPlayer[] = [
@@ -274,5 +274,55 @@ describe('decks', () => {
   })
   it('falls back to Mixed for an unknown deck', () => {
     expect(setup(ctx(1), { deck: 'nope' }).deck).toBe('mixed')
+  })
+})
+
+describe('bots', () => {
+  const solo: RoomPlayer[] = [
+    { id: 'dixxx', name: 'Dixxx', color: '#3CCB72', guest: false, connected: true },
+    { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', guest: true, connected: true, bot: true },
+    { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', guest: true, connected: true, bot: true },
+  ]
+  const bots = solo.filter((p) => p.bot).map((p) => p.id)
+
+  it('one idle human and two bots finish a game on tick + bot alone', () => {
+    let now = 5_000_000
+    let s = setup(ctx(now, solo), {})
+    for (let step = 0; step < 20_000 && !outcome(s, ctx(now, solo)); step++) {
+      now += 200
+      s = tick(s, ctx(now, solo))
+      for (const id of bots) {
+        const move = bot(s, id, ctx(now, solo))
+        if (move) s = reduce(s, { playerId: id, type: move.type, payload: move.payload }, ctx(now, solo))
+      }
+    }
+    const out = outcome(s, ctx(now, solo))
+    expect(out).not.toBeNull()
+    expect(out!.placements).toHaveLength(3)
+    // The idle human got nothing as Guesser; the bots got words on their turns.
+    expect(s.guessed.dixxx).toBe(0)
+    for (const b of bots) expect(s.guessed[b]).toBeGreaterThan(0)
+    // Every word that went up is remembered for next time.
+    const shown = s.turns.flatMap((t) => t.calls.map((c) => c.word))
+    expect(out!.used!.length).toBe(new Set(shown).size)
+    expect(out!.used!.length).toBeGreaterThan(5)
+  })
+
+  it('only moves on its own turn, and no faster than a person', () => {
+    let s = setup(ctx(1, solo), {})
+    const other = bots.find((b) => b !== s.guesser) ?? bots[0]
+    if (s.guesser === 'dixxx') for (let i = 0; i < 50; i++) expect(bot(s, bots[0], ctx(10_000, solo))).toBeNull()
+    for (let i = 0; i < 50; i++) if (other !== s.guesser) expect(bot(s, other, ctx(10_000, solo))).toBeNull()
+    // force a bot turn in play, right after a call: it waits
+    s = { ...s, guesser: 'bot-gator', stage: 'play', lastCallAt: 100_000, endsAt: 200_000 }
+    for (let i = 0; i < 100; i++) expect(bot(s, 'bot-gator', ctx(101_000, solo))).toBeNull()
+  })
+
+  it('puts words this group has not seen first', () => {
+    const words = DECKS.florida.words
+    const seen = words.slice(0, words.length - 10)
+    const s = setup({ ...ctx(1), used: seen }, { deck: 'florida' })
+    expect(seen).not.toContain(s.word)
+    for (const w of s.queue.slice(0, 9)) expect(seen).not.toContain(w)
   })
 })

@@ -1,7 +1,8 @@
-import type { GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
+import type { BotMove, GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
-import { shuffle } from '../../lib/shuffle'
+import { freshFirst } from '../../lib/shuffle'
 import { CATEGORY_BANK } from './bank'
+import { botOptions } from './botAnswers'
 
 /** Letters that can come up. Q, U, V, X, Y and Z are out: nobody has fun on Q. */
 export const LETTERS = 'ABCDEFGHIJKLMNOPRSTW'.split('')
@@ -188,9 +189,10 @@ function pickLetter(used: string[], random: () => number): string {
   return pool[Math.floor(random() * pool.length)] ?? 'S'
 }
 
-function pickCats(used: string[], random: () => number): string[] {
-  const fresh = CATEGORY_BANK.filter((c) => !used.includes(c))
-  return shuffle(fresh.length >= PER_ROUND ? fresh : CATEGORY_BANK, random).slice(0, PER_ROUND)
+/** Eight categories: never one already used this game, and ones this group hasn't seen on other nights first. */
+function pickCats(inGame: string[], seen: string[], random: () => number): string[] {
+  const fresh = CATEGORY_BANK.filter((c) => !inGame.includes(c))
+  return freshFirst(fresh.length >= PER_ROUND ? fresh : CATEGORY_BANK, (c) => c, seen, random).slice(0, PER_ROUND)
 }
 
 function blankAnswers(ids: string[]): Record<string, string[]> {
@@ -199,7 +201,7 @@ function blankAnswers(ids: string[]): Record<string, string[]> {
 
 function startRound(s: CategoriesState, ids: string[], round: number, ctx: GameCtx): CategoriesState {
   const letter = pickLetter(s.letters, ctx.random)
-  const cats = pickCats(s.usedCats, ctx.random)
+  const cats = pickCats(s.usedCats, ctx.used ?? [], ctx.random)
   return {
     ...s,
     stage: 'write',
@@ -387,5 +389,57 @@ export function outcome(s: CategoriesState, ctx: GameCtx): GameOutcome | null {
         }]
       : [],
     details: { letters: s.letters, rounds: s.rounds },
+    used: s.usedCats,
   }
+}
+
+// ---------------- bots ----------------
+
+/** Small stable hash, so a bot's "I'm blanking on this one" stays the same all round. */
+function hash(str: string): number {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) }
+  return h >>> 0
+}
+
+/**
+ * Bots write from a short list of common answers routed by the category's wording
+ * (botAnswers.ts). No idea, or one in five they "blank" on: the slot stays empty.
+ * They fill one slot every few seconds, lock in after about 40 seconds, hand out the odd
+ * thumbs up (and rarely a thumbs down) while judging, and tap Next after a few seconds.
+ */
+export function bot(s: CategoriesState, id: string, ctx: GameCtx): BotMove | null {
+  const ids = ctx.players.map((p) => p.id)
+  if (!ids.includes(id)) return null
+  const elapsed = s.stageTotal - (s.endsAt - ctx.now)
+
+  if (s.stage === 'write') {
+    if (s.done.includes(id) || ctx.now >= s.endsAt) return null
+    const mine = s.answers[id] ?? Array(PER_ROUND).fill('')
+    const todo = s.cats
+      .map((c, i) => ({ i, opts: mine[i] ? [] : botOptions(c, s.letter) }))
+      .filter((x) => x.opts.length && hash(`${id}|${s.round}|${x.i}`) % 5 !== 0)
+    if (todo.length) {
+      if (elapsed < 5000 || ctx.random() > 0.05) return null
+      const pick = todo[Math.floor(ctx.random() * todo.length)]
+      const word = pick.opts[Math.floor(ctx.random() * pick.opts.length)]
+      return { type: 'answers', payload: { list: mine.map((x, k) => (k === pick.i ? word : x)) } }
+    }
+    if (elapsed > 40_000 && ctx.random() < 0.03) return { type: 'done', payload: { list: mine } }
+    return null
+  }
+
+  if (s.stage === 'judge') {
+    if (s.ready.includes(id) || elapsed < 1500) return null
+    const voted = Object.values(s.ups).some((v) => v.includes(id)) || Object.values(s.downs).some((v) => v.includes(id))
+    if (!voted && ctx.random() < 0.03) {
+      const others = judgeCategory(ids, textsFor(s, s.judgeIdx), s.letter).filter((j) => j.playerId !== id && j.status === 'ok')
+      if (others.length) {
+        const target = others[Math.floor(ctx.random() * others.length)]
+        return { type: 'vote', payload: { idx: s.judgeIdx, owner: target.playerId, kind: ctx.random() < 0.85 ? 'up' : 'down' } }
+      }
+    }
+    if (elapsed > 3000 && ctx.random() < 0.08) return { type: 'next', payload: { idx: s.judgeIdx } }
+  }
+  return null
 }

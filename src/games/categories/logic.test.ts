@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, RoomPlayer } from '../../engine/types'
 import { CATEGORY_BANK } from './bank'
+import { BOT_KINDS, botOptions, kindFor } from './botAnswers'
 import {
-  alliterates, bestAnswer, cleanAnswer, judgeCategory, LETTERS, normalize, outcome, outThreshold, PER_ROUND, reduce,
+  alliterates, bestAnswer, bot, cleanAnswer, judgeCategory, LETTERS, normalize, outcome, outThreshold, PER_ROUND, reduce,
   ROUND_END_MS, setup, similar, startsWithLetter, tick, VERDICT_MS, VOTE_MS, QUICK_MS, WRITE_MS, GRACE_MS,
   type CategoriesState,
 } from './logic'
@@ -343,5 +344,78 @@ describe('the bank', () => {
       expect(/\p{Extended_Pictographic}/u.test(c)).toBe(false)
       expect(c).not.toContain('—')
     }
+  })
+})
+
+describe('bots', () => {
+  const solo: RoomPlayer[] = [
+    { id: 'dixxx', name: 'Dixxx', color: '#3CCB72', guest: false, connected: true },
+    { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', guest: true, connected: true, bot: true },
+    { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', guest: true, connected: true, bot: true },
+  ]
+  const bots = solo.filter((p) => p.bot).map((p) => p.id)
+
+  it('one idle human and two bots finish a game on tick + bot alone', () => {
+    let now = 1_000_000
+    let s = setup(ctx(now, solo), {})
+    const botAnswers: { text: string; letter: string; cat: string }[] = []
+    let votes = 0
+    for (let step = 0; step < 20_000 && !outcome(s, ctx(now, solo)); step++) {
+      now += 200
+      s = tick(s, ctx(now, solo))
+      for (const id of bots) {
+        const move = bot(s, id, ctx(now, solo))
+        if (!move) continue
+        if (move.type === 'vote') votes++
+        const before = s
+        s = reduce(s, { playerId: id, type: move.type, payload: move.payload }, ctx(now, solo))
+        if (move.type === 'answers' && s !== before) {
+          const list = (move.payload as { list: string[] }).list
+          list.forEach((t, i) => { if (t && t !== before.answers[id][i]) botAnswers.push({ text: t, letter: s.letter, cat: s.cats[i] }) })
+        }
+      }
+    }
+    const out = outcome(s, ctx(now, solo))
+    expect(out).not.toBeNull()
+    expect(out!.placements).toHaveLength(3)
+    expect(out!.used).toEqual(s.usedCats)
+    expect(out!.used).toHaveLength(24)
+    // Bots wrote real answers, every one on the letter, and judged a little.
+    expect(botAnswers.length).toBeGreaterThan(3)
+    for (const a of botAnswers) expect(startsWithLetter(a.text, a.letter)).toBe(true)
+    expect(votes).toBeGreaterThan(0)
+    // The idle human never scores; at least one bot does.
+    expect(s.scores.dixxx).toBe(0)
+    expect(Math.max(...bots.map((b) => s.scores[b]))).toBeGreaterThan(0)
+  })
+
+  it('never moves for someone else, out of phase, or after locking in', () => {
+    let s = setup(ctx(1, solo), {})
+    expect(bot(s, 'stranger', ctx(10_000, solo))).toBeNull()
+    // too early in the round
+    expect(bot(s, 'bot-gator', ctx(1000, solo))).toBeNull()
+    s = reduce(s, { playerId: 'bot-gator', type: 'done', payload: { list: Array(8).fill('') } }, ctx(2, solo))
+    for (let i = 0; i < 50; i++) expect(bot(s, 'bot-gator', ctx(60_000, solo))).toBeNull()
+    const done = { ...s, stage: 'done' as const }
+    expect(bot(done, 'bot-pigeon', ctx(60_000, solo))).toBeNull()
+  })
+
+  it('knows answers for common categories and leaves the odd ones blank', () => {
+    expect(botOptions('Animals', 'K')).toContain('Kangaroo')
+    expect(botOptions('Fruits', 'b')).toContain('Banana')
+    expect(botOptions('Dance styles', 'T')).toEqual(expect.arrayContaining(['Tango', 'Tap']))
+    expect(botOptions('Things a pirate says', 'S')).toEqual([])
+    for (const cat of CATEGORY_BANK) {
+      for (const L of LETTERS) for (const w of botOptions(cat, L)) expect(startsWithLetter(w, L)).toBe(true)
+    }
+    const covered = CATEGORY_BANK.filter((c) => kindFor(c)).length
+    expect(covered / CATEGORY_BANK.length).toBeGreaterThan(0.35)
+    for (const list of Object.values(BOT_KINDS)) expect(/\p{Extended_Pictographic}/u.test(list)).toBe(false)
+  })
+
+  it('picks categories this group has not seen first', () => {
+    const seen = CATEGORY_BANK.slice(0, CATEGORY_BANK.length - 30)
+    const s = setup({ ...ctx(1), used: seen }, {})
+    for (const c of s.cats) expect(seen).not.toContain(c)
   })
 })

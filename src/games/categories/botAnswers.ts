@@ -33,36 +33,40 @@ const KINDS: Record<string, string> = {
   room: 'Apron|Blender|Bowl|Bread|Coffee maker|Cutting board|Dish soap|Eggs|Freezer|Fork|Grater|Grill|Hot sauce|Juice|Kettle|Knife|Ladle|Mixer|Microwave|Napkin|Oven|Pan|Plate|Pot|Refrigerator|Rolling pin|Sink|Spatula|Spoon|Stove|Toaster|Tongs|Whisk|Wok',
 }
 
-/** Category keywords to answer kinds. First match wins, so specific beats general. */
-const ROUTES: [RegExp, string][] = [
-  [/boy's name|nickname|names for a goldfish|bad names for a pet/i, 'boy'],
+/**
+ * Category wording to answer kinds. First match wins. The first line sends categories a
+ * word list would answer badly (quotes, things to say, famous people) to blank on purpose.
+ */
+const ROUTES: [RegExp, string | null][] = [
+  [/from tv|florida man|hurricane supplies|movie quotes|horror|job interview|first date|villain|superhero|languages|game shows|movie theater|famous|movie stars|car brands/i, null],
+  [/boy's name|nicknames|names for a goldfish|bad names for a pet/i, 'boy'],
   [/girl's name/i, 'girl'],
-  [/florida cities|cities|vacation spots/i, 'city'],
-  [/countr|languages/i, 'country'],
+  [/florida cities|^cities$|vacation spots/i, 'city'],
+  [/^countries$/i, 'country'],
   [/us states/i, 'state'],
-  [/florida|beach|swamp/i, 'florida'],
-  [/disney|pixar|princess|sidekick|cartoon|villain|superhero|fairy tale/i, 'disney'],
-  [/movie|sequel|animated/i, 'movie'],
-  [/music genre/i, 'genre'],
-  [/singer|band|songs|celebrit|movie star/i, 'music'],
+  [/weather|things in the sky/i, 'weather'],
+  [/disney characters|pixar|princess|sidekick|cartoon characters|disney park/i, 'disney'],
+  [/^movies$|animated movies|dance movies|disney movies/i, 'movie'],
+  [/music genres/i, 'genre'],
+  [/singers|^bands$|celebrities/i, 'music'],
   [/instrument/i, 'instrument'],
-  [/dance|ballet|stage|choreograph|warm up|solo|rehearsal/i, 'dance'],
+  [/fruit|vegetable|snack|dessert|candy|breakfast|pizza topping|salad|burger|ice cream|fridge|fast food/i, 'food'],
+  [/dance styles|dance moves|ballet terms|stage directions|ways to warm up|choreographer yells/i, 'dance'],
   [/birds|things that fly/i, 'bird'],
   [/fish|sea creature/i, 'sea'],
-  [/insect|bug/i, 'bug'],
-  [/flower|trees|garden/i, 'flower'],
-  [/animal|zoo|farm|pet|reptile|dog breed|forest|bite/i, 'animal'],
-  [/kitchen|fridge|grocery|publix/i, 'room'],
-  [/food|fruit|vegetable|snack|dessert|candy|breakfast|pizza topping|sandwich|salad|soup|cheese|pasta|burger|ice cream|cereal|spice|picnic|melt/i, 'food'],
-  [/body part|hurt after class|things that hurt/i, 'body'],
-  [/weather|sky|space|hurricane/i, 'weather'],
-  [/color|green|red|yellow|black/i, 'color'],
-  [/sport|hobb|gym|athlete/i, 'sport'],
-  [/job/i, 'job'],
-  [/clothing|shoes|wear on your head|accessor|costume|dance bag|purse|pack for vacation|quick change/i, 'clothing'],
-  [/wheels|motor|car brand|things in a car|on a boat|road trip/i, 'vehicle'],
-  [/game|toy/i, 'game'],
-  [/drawer|plug in|garage|tool|office|backpack|classroom|things you lose|buttons|collect|bathroom|furniture|hotel|break|throw|open|screen|couch/i, 'thing'],
+  [/insect|\bbugs?\b/i, 'bug'],
+  [/flowers|trees/i, 'flower'],
+  [/animals|zoo|farm|\bpets\b|reptile|forest|bite/i, 'animal'],
+  [/kitchen|grocery|publix/i, 'room'],
+  [/body parts|hurt after class/i, 'body'],
+  [/^colors$/i, 'color'],
+  [/^sports$|hobbies/i, 'sport'],
+  [/^jobs$/i, 'job'],
+  [/clothing|shoes|wear on your head|accessor|costume|dance bag|pack for vacation|quick change/i, 'clothing'],
+  [/wheels|motor/i, 'vehicle'],
+  [/board games|card games|video games|^toys$/i, 'game'],
+  [/junk drawer|plug in|garage|tools|toolbox|office supplies|backpack|classroom|things you lose|buttons|collect|bathroom|furniture|hotel room|can break|can throw|can open|under the couch|purse/i, 'thing'],
+  [/beach|swamp|things in florida/i, 'florida'],
 ]
 
 const SPLIT = Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, v.split('|')]))

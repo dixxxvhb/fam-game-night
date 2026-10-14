@@ -1,6 +1,6 @@
-import type { GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
+import type { BotMove, GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
-import { shuffle } from '../../lib/shuffle'
+import { freshFirst, shuffle } from '../../lib/shuffle'
 import { DECKS } from './decks'
 
 /** The Guesser has this long to tap Ready before the turn starts anyway. */
@@ -59,7 +59,8 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number> = {}):
   const order: string[] = []
   for (let r = 0; r < turns; r++) order.push(...seats)
   const zero = Object.fromEntries(ids.map((id) => [id, 0]))
-  const first = draw({ queue: shuffle(deckWords(deck), ctx.random), deck, word: '' }, ctx.random)
+  // Words this group hasn't had on other nights come up first.
+  const first = draw({ queue: freshFirst(deckWords(deck), (w) => w, ctx.used ?? [], ctx.random), deck, word: '' }, ctx.random)
   return {
     stage: 'ready',
     order,
@@ -187,5 +188,28 @@ export function outcome(s: ForeheadState, ctx: GameCtx): GameOutcome | null {
         }]
       : [],
     details: { deck: s.deck, turns: s.order.length, guessed: s.guessed, acted: s.acted },
+    used: [...new Set(s.turns.flatMap((t) => t.calls.map((c) => c.word)))],
   }
+}
+
+// ---------------- bots ----------------
+
+/**
+ * Bots can't act anything out, so they sit in: as actors they earn actor points like
+ * everyone else in the room (that is the rule), and on their own turn as Guesser the
+ * humans act for them and the bot "gets" words at a steady random rate: about one call
+ * every five or six seconds, three in four of them a got.
+ */
+export function bot(s: ForeheadState, id: string, ctx: GameCtx): BotMove | null {
+  if (s.guesser !== id) return null
+  if (s.stage === 'ready') {
+    const waited = ctx.now - (s.endsAt - s.stageTotal)
+    return waited > 2500 && ctx.random() < 0.2 ? { type: 'ready' } : null
+  }
+  if (s.stage === 'play' && ctx.now - s.lastCallAt >= 2500) {
+    const r = ctx.random()
+    if (r < 0.04) return { type: 'got', payload: { word: s.word } }
+    if (r < 0.055) return { type: 'pass', payload: { word: s.word } }
+  }
+  return null
 }

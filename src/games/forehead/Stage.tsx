@@ -57,7 +57,7 @@ export function ForeheadStage({ state: s, room, now, compact }: StageProps<Foreh
             <div className="font-display text-7xl leading-none" style={{ color: g?.color }}>{gName}</div>
             <div className="max-w-3xl text-3xl font-bold leading-snug">Phone on your forehead, screen facing out. Tilt down when you get it, tilt up to pass.</div>
             <div className="max-w-3xl text-2xl text-ink-2">Everyone else: act it, hum it, describe it. Say the word and you're the worst.</div>
-            <div className="font-mono text-lg text-ink-3">Waiting for {gName} to tap Ready · starts anyway in {secsLeft}</div>
+            <div className="font-mono text-lg text-ink-3">{g?.bot ? `${gName} is a bot. Act anyway; it guesses at random.` : `Waiting for ${gName} to tap Ready · starts anyway in ${secsLeft}`}</div>
           </div>
         )}
 
