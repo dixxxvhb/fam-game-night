@@ -150,7 +150,7 @@ export function PaintStage({ s, run, who, now, compact }: MgViewProps<PaintState
           const ch = charOf(who, c.id, s.players)
           return (
             <Sprite key={c.id} x={c.x} y={c.y} char={ch} mood={c.mood} flip={c.flip} size={compact ? 13 : 12}>
-              {!compact && <SvgTag name={who(c.id).name} char={ch} y={c.y < 32 ? 5.5 : -17} />}
+              {!compact && <SvgTag name={who(c.id).name} char={ch} color={colors[s.players.indexOf(c.id)] ?? undefined} y={c.y < 32 ? 5.5 : -17} />}
               {c.mood === 'happy' && <WinStar t={t} y={c.y < 32 ? -16 : -24} />}
             </Sprite>
           )

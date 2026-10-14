@@ -255,14 +255,14 @@ export function Sprite({ x, y, char, mood = 'idle', size = 13, flip = false, alp
 }
 
 /** A name tag floating over a critter. */
-export function SvgTag({ name, char, y = -18, small = false }: { name: string; char: CritterId; y?: number; small?: boolean }) {
-  const c = critter(char)!
+export function SvgTag({ name, char, y = -18, small = false, color }: { name: string; char: CritterId; y?: number; small?: boolean; color?: string }) {
+  const c = color ? { color, on: '#FFFFFF' } : critter(char)!
   const fs = small ? 3.6 : 3.1
   const w = Math.max(10, name.length * fs * 0.62 + 4)
   return (
     <g transform={`translate(0 ${y})`}>
       <rect x={-w / 2} y={-fs * 0.9} width={w} height={fs * 1.45} rx={fs * 0.7} fill={c.color} stroke={INK} strokeWidth={0.45} />
-      <text x={0} y={fs * 0.32} textAnchor="middle" fontSize={fs} className="font-party" fill={c.on} style={{ letterSpacing: 0.05 }}>{name}</text>
+      <text x={0} y={fs * 0.32} textAnchor="middle" fontSize={fs} className="font-party" fill={c.on} stroke={color ? INK : undefined} strokeWidth={color ? 0.5 : undefined} paintOrder="stroke" style={{ letterSpacing: 0.05 }}>{name}</text>
     </g>
   )
 }
