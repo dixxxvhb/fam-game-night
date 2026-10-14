@@ -156,7 +156,8 @@ export function OrderScreen({ s, me, who, now, send, apart }: ScreenProps) {
                 <Portrait char={who(id).char} name={who(id).name} size={38} />
                 <span key={String(v)} className={cx('grid h-10 w-10 place-items-center rounded-xl border-[3px] font-party text-2xl', v !== null && 'ppp-pop')} style={{ borderColor: INK, background: v !== null ? PARK.sun : PARK.cloud }}>{v ?? '?'}</span>
               </div>
-              <span className="max-w-full truncate font-party text-base leading-none">{id === me ? 'You' : who(id).name}{all ? ` · ${ord(sorted.indexOf(id) + 1)}` : ''}</span>
+              <span className="max-w-full truncate font-party text-base leading-none">{id === me ? 'You' : who(id).name}</span>
+              {all && <span className="font-party text-lg leading-none" style={{ color: sorted.indexOf(id) === 0 ? PARK.coralDark : PARK.ink2 }}>{ord(sorted.indexOf(id) + 1)}</span>}
             </div>
           )
         })}
