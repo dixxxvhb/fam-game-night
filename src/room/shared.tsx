@@ -304,14 +304,18 @@ export function BeltCall({ state, big = false }: { state: RoomState; big?: boole
   const [line, setLine] = useState<string | null>(null)
   const night = state.night
   useEffect(() => {
-    if (!night || !state.games.length) return
+    // Practice-only nights (bots) never touch the season, so no Belt talk either.
+    if (!night || !state.games.some((g) => !g.practice)) return
     let alive = true
     loadSeason().then((d) => {
       if (!alive || !d) return
       const prior = { ...d, nights: d.nights.filter((n) => n.id !== state.nightId) }
       const before = seasonStats(prior)
       const totals = new Map(before.standings.map((r) => [r.playerId, r.points]))
-      for (const s of night.standings) totals.set(s.playerId, (totals.get(s.playerId) ?? 0) + s.points)
+      for (const s of night.standings) {
+        if (state.players.find((p) => p.id === s.playerId)?.bot) continue
+        totals.set(s.playerId, (totals.get(s.playerId) ?? 0) + s.points)
+      }
       const ranked = [...totals.entries()].sort((a, b) => b[1] - a[1])
       if (!ranked.length || ranked[0][1] <= 0) return
       if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) {
