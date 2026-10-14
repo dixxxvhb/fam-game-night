@@ -5,8 +5,8 @@ import { BoardController } from './Controller'
 
 const board: GameDef<BoardState> = {
   id: 'board',
-  name: 'Board Night',
-  tagline: 'Roll, buy Stars, ruin friendships. A minigame every turn.',
+  name: 'Party Park',
+  tagline: 'Pick a critter, hit the block, buy Stars, ruin friendships. Mingo is on shift.',
   instead: 'Instead of Mario Party',
   minPlayers: 2,
   maxPlayers: 4,

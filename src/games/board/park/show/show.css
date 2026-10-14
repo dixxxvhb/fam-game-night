@@ -1,0 +1,161 @@
+/*
+ * Party Park show layer: the motion for everything the TV puts on top of the World.
+ * Transforms and opacity only. Reduced motion is handled globally in index.css.
+ * Every class is ps-* so nothing collides with the kit's pp-* classes.
+ */
+
+.ps-pop { animation: ps-pop 520ms cubic-bezier(0.25, 1.5, 0.45, 1) both; }
+@keyframes ps-pop {
+  0% { transform: scale(0.35); opacity: 0; }
+  55% { transform: scale(1.1); opacity: 1; }
+  78% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+
+.ps-pop-big { animation: ps-pop-big 680ms cubic-bezier(0.25, 1.6, 0.4, 1) both; }
+@keyframes ps-pop-big {
+  0% { transform: scale(2.6) rotate(-8deg); opacity: 0; }
+  45% { transform: scale(0.88) rotate(2deg); opacity: 1; }
+  70% { transform: scale(1.06) rotate(-1deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+.ps-drop { animation: ps-drop 620ms cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+@keyframes ps-drop {
+  0% { transform: translateY(-220%) rotate(-6deg); opacity: 0; }
+  50% { opacity: 1; }
+  70% { transform: translateY(8%) rotate(2deg); }
+  100% { transform: translateY(0) rotate(0); }
+}
+
+.ps-rise { animation: ps-rise 560ms cubic-bezier(0.25, 1.35, 0.45, 1) both; }
+@keyframes ps-rise {
+  0% { transform: translateY(70%) scale(0.92); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.ps-slide-l { animation: ps-slide-l 700ms cubic-bezier(0.25, 1.3, 0.4, 1) both; }
+@keyframes ps-slide-l {
+  0% { transform: translateX(-130%); }
+  100% { transform: translateX(0); }
+}
+.ps-slide-r { animation: ps-slide-r 700ms cubic-bezier(0.25, 1.3, 0.4, 1) both; }
+@keyframes ps-slide-r {
+  0% { transform: translateX(130%); }
+  100% { transform: translateX(0); }
+}
+
+.ps-flip { animation: ps-flip 760ms cubic-bezier(0.25, 1.35, 0.4, 1) both; transform-origin: 50% 50%; }
+@keyframes ps-flip {
+  0% { transform: perspective(1400px) rotateY(-100deg) scale(0.7); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: perspective(1400px) rotateY(0) scale(1); opacity: 1; }
+}
+
+/* Drumroll and panic. */
+.ps-shake { animation: ps-shake 180ms linear infinite; }
+@keyframes ps-shake {
+  0%, 100% { transform: rotate(0) translateX(0); }
+  25% { transform: rotate(-3deg) translateX(-3px); }
+  75% { transform: rotate(3deg) translateX(3px); }
+}
+.ps-panic { animation: ps-panic 420ms ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes ps-panic {
+  0%, 100% { transform: rotate(-4deg) translateY(0); }
+  50% { transform: rotate(4deg) translateY(-4%); }
+}
+
+/* The ? block: floats and wobbles until hit. */
+.ps-block { animation: ps-block 1.4s ease-in-out infinite; }
+@keyframes ps-block {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-12%) rotate(3deg); }
+}
+
+.ps-float { animation: ps-float 2.2s ease-in-out infinite; }
+@keyframes ps-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8%); }
+}
+
+.ps-spin-slow { animation: ps-spin 9s linear infinite; }
+@keyframes ps-spin { to { transform: rotate(360deg); } }
+
+/* A ring that breathes around the current player's plate. */
+.ps-ring { animation: ps-ring 1.3s ease-out infinite; }
+@keyframes ps-ring {
+  0% { transform: scale(1); opacity: 0.85; }
+  100% { transform: scale(1.12, 1.35); opacity: 0; }
+}
+
+/* Delta chips float up and fade. */
+.ps-chip { animation: ps-chip 3s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes ps-chip {
+  0% { transform: translateY(40%) scale(0.4); opacity: 0; }
+  12% { transform: translateY(0) scale(1.15); opacity: 1; }
+  22% { transform: scale(1); }
+  80% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-50%); }
+}
+
+/* A number that just changed. */
+.ps-bump { animation: ps-bump 420ms cubic-bezier(0.3, 1.8, 0.4, 1); display: inline-block; }
+@keyframes ps-bump {
+  0% { transform: scale(1.6); }
+  100% { transform: scale(1); }
+}
+
+/* Coins flying from a podium to a HUD plate: X runs linear on the outer, Y arcs on the inner. */
+.ps-fly-x { animation: ps-fly-x var(--ps-dur, 900ms) linear both; animation-delay: var(--ps-delay, 0ms); }
+.ps-fly-y { animation: ps-fly-y var(--ps-dur, 900ms) cubic-bezier(0.2, -0.6, 0.6, 1) both; animation-delay: var(--ps-delay, 0ms); }
+@keyframes ps-fly-x {
+  0% { transform: translateX(0); opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { transform: translateX(var(--ps-dx, 0px)); opacity: 0; }
+}
+@keyframes ps-fly-y {
+  0% { transform: translateY(0) scale(0.6); }
+  100% { transform: translateY(var(--ps-dy, 0px)) scale(0.8); }
+}
+
+/* Confetti. */
+.ps-confetti { animation: ps-confetti var(--ps-dur, 3.2s) linear infinite; animation-delay: var(--ps-delay, 0s); }
+@keyframes ps-confetti {
+  0% { transform: translateY(-12vh) rotate(0) translateX(0); }
+  50% { transform: translateY(45vh) rotate(260deg) translateX(var(--ps-sway, 30px)); }
+  100% { transform: translateY(105vh) rotate(520deg) translateX(0); }
+}
+
+/* Countdown bar fill: transform only. */
+.ps-bar { transform-origin: 0 50%; transition: transform 120ms linear; }
+
+/* The format splash slams in, then holds. */
+.ps-slam { animation: ps-slam 560ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes ps-slam {
+  0% { transform: scale(3) rotate(-10deg); opacity: 0; }
+  50% { transform: scale(0.9) rotate(-4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-4deg); opacity: 1; }
+}
+
+/* The finger on the phone drawing. */
+.ps-tap { animation: ps-tap 1s ease-in-out infinite; }
+@keyframes ps-tap {
+  0%, 100% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(10%) scale(0.92); }
+}
+.ps-mash { animation: ps-tap 0.26s ease-in-out infinite; }
+.ps-drag { animation: ps-drag 1.6s ease-in-out infinite; }
+@keyframes ps-drag {
+  0%, 100% { transform: translate(-30%, 0); }
+  25% { transform: translate(0, -25%); }
+  50% { transform: translate(30%, 0); }
+  75% { transform: translate(0, 25%); }
+}
+
+.ps-twinkle { animation: ps-twinkle 1.1s ease-in-out infinite; }
+@keyframes ps-twinkle {
+  0%, 100% { transform: scale(0.6) rotate(0); opacity: 0.3; }
+  50% { transform: scale(1.1) rotate(30deg); opacity: 1; }
+}
