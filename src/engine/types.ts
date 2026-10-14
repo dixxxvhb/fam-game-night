@@ -138,6 +138,8 @@ export interface GameDef<S = any> {
   /** Rough minutes per game, for the shelf. */
   minutes: number
   options?: GameOption[]
+  /** Games that share a content pool share this key, so one game's questions don't repeat in the other. Defaults to id. */
+  contentKey?: string
   setup(ctx: GameCtx, opts: Record<string, string | number>): S
   reduce(state: S, action: PlayerAction, ctx: GameCtx): S
   /** Called by the host about 5 times a second while the game runs. Return the same object if nothing changed. */

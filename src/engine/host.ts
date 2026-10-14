@@ -131,7 +131,8 @@ export class HostEngine {
     const players = ids
       .map((id) => this.state.players.find((p) => p.id === id))
       .filter((p): p is RoomPlayer => Boolean(p))
-    return { now: Date.now(), players, mode: this.state.mode, random: Math.random, used: this.state.game ? usedFor(this.state.game.id) : [] }
+    const def = this.def()
+    return { now: Date.now(), players, mode: this.state.mode, random: Math.random, used: def ? usedFor(def.contentKey ?? def.id) : [] }
   }
 
   private gameAction(env: ActionEnvelope) {
@@ -191,7 +192,7 @@ export class HostEngine {
     const placements = toPoints(out.placements, g.players.length)
     const practice = g.players.some((id) => this.state.players.find((p) => p.id === id)?.bot)
     const ng: NightGame = { resultId: uuid(), gameId: g.id, at: Date.now(), placements, summary: out.summary, ...(practice ? { practice: true } : {}) }
-    if (out.used?.length) rememberUsed(g.id, out.used.slice(0, 200).map(String))
+    if (out.used?.length) rememberUsed(getGame(g.id)?.contentKey ?? g.id, out.used.slice(0, 200).map(String))
     if (practice) {
       // Bots in the game: show it, never save it.
       this.commit({ ...this.state, phase: 'results', games: [...this.state.games, ng] })
@@ -255,7 +256,7 @@ export class HostEngine {
         for (const o of def.options ?? []) opts[o.key] = o.default
         Object.assign(opts, (p.opts as Record<string, string | number>) ?? {})
         const players = ids.map((id) => s.players.find((x) => x.id === id)!)
-        const ctx: GameCtx = { now: Date.now(), players, mode: s.mode, random: Math.random, used: usedFor(def.id) }
+        const ctx: GameCtx = { now: Date.now(), players, mode: s.mode, random: Math.random, used: usedFor(def.contentKey ?? def.id) }
         const gs = def.setup(ctx, opts)
         this.commit({ ...s, phase: 'playing', game: { id: def.id, players: ids, state: gs, startedAt: Date.now(), opts } })
         return
