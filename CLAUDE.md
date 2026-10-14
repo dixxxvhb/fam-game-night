@@ -9,11 +9,23 @@ Dixon, Johnnyboy (John) and Torii's game night. The TV (or any browser) is the c
 ## Stack
 React 19 + TS + Vite 7 + Tailwind v4 + react-router (HashRouter) on GitHub Pages (`base: '/fam-game-night/'`). Realtime + saving via Supabase, **inside figgg's project** (`swjqlfcqvcrnydpyjyog`) in its own `gamenight` schema, reached only through `public.gn_*` security-definer functions (`supabase/gamenight.sql`). Never add game-night tables to figgg's `public` schema (figgg's export/wipe enumerates it).
 
+## Games (18, all live)
+Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Board Night (Mario Party, 11 minigames), Kart, Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together only), Bowl (Wii Bowling), Arena (Bomberman, together only). Every game has a `bot()` policy.
+
+## Platform features
+- Bots (Gator, Pigeon, Toaster, Nana, Roomba) can sit in any lobby; any game with a bot is practice and never saved. "Play solo" = one device hosts with two bots.
+- Apart mode host handoff: if the host phone goes quiet 8 s, the connected player phone with the lowest client id takes over from the last state; a returning host steps down.
+- No repeats across nights: hosts remember used content per game (`ctx.used`, `freshFirst`, `outcome.used`, `contentKey` for shared pools).
+- Sounds on screens that show the game (TV, or phones in apart mode), Belt call at night end, phone End game, lost-host banner.
+
 ## Commands
 - `npm run dev` (launch.json name `fam-game-night`, port 5179) · `npm run build` (tsc + vite) · `npm test` (vitest)
 - Rendered QA, whole room (1 TV + 3 phones, headless, never saves to the real season):
   `node scripts/qa-room.mjs --base http://localhost:5179/fam-game-night/ --game <id> --name "<Shelf name>" [--mode apart] [--driver scripts/drivers/<id>.mjs] [--out shots/<id>]`
   Screens land in `shots/` (gitignored). Read them before calling UI done.
+- `node scripts/smoke-all.mjs --base <url>`: one solo phone starts every game, screenshots, reports page errors (run it against the live site after deploys).
+- `node scripts/gen-registry.mjs`: rebuilds `src/games/registry.ts` from the game folders in shelf order (run after merging game branches).
+- QA modes: `--mode together|apart|solo`, `--opts "<option label prefixes>"`, drivers in `scripts/drivers/` (and `scripts/drivers/solo/`), `scripts/drivers/handoff.mjs` kills the host phone mid-game.
 - Testing in tabs by hand: open `#/host/ABCD`, then `#/join/ABCD?as=johnnyboy` (and `dixxx`, `torii`) in other tabs.
 
 ## Architecture (read before touching anything)
