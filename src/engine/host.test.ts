@@ -63,4 +63,38 @@ describe('HostEngine', () => {
     e.dispatch(act('dixxx', 'room', 'start', { gameId: 'sketch' }))
     expect(e.state.phase).toBe('lobby')
   })
+
+  it('plays a solo game with bots as practice and never saves it', () => {
+    const e = new HostEngine(newRoomState('SOLO', 'apart', 'h'), null)
+    e.dispatch(act('dixxx', 'room', 'join', { id: 'dixxx', name: 'Dixxx', color: '#123456' }))
+    e.dispatch(act('dixxx', 'room', 'addBot'))
+    e.dispatch(act('dixxx', 'room', 'addBot'))
+    expect(e.state.players.filter((p) => p.bot)).toHaveLength(2)
+    e.dispatch(act('dixxx', 'room', 'start', { gameId: 'sketch', opts: { rounds: 1, drawTime: 60 } }))
+    expect(e.state.phase).toBe('playing')
+    expect(e.state.game?.players).toHaveLength(3)
+
+    // Run the clock forward in 200 ms steps; the human does nothing but guess when it's not their turn.
+    let t = Date.now()
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => t)
+    for (let i = 0; i < 4000 && e.state.phase === 'playing'; i++) {
+      t += 200
+      ;(e as unknown as { tick: () => void }).tick()
+    }
+    spy.mockRestore()
+    expect(e.state.phase).toBe('results')
+    expect(e.state.games[0].practice).toBe(true)
+    expect(api.recordResult).not.toHaveBeenCalled()
+    expect(api.startNight).not.toHaveBeenCalled()
+
+    // Remove a bot back in the lobby
+    e.dispatch(act('dixxx', 'room', 'lobby'))
+    e.dispatch(act('dixxx', 'room', 'removeBot', { id: 'bot-gator' }))
+    expect(e.state.players.some((p) => p.id === 'bot-gator')).toBe(false)
+
+    // A practice-only night ends without saving
+    e.dispatch(act('dixxx', 'room', 'endNight'))
+    expect(e.state.phase).toBe('summary')
+    expect(api.endNight).not.toHaveBeenCalled()
+  })
 })

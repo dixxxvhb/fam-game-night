@@ -85,6 +85,24 @@ export default function Join() {
   )
 }
 
+/** /solo: this device hosts a room with two bots. For playing alone and for testing. */
+export function Solo() {
+  const nav = useNavigate()
+  const [code] = useState(makeRoomCode)
+  return (
+    <Shell title="Play solo">
+      <p className="text-ink-2">You and a couple of bots. Works on a phone or a laptop. Bot games are practice: they never count toward the season.</p>
+      <WhoAreYou
+        onPick={(me) => {
+          setTabMe(code, me)
+          saveMe(me)
+          nav(`/play/${code}?host=1&solo=1`, { replace: true })
+        }}
+      />
+    </Shell>
+  )
+}
+
 /** /apart: this phone hosts a room and plays in it. Everyone else joins with the code. */
 export function Apart() {
   const nav = useNavigate()

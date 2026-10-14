@@ -36,7 +36,7 @@ export default function Hall() {
                   <blockquote className="text-lg font-bold leading-snug">{content.text ?? ''}</blockquote>
                 )}
                 <figcaption className="grid gap-0.5">
-                  {h.label && <span className="text-sm capitalize text-ink-2">{h.label}</span>}
+                  {h.label && <span className="text-sm text-ink-2 first-letter:uppercase">{h.label}</span>}
                   <span className="text-sm font-bold" style={{ color: color(h.player_id) }}>{name(h.player_id)}</span>
                   <Label>{getGame(h.game_id)?.name ?? h.game_id} · {new Date(h.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</Label>
                 </figcaption>

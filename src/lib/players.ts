@@ -22,3 +22,16 @@ export function guestId(name: string): string {
 export function personColor(id: string, fallback = '#8790B6'): string {
   return CORE.find((p) => p.id === id)?.color ?? fallback
 }
+
+/** Computer players for solo play and testing. Never saved to the season. */
+export const BOTS: Person[] = [
+  { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', core: false },
+  { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', core: false },
+  { id: 'bot-toaster', name: 'Toaster', color: '#F59E0B', core: false },
+  { id: 'bot-nana', name: 'Nana', color: '#F472B6', core: false },
+  { id: 'bot-roomba', name: 'Roomba', color: '#A3E635', core: false },
+]
+
+export function isBotId(id: string) {
+  return id.startsWith('bot-')
+}
