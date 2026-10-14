@@ -6,7 +6,7 @@ import { getGame } from '../games/registry'
 import { cleanCode, lsSet, makeRoomCode } from '../lib/ids'
 import { Avatar, Btn, cx, Label, LinkBtn } from '../ui/kit'
 import { QR } from '../ui/QR'
-import { BotControls, GameShelf, joinUrl, MuteButton, NightSummary, NightTable, Podium, shortJoinUrl, StatusDot, useRoomSounds } from '../room/shared'
+import { BotControls, GameShelf, joinUrl, MuteButton, MusicButton, NightSummary, NightTable, Podium, shortJoinUrl, StatusDot, useRoomSounds } from '../room/shared'
 import { getSaveStatus, loadSeason, onSaveStatus, type SaveStatus, type SeasonData } from '../data/api'
 import { seasonStats } from '../data/season'
 
@@ -53,6 +53,7 @@ export default function Host() {
         {s.phase === 'playing' && def && <span className="font-bold text-ink-2">{def.name}</span>}
         <span className="font-mono text-xs text-ink-3">{save === 'saving' ? 'Saving' : save === 'offline' ? 'Will save when online' : save === 'off' ? 'Not saving' : ''}</span>
         <StatusDot status={room.status} />
+        {s.phase === 'playing' && s.game?.id === 'board' && <MusicButton />}
         <MuteButton />
         {s.phase === 'playing' && (
           <Btn size="sm" variant="ghost" onClick={() => room.send('room', 'abort')}>End game</Btn>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bot, Volume2, VolumeX, X } from 'lucide-react'
+import { music } from '../games/board/park/music'
+import { Bot, Music, Volume2, VolumeX, X } from 'lucide-react'
 import { sfx } from '../ui/sfx'
 import { useTicker } from '../engine/context'
 import type { GameDef, RoomPlayer, RoomState } from '../engine/types'
@@ -282,6 +283,23 @@ export function MuteButton() {
       title={m ? 'Sound off' : 'Sound on'}
     >
       {m ? <VolumeX size={18} /> : <Volume2 size={18} />}
+    </button>
+  )
+}
+
+/** Music on/off for games with a soundtrack (Party Park). Separate from the sound switch. */
+export function MusicButton() {
+  const [on, setOn] = useState(music.isOn())
+  useEffect(() => music.onChange(setOn), [])
+  return (
+    <button
+      onClick={() => music.setOn(!on)}
+      className={cx('relative grid h-9 w-9 place-items-center rounded-lg hover:text-ink', on ? 'text-ink-3' : 'text-ink-3/50')}
+      aria-label={on ? 'Music on. Turn off' : 'Music off. Turn on'}
+      title={on ? 'Music on' : 'Music off'}
+    >
+      <Music size={18} />
+      {!on && <span aria-hidden className="absolute h-[2px] w-6 rotate-45 rounded bg-current" />}
     </button>
   )
 }

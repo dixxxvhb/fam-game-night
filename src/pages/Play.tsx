@@ -5,7 +5,7 @@ import { GameEnvProvider } from '../engine/context'
 import { getGame } from '../games/registry'
 import { cleanCode, getTabMe, lsSet } from '../lib/ids'
 import { Avatar, Btn, cx, Label, Spinner } from '../ui/kit'
-import { BotControls, GameShelf, LostHost, MuteButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
+import { BotControls, GameShelf, LostHost, MuteButton, MusicButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
 import { LogOut, Share2, X } from 'lucide-react'
 
 /** A phone in the room. In apart mode the hosting phone also runs the room. */
@@ -59,6 +59,7 @@ export default function Play() {
       <span className="font-display text-lg tracking-[0.12em] text-hot">{code}</span>
       <div className="flex-1" />
       <StatusDot status={room.status} />
+      {s?.mode === 'apart' && s.phase === 'playing' && s.game?.id === 'board' && <MusicButton />}
       {s?.mode === 'apart' && <MuteButton />}
       {s?.phase === 'playing' && (
         <button onClick={() => setConfirmEnd(true)} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="End this game" title="End this game">
