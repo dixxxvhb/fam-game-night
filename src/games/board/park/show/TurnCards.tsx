@@ -16,7 +16,7 @@ export const PLAYER_BANNER_MS = 2300
 /** A card in the lower third, between the bottom plates. */
 function LowerThird({ children, className, wide = false }: { children: ReactNode; className?: string; wide?: boolean }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-5 z-20 flex justify-center">
+    <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center">
       <div className={cx('ps-rise', wide ? 'w-[600px]' : 'w-[560px]', className)}>{children}</div>
     </div>
   )
@@ -67,12 +67,12 @@ export function RollScene({ s, who, now }: { s: BoardState; who: Who; now: numbe
         </div>
       )}
       {(!fresh || el > PLAYER_BANNER_MS - 200) && (
-        <LowerThird className="w-[520px]">
-          <Card className="flex items-center gap-4 px-4 py-3">
-            <Portrait char={p.char} name={p.name} size={72} mood="happy" />
-            <div className="grid min-w-0 flex-1 gap-2">
+        <LowerThird className="w-[480px]">
+          <Card className="flex items-center gap-3 px-3 py-2">
+            <Portrait char={p.char} name={p.name} size={58} mood="happy" />
+            <div className="grid min-w-0 flex-1 gap-1.5">
               <div className="flex items-baseline gap-3">
-                <span className="font-party text-[36px] leading-none">Hit the block!</span>
+                <span className="font-party text-[32px] leading-none">Hit the block!</span>
               </div>
               <div className="truncate text-[22px] font-bold leading-none" style={{ color: PARK.ink2 }}>
                 {me.item && !s.usedItem ? `${p.name} is holding a ${item(me.item).name}.` : `${p.name} is up.`}
@@ -89,11 +89,11 @@ export function RollScene({ s, who, now }: { s: BoardState; who: Who; now: numbe
 export function ForkPrompt({ s, who, now }: { s: BoardState; who: Who; now: number }) {
   const p = who(curId(s))
   return (
-    <LowerThird className="w-[540px]">
-      <Card className="flex items-center gap-4 px-4 py-3">
-        <Portrait char={p.char} name={p.name} size={72} />
+    <LowerThird className="w-[480px]">
+      <Card className="flex items-center gap-3 px-3 py-2">
+        <Portrait char={p.char} name={p.name} size={58} />
         <div className="grid min-w-0 flex-1 gap-2">
-          <span className="font-party text-[36px] leading-none">Fork in the road</span>
+          <span className="font-party text-[32px] leading-none">Fork in the road</span>
           <span className="text-[22px] font-bold leading-none" style={{ color: PARK.ink2 }}>{p.name} picks a path.</span>
           <Bar endsAt={s.endsAt} total={CHOICE_MS} now={now} color={tint(p.char, PARK.coin)} height={14} />
         </div>
@@ -178,17 +178,17 @@ const KIND_TAG: Record<string, { text: string; color: string; on?: string }> = {
 }
 
 function NoticeIcon({ n, s }: { n: Notice; s: BoardState }) {
-  if (n.kind === 'star') return <ParkStar size={104} />
-  if (n.kind in SPACE_COLOR) return <SpaceDisc kind={n.kind as SpaceKind} size={100} />
+  if (n.kind === 'star') return <ParkStar size={80} />
+  if (n.kind in SPACE_COLOR) return <SpaceDisc kind={n.kind as SpaceKind} size={76} />
   const it = s.players[n.who]?.item
   if (n.kind === 'item' || (n.kind === 'warp' && it)) {
     return (
-      <span className="grid h-[100px] w-[100px] place-items-center rounded-full border-4" style={{ borderColor: INK, background: PARK.sun, boxShadow: `inset 0 -8px 0 ${PARK.sunDark}` }}>
-        {it ? <ItemIcon id={it} size={50} /> : <ItemIcon id="pickpocket" size={50} />}
+      <span className="grid h-[76px] w-[76px] place-items-center rounded-full border-4" style={{ borderColor: INK, background: PARK.sun, boxShadow: `inset 0 -8px 0 ${PARK.sunDark}` }}>
+        {it ? <ItemIcon id={it} size={38} /> : <ItemIcon id="pickpocket" size={38} />}
       </span>
     )
   }
-  return <SpaceDisc kind="red" size={100} />
+  return <SpaceDisc kind="red" size={76} />
 }
 
 export function isStarBought(n: Notice | null): boolean {
@@ -205,15 +205,15 @@ export function LandCard({ s, who }: { s: BoardState; who: Who }) {
   const d = n.delta?.[n.who] ?? 0
   return (
     <LowerThird wide>
-      <Card className="relative flex items-center gap-5 px-5 py-4">
+      <Card className="relative flex items-center gap-4 px-4 py-2.5">
         <div className="ps-pop-big shrink-0" style={{ animationDelay: '120ms' }}><NoticeIcon n={n} s={s} /></div>
-        <div className="grid min-w-0 flex-1 gap-1.5">
+        <div className="grid min-w-0 flex-1 gap-1">
           <div><Tag text={tag.text} color={tag.color} on={tag.on} /></div>
-          <div className="font-party text-[40px] leading-[1.05]">{fill(n.title, who)}</div>
-          {n.text && <div className="text-[23px] font-bold leading-snug" style={{ color: PARK.ink2 }}>{fill(n.text, who)}</div>}
+          <div className="font-party text-[34px] leading-[1.05]">{fill(n.title, who)}</div>
+          {n.text && <div className="text-[21px] font-bold leading-snug" style={{ color: PARK.ink2 }}>{fill(n.text, who)}</div>}
         </div>
         <div className="absolute -right-4 -top-8">
-          <Portrait char={p.char} name={p.name} size={74} mood={d > 0 ? 'happy' : d < 0 || n.kind === 'skip' ? 'sad' : 'idle'} />
+          <Portrait char={p.char} name={p.name} size={62} mood={d > 0 ? 'happy' : d < 0 || n.kind === 'skip' ? 'sad' : 'idle'} />
         </div>
       </Card>
     </LowerThird>
@@ -262,7 +262,7 @@ export function EventCardView({ s, who, now }: { s: BoardState; who: Who; now: n
 
 function Awning() {
   return (
-    <div className="flex h-12 overflow-hidden rounded-t-[26px] border-4 border-b-0" style={{ borderColor: INK }}>
+    <div className="flex h-8 overflow-hidden rounded-t-[26px] border-4 border-b-0" style={{ borderColor: INK }}>
       {Array.from({ length: 12 }, (_, i) => <div key={i} className="flex-1" style={{ background: i % 2 ? '#FFFFFF' : PARK.coral }} />)}
     </div>
   )
@@ -276,21 +276,21 @@ export function ShopCard({ s, who, now }: { s: BoardState; who: Who; now: number
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center">
       <div className="ps-rise relative w-[620px]">
-        <div className="absolute -top-[132px] left-6 z-0"><Mingo size={190} /></div>
+        <div className="absolute -top-[100px] left-4 z-0"><Mingo size={150} /></div>
         <div className="relative z-10">
           <Awning />
           <div className="rounded-b-[26px] border-4 px-4 pb-3 pt-2.5" style={{ borderColor: INK, background: '#FFF6E4', boxShadow: `0 7px 0 ${INK}`, color: INK }}>
             <div className="flex items-baseline justify-between gap-3">
-              <span className="shrink-0 font-party text-[36px] leading-none">Gift Shop</span>
+              <span className="shrink-0 font-party text-[30px] leading-none">Gift Shop</span>
               <span className="truncate text-[21px] font-bold" style={{ color: PARK.ink2 }}>Final sale. {p.name} has {coins}.</span>
             </div>
             <div className="mt-2.5 grid grid-cols-5 gap-2">
               {ITEMS.map((it, i) => {
                 const can = coins >= it.price
                 return (
-                  <div key={it.id} className={cx('ps-pop grid content-start justify-items-center gap-1 rounded-[16px] border-4 bg-white px-1 pb-2 pt-2', !can && 'opacity-45')} style={{ borderColor: INK, animationDelay: `${200 + i * 70}ms` }}>
-                    <span className="grid h-12 w-12 place-items-center rounded-full border-[3px]" style={{ borderColor: INK, background: PARK.sun }}><ItemIcon id={it.id} size={26} /></span>
-                    <span className="text-center font-party text-[19px] leading-[1.05]">{it.name}</span>
+                  <div key={it.id} className={cx('ps-pop grid content-start justify-items-center gap-0.5 rounded-[14px] border-[3px] bg-white px-1 pb-1.5 pt-1.5', !can && 'opacity-45')} style={{ borderColor: INK, animationDelay: `${200 + i * 70}ms` }}>
+                    <span className="grid h-9 w-9 place-items-center rounded-full border-[3px]" style={{ borderColor: INK, background: PARK.sun }}><ItemIcon id={it.id} size={20} /></span>
+                    <span className="whitespace-nowrap text-center font-party text-[17px] leading-none">{it.name}</span>
                     <span className="inline-flex items-center gap-1 font-party text-[22px] leading-none"><Coin size={20} />{it.price}</span>
                   </div>
                 )
@@ -313,12 +313,12 @@ export function DuelCard({ s, who, now }: { s: BoardState; who: Who; now: number
   const purple = SPACE_COLOR.duel
   return (
     <LowerThird wide>
-      <Card className="grid gap-3 px-5 py-4" tone={shade(purple, 0.85)}>
+      <Card className="grid gap-2 px-4 py-3" tone={shade(purple, 0.85)}>
         <div className="flex items-center gap-4">
-          <div className="ps-pop-big"><SpaceDisc kind="duel" size={84} /></div>
+          <div className="ps-pop-big"><SpaceDisc kind="duel" size={64} /></div>
           <div className="grid min-w-0 flex-1 gap-1">
-            <Outlined size={50} color={purple} stroke={4}>DUEL!</Outlined>
-            <span className="text-[23px] font-bold leading-snug" style={{ color: PARK.ink2 }}>{p.name} picks a victim. Winner takes up to {DUEL_STAKE} coins.</span>
+            <Outlined size={42} color={purple} stroke={4}>DUEL!</Outlined>
+            <span className="text-[21px] font-bold leading-snug" style={{ color: PARK.ink2 }}>{p.name} picks a victim. Winner takes up to {DUEL_STAKE} coins.</span>
           </div>
         </div>
         <div className="flex items-center justify-center gap-5">
@@ -326,7 +326,7 @@ export function DuelCard({ s, who, now }: { s: BoardState; who: Who; now: number
             const c = critter(who(o).char)
             return (
               <span key={o} className="inline-flex items-center gap-2 rounded-full border-[3px] bg-white py-1 pl-1 pr-4" style={{ borderColor: INK }}>
-                <Portrait char={c?.id} name={who(o).name} size={44} mood="sad" />
+                <Portrait char={c?.id} name={who(o).name} size={36} mood="sad" />
                 <span className="font-party text-2xl leading-none">{who(o).name}</span>
               </span>
             )
