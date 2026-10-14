@@ -156,7 +156,7 @@ function TitleView({ s, e, me, now, send }: { s: DrawBluffState; e: BEntry; me: 
         maxLength={MAX_TITLE}
         autoComplete="off"
         enterKeyHint="send"
-        placeholder="a confused pirate at a spin class"
+        placeholder="Your best lie"
         aria-label="Your fake title"
         aria-invalid={Boolean(error)}
         className={cx('min-h-14 w-full rounded-xl border-2 bg-tile px-4 text-lg outline-none focus:border-hot', error ? 'border-bad' : 'border-line')}

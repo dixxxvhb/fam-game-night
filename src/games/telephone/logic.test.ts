@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { GameCtx, RoomPlayer } from '../../engine/types'
 import {
   BEAT_DRAW_MS, BEAT_RECAP_MS, BEAT_TALLY_MS, BEAT_TEXT_MS, DRAW_MS, GRACE_MS, MAX_TEXT, MIN_BEAT_MS, WRITE_MS,
-  capFor, chainOf, favScores, incoming, kindOf, mineNow, outcome, reduce, setup, tick, TOTAL_INK, type TelephoneState,
+  bot, capFor, chainOf, favScores, incoming, kindOf, mineNow, outcome, reduce, setup, tick, TOTAL_INK, type TelephoneState,
 } from './logic'
 import { inkUsed } from '../_draw/strokes'
-import { PROMPTS } from './prompts'
+import { BOT_CAPTIONS, BOT_SWAPS, PROMPTS } from './prompts'
 
 const NAMES = ['Dixxx', 'Johnnyboy', 'Torii', 'Guest A', 'Guest B', 'Guest C', 'Guest D', 'Guest E']
 const mk = (n: number): RoomPlayer[] =>
@@ -378,6 +378,92 @@ describe('prompts', () => {
       expect(p).toBe(p.trim())
       expect(p).not.toMatch(/[–—]/)
       expect(p).not.toMatch(/\p{Extended_Pictographic}/u)
+    }
+  })
+})
+
+describe('bots', () => {
+  const people: RoomPlayer[] = [
+    { id: 'dixxx', name: 'Dixxx', color: '#3CCB72', guest: false, connected: true },
+    { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', guest: true, connected: true, bot: true },
+    { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', guest: true, connected: true, bot: true },
+  ]
+  const bots = ['bot-gator', 'bot-pigeon']
+  const bctx = ctxFor(people)
+
+  function run(human: 'minimum' | 'nothing') {
+    let s = setup(bctx(0), {})
+    let now = 0
+    let out = outcome(s, bctx(now))
+    for (let i = 0; i < 20_000 && !out; i++) {
+      now += 200
+      const mine = s.phase === 'play' ? mineNow(s, 'dixxx') : null
+      if (human === 'minimum' && mine && !mine.done) {
+        if (mine.kind === 'write') s = reduce(s, { playerId: 'dixxx', type: 'write', payload: { text: 'a thing' } }, bctx(now))
+        else {
+          s = reduce(s, { playerId: 'dixxx', type: 'stroke', payload: { s: SQUARE } }, bctx(now))
+          s = reduce(s, { playerId: 'dixxx', type: 'done', payload: null }, bctx(now))
+        }
+      }
+      for (const b of bots) {
+        const m = bot(s, b, bctx(now))
+        if (m) s = reduce(s, { playerId: b, type: m.type, payload: m.payload ?? null }, bctx(now))
+      }
+      s = tick(s, bctx(now))
+      out = outcome(s, bctx(now))
+    }
+    return { s, out, now }
+  }
+
+  it('one human doing the minimum and two bots finish a game on tick + bot alone', () => {
+    const { s, out } = run('minimum')
+    expect(out).not.toBeNull()
+    expect(out!.placements.map((p) => p.playerId).sort()).toEqual(['bot-gator', 'bot-pigeon', 'dixxx'])
+    for (const ch of s.chains) {
+      for (const st of ch.steps) {
+        if (!bots.includes(st.by)) continue
+        // Bots did their own steps: real lines, real strokes, never the House.
+        expect(st.auto).toBe(false)
+        if (st.kind === 'draw') expect(st.strokes.length).toBeGreaterThanOrEqual(3)
+        else expect(st.text.length).toBeGreaterThan(0)
+      }
+    }
+    const botFavs = s.chains.flatMap((ch) => ch.steps.flatMap((st) => st.favs.filter((f) => bots.includes(f))))
+    expect(botFavs.length).toBeGreaterThan(0)
+    expect(out!.used!.length).toBeGreaterThan(0)
+    for (const u of out!.used!) expect(PROMPTS).toContain(u)
+  })
+
+  it('still finishes when the human does nothing at all', () => {
+    const { out } = run('nothing')
+    expect(out).not.toBeNull()
+  })
+
+  it('bots never act out of turn', () => {
+    const s = setup(bctx(0), {})
+    expect(bot(s, 'bot-gator', bctx(100))).toBeNull() // too soon
+    const done = { ...s, phase: 'done' as const }
+    expect(bot(done, 'bot-gator', bctx(10_000))).toBeNull()
+    expect(bot(s, 'g-stranger', bctx(10_000))).toBeNull()
+  })
+
+  it('deals starting lines the group has not seen first', () => {
+    const used = PROMPTS.slice(0, 100)
+    const s = setup({ ...bctx(0), used }, {})
+    // 20 lines are fresh: they come first, the rest are the oldest seen.
+    expect(s.deck.length).toBe(40)
+    for (const line of s.deck.slice(0, 20)) expect(used).not.toContain(line)
+    expect(s.deck.slice(20)).toEqual(used.slice(0, 20))
+  })
+})
+
+describe('bot lines', () => {
+  it('are clean and short', () => {
+    expect(BOT_CAPTIONS.length).toBeGreaterThanOrEqual(25)
+    for (const t of [...BOT_CAPTIONS, ...BOT_SWAPS]) {
+      expect(t.length).toBeLessThanOrEqual(MAX_TEXT)
+      expect(t).not.toMatch(/[–—]/)
+      expect(t).not.toMatch(/\p{Extended_Pictographic}/u)
     }
   })
 })

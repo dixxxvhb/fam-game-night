@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import type { GameCtx, RoomPlayer } from '../../engine/types'
 import {
   DRAW_MS, GRACE_MS, LIE_BEAT_MS, MAX_TITLE, PICK_MS, POINTS, TITLE_MS, TRUTH_BEAT_MS,
-  entryNow, guessersOf, outcome, reduce, setup, shownScores, tick, tooReal, type DrawBluffState,
+  bot, entryNow, guessersOf, outcome, reduce, setup, shownScores, tick, tooReal, type DrawBluffState,
 } from './logic'
-import { BLUFF_PROMPTS } from './prompts'
+import { BLUFF_PROMPTS, GENERIC_LIES } from './prompts'
 
 const players: RoomPlayer[] = [
   { id: 'dixxx', name: 'Dixxx', color: '#3CCB72', guest: false, connected: true },
@@ -302,6 +302,94 @@ describe('prompts', () => {
         expect(t).not.toMatch(/\p{Extended_Pictographic}/u)
       }
       for (const h of house) expect(tooReal(h, prompt), `${h} vs ${prompt}`).toBe(false)
+    }
+  })
+})
+
+describe('bots', () => {
+  const people: RoomPlayer[] = [
+    { id: 'dixxx', name: 'Dixxx', color: '#3CCB72', guest: false, connected: true },
+    { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', guest: true, connected: true, bot: true },
+    { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', guest: true, connected: true, bot: true },
+  ]
+  const bots = ['bot-gator', 'bot-pigeon']
+  const bctx = (now: number): GameCtx => ({ now, players: people, mode: 'together', random })
+
+  function run(human: 'minimum' | 'nothing') {
+    let s = setup(bctx(0), {})
+    let now = 0
+    let out = outcome(s, bctx(now))
+    for (let i = 0; i < 20_000 && !out; i++) {
+      now += 200
+      if (human === 'minimum') {
+        const h = (type: string, payload: unknown) => { s = reduce(s, { playerId: 'dixxx', type, payload }, bctx(now)) }
+        const e = entryNow(s)
+        if (s.phase === 'draw' && !s.entries[0].done) { h('stroke', { s: LINE }); h('done', null) }
+        else if (s.phase === 'title' && e && e.artist !== 'dixxx' && !e.fakes.dixxx) h('title', { text: 'a thing nobody drew' })
+        else if (s.phase === 'pick' && e && e.artist !== 'dixxx' && !e.picks.dixxx) h('pick', { id: e.options.find((o) => !o.by.includes('dixxx'))!.id })
+      }
+      for (const b of bots) {
+        const m = bot(s, b, bctx(now))
+        if (m) s = reduce(s, { playerId: b, type: m.type, payload: m.payload ?? null }, bctx(now))
+      }
+      s = tick(s, bctx(now))
+      out = outcome(s, bctx(now))
+    }
+    return { s, out }
+  }
+
+  it('one human doing the minimum and two bots finish a game on tick + bot alone', () => {
+    const { s, out } = run('minimum')
+    expect(out).not.toBeNull()
+    expect(out!.placements.map((p) => p.playerId).sort()).toEqual(['bot-gator', 'bot-pigeon', 'dixxx'])
+    expect(s.queue).toHaveLength(3)
+    for (const e of s.entries) {
+      expect(e.strokes.length).toBeGreaterThan(0)
+      // Every guesser bot wrote a lie and made a pick on every drawing.
+      for (const b of bots.filter((b) => b !== e.artist)) {
+        expect(e.fakes[b]).toBeTruthy()
+        expect(tooReal(e.fakes[b], e.prompt)).toBe(false)
+        expect(e.picks[b]).toBeTruthy()
+        expect(e.options.find((o) => o.id === e.picks[b])!.by).not.toContain(b)
+      }
+    }
+    expect(out!.used).toEqual(s.entries.map((e) => e.prompt))
+  })
+
+  it('still finishes when the human does nothing at all', () => {
+    const { s, out } = run('nothing')
+    expect(out).not.toBeNull()
+    expect(s.queue).toHaveLength(2) // the human drew nothing: skipped
+  })
+
+  it('bots never act as the artist on their own drawing', () => {
+    let s = setup(bctx(0), {})
+    for (const p of people) { s = act(s, p.id, 'stroke', { s: LINE }); s = act(s, p.id, 'done') }
+    let checked = 0
+    for (let k = 0; k < s.queue.length; k++) {
+      const artist = s.entries[s.queue[k]].artist
+      if (!bots.includes(artist)) continue
+      for (const phase of ['title', 'pick', 'reveal'] as const) {
+        const at = { ...s, cur: k, phase }
+        for (let t = 0; t < 300; t++) expect(bot(at, artist, bctx(1000 + t * 200))).toBeNull()
+      }
+      checked++
+    }
+    expect(checked).toBe(2)
+  })
+
+  it('deals prompts the group has not seen first', () => {
+    const used = BLUFF_PROMPTS.slice(0, 150).map((p) => p.prompt)
+    const s = setup({ ...bctx(0), used }, {})
+    for (const e of s.entries) expect(used).not.toContain(e.prompt)
+  })
+
+  it('generic lies are clean', () => {
+    expect(GENERIC_LIES.length).toBeGreaterThanOrEqual(25)
+    for (const t of GENERIC_LIES) {
+      expect(t.length).toBeLessThanOrEqual(MAX_TITLE)
+      expect(t).not.toMatch(/[–—]/)
+      expect(t).not.toMatch(/\p{Extended_Pictographic}/u)
     }
   })
 })

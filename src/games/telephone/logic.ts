@@ -1,8 +1,9 @@
 import type { GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
-import { pick, shuffle } from '../../lib/shuffle'
+import { freshFirst, pick, shuffle } from '../../lib/shuffle'
 import { cleanStroke, cleanText, inkUsed, MAX_STROKES, type Stroke } from '../_draw/strokes'
-import { PROMPTS } from './prompts'
+import { doodle, hashOf } from '../_draw/doodles'
+import { BOT_CAPTIONS, BOT_SWAPS, PROMPTS } from './prompts'
 
 /**
  * TELEPHONE
@@ -52,6 +53,8 @@ export interface TelephoneState {
   /** Ink budget per drawing (see inkUsed). Keeps the whole room state small enough to broadcast. */
   cap: number
   cursor: Cursor
+  /** Starting lines for "Give me one", the House and bots: the ones this group hasn't seen first. */
+  deck: string[]
 }
 
 export const WRITE_MS = 40_000
@@ -125,7 +128,15 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Tele
     chains: order.map((owner) => ({ owner, steps: [blank(owner, 'write')] })),
     cap: capFor(order.length, steps),
     cursor: { chain: 0, step: 0, at: 0 },
+    deck: freshFirst(PROMPTS, (p) => p, ctx.used, ctx.random).slice(0, 40),
   }
+}
+
+/** A "Give me one" line for this player: everyone gets a different run through the deck. */
+export function suggestion(s: TelephoneState, playerId: string, n: number): string {
+  const deck = s.deck?.length ? s.deck : PROMPTS
+  const seat = Math.max(0, s.order.indexOf(playerId))
+  return deck[(seat * 7 + n) % deck.length]
 }
 
 export function beatMs(s: TelephoneState, cur: Cursor): number {
@@ -148,7 +159,7 @@ function finishStep(s: TelephoneState, ctx: GameCtx): TelephoneState {
     const st = ch.steps[k]
     if (!st) return ch
     let next = st
-    if (st.kind === 'write' && !st.text) next = { ...st, text: pick(PROMPTS, ctx.random), auto: true, done: true }
+    if (st.kind === 'write' && !st.text) next = { ...st, text: pick(s.deck?.length ? s.deck : PROMPTS, ctx.random), auto: true, done: true }
     else if (!st.done) next = { ...st, done: true }
     return next === st ? ch : { ...ch, steps: ch.steps.map((x, j) => (j === k ? next : x)) }
   })
@@ -303,5 +314,53 @@ export function outcome(s: TelephoneState, ctx: GameCtx): GameOutcome | null {
   if (line) highlights.push({ playerId: line.st.by, kind: 'answer', label: 'Most loved line', content: { text: line.st.text } })
 
   const favorites = Object.values(scores).reduce((a, b) => a + b, 0)
-  return { placements, summary, highlights, details: { steps: s.steps, chains: s.chains.length, favorites } }
+  // Lines from the prompt list that got played (taken from "Give me one", the House, or bots).
+  const known = new Set(PROMPTS)
+  const used = [...new Set(s.chains.flatMap((ch) => ch.steps.filter((st) => st.kind === 'write' && known.has(st.text)).map((st) => st.text)))]
+  return { placements, summary, highlights, details: { steps: s.steps, chains: s.chains.length, favorites }, used }
+}
+
+// ---------------- bots ----------------
+
+/** What a bot calls a drawing: half the time it riffs on the line the drawing came from. */
+function botCaption(s: TelephoneState, chain: number, step: number, random: () => number): string {
+  const source = s.chains[chain]?.steps[step - 2]?.text ?? ''
+  const words = source.split(' ')
+  const spots = words.map((w, i) => (i > 0 && w.length > 3 ? i : -1)).filter((i) => i >= 0)
+  if (spots.length && random() < 0.5) {
+    const i = spots[Math.floor(random() * spots.length)]
+    const out = [...words]
+    out[i] = pick(BOT_SWAPS, random)
+    return out.join(' ').slice(0, MAX_TEXT)
+  }
+  return pick(BOT_CAPTIONS, random)
+}
+
+/**
+ * Bots: write a starting line from the deck after a few seconds, draw three to six simple
+ * shapes and call it done, describe drawings with a silly caption (or a riff on the line the
+ * drawing came from; bots peek), and star other people's steps now and then in the replay.
+ */
+export function bot(s: TelephoneState, id: string, ctx: GameCtx): { type: string; payload?: unknown } | null {
+  if (s.phase === 'replay') {
+    const { chain, step } = s.cursor
+    const st = s.chains[chain]?.steps[step]
+    if (!st || st.by === id || st.auto || st.favs.includes(id)) return null
+    if (st.kind === 'draw' && !st.strokes.length) return null
+    return ctx.random() < 0.015 ? { type: 'fav', payload: { chain, step } } : null
+  }
+  if (s.phase !== 'play') return null
+  const c = chainOf(s, id, s.step)
+  const mine = s.chains[c]?.steps[s.step]
+  if (!mine || mine.done) return null
+  const elapsed = ctx.now - (s.endsAt - s.stageTotal)
+  if (mine.kind === 'write') {
+    if (elapsed < 3000 || ctx.random() > 0.08) return null
+    const text = s.step === 0 ? suggestion(s, id, 3) : botCaption(s, c, s.step, ctx.random)
+    return { type: 'write', payload: { text } }
+  }
+  const target = 3 + (hashOf(`${id}:${s.step}`) % 4)
+  if (elapsed < 2000) return null
+  if (mine.strokes.length < target) return ctx.random() < 0.12 ? { type: 'stroke', payload: { s: doodle(ctx.random) } } : null
+  return ctx.random() < 0.1 ? { type: 'done' } : null
 }

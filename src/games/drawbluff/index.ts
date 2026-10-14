@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type DrawBluffState } from './logic'
+import { bot, outcome, reduce, setup, tick, type DrawBluffState } from './logic'
 import { DrawBluffStage } from './Stage'
 import { DrawBluffController } from './Controller'
 
@@ -16,6 +16,7 @@ const drawbluff: GameDef<DrawBluffState> = {
   reduce,
   tick,
   outcome,
+  bot,
   Stage: DrawBluffStage,
   Controller: DrawBluffController,
 }

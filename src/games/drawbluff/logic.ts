@@ -1,8 +1,9 @@
 import type { GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
-import { shuffle } from '../../lib/shuffle'
+import { freshFirst, pick, shuffle } from '../../lib/shuffle'
 import { cleanStroke, cleanText, inkUsed, MAX_STROKES, sameTitle, titleKey, type Stroke } from '../_draw/strokes'
-import { BLUFF_PROMPTS } from './prompts'
+import { doodle, hashOf } from '../_draw/doodles'
+import { BLUFF_PROMPTS, GENERIC_LIES } from './prompts'
 
 /**
  * DRAW BLUFF
@@ -96,7 +97,7 @@ export function tooReal(text: string, prompt: string): boolean {
 export function setup(ctx: GameCtx, _opts: Record<string, string | number>): DrawBluffState {
   void _opts
   const order = ctx.players.map((p) => p.id)
-  const pool = shuffle(BLUFF_PROMPTS, ctx.random)
+  const pool = freshFirst(BLUFF_PROMPTS, (p) => p.prompt, ctx.used, ctx.random)
   const entries: BEntry[] = order.map((artist, i) => {
     const bp = pool[i % pool.length]
     return {
@@ -319,5 +320,45 @@ export function outcome(s: DrawBluffState, ctx: GameCtx): GameOutcome | null {
   const highlights: Highlight[] = []
   const best = mostLiked(s)
   if (best) highlights.push({ playerId: best.artist, kind: 'drawing', label: best.prompt, content: { strokes: best.strokes } })
-  return { placements, summary, highlights, details: { drawings: s.queue.length } }
+  return { placements, summary, highlights, details: { drawings: s.queue.length }, used: s.entries.map((e) => e.prompt) }
+}
+
+// ---------------- bots ----------------
+
+/**
+ * Bots: draw three to six shapes and call it done, write a lie borrowed from the House's spare
+ * titles or a generic list, pick the truth about a third of the time (otherwise any title that
+ * isn't theirs), and like drawings now and then during the reveal.
+ */
+export function bot(s: DrawBluffState, id: string, ctx: GameCtx): { type: string; payload?: unknown } | null {
+  const elapsed = ctx.now - (s.endsAt - s.stageTotal)
+  if (s.phase === 'draw') {
+    const mine = myEntry(s, id)
+    if (!mine || mine.done || elapsed < 2000) return null
+    const target = 3 + (hashOf(id) % 4)
+    if (mine.strokes.length < target) return ctx.random() < 0.12 ? { type: 'stroke', payload: { s: doodle(ctx.random) } } : null
+    return ctx.random() < 0.1 ? { type: 'done' } : null
+  }
+  const e = entryNow(s)
+  if (!e || e.artist === id) return null
+  if (s.phase === 'title') {
+    if (e.fakes[id] || elapsed < 4000 || ctx.random() > 0.05) return null
+    const spare = e.house.slice(1)
+    const taken = Object.values(e.fakes)
+    let text = ctx.random() < 0.55 ? pick(spare, ctx.random) : pick(GENERIC_LIES, ctx.random)
+    if (taken.some((t) => sameTitle(t, text))) text = pick(GENERIC_LIES, ctx.random)
+    return tooReal(text, e.prompt) ? null : { type: 'title', payload: { text } }
+  }
+  if (s.phase === 'pick') {
+    if (e.picks[id] || elapsed < 3000 || ctx.random() > 0.06) return null
+    if (ctx.random() < 0.35) return { type: 'pick', payload: { id: 'real' } }
+    const others = e.options.filter((o) => o.kind !== 'real' && !o.by.includes(id))
+    const o = others.length ? pick(others, ctx.random) : e.options.find((x) => x.kind === 'real')
+    return o ? { type: 'pick', payload: { id: o.id } } : null
+  }
+  if (s.phase === 'reveal') {
+    if (e.likes.includes(id) || ctx.random() > 0.008) return null
+    return { type: 'like' }
+  }
+  return null
 }

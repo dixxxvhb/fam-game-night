@@ -123,3 +123,44 @@ export const PROMPTS: string[] = [
   'a goldfish ruling a kingdom',
   'a mosquito the size of a car',
 ]
+
+// What bots say a drawing is when they don't riff on the line it came from.
+export const BOT_CAPTIONS: string[] = [
+  'a potato with feelings',
+  'my landlord on a Tuesday',
+  'a horse, probably',
+  'abstract art about Mondays',
+  'a sad cloud at a birthday party',
+  'the wifi going out',
+  'a ghost who lost a sock',
+  'a pizza that knows too much',
+  'two circles in a fight',
+  'a very confident blob',
+  'grandma doing a backflip',
+  'a duck filing a complaint',
+  'the moon getting a haircut',
+  'a snake wearing a hat',
+  'a tornado at a tea party',
+  'a frog late for rehearsal',
+  'a lamp with a secret',
+  'a cactus on a first date',
+  'an egg running for office',
+  'a dancer stuck in a box',
+  'a cat judging a talent show',
+  'a burrito in witness protection',
+  'a dog that saw a ghost',
+  'a bowling ball on vacation',
+  'a squid doing yoga',
+  'a hat that is also a house',
+  'an alligator at the mall',
+  'a toaster that wants more',
+  'the floor is lava, but sad',
+  'a sandwich with a mustache',
+]
+
+// Words bots swap into the line a drawing came from ("a raccoon doing taxes" to "a raccoon doing karaoke").
+export const BOT_SWAPS: string[] = [
+  'karaoke', 'a burrito', 'the DMV', 'a trampoline', 'grandma', 'a goose', 'a waffle', 'the beach',
+  'a shark', 'a recital', 'a hot tub', 'a cowboy', 'spaghetti', 'a tutu', 'the moon', 'a mailbox',
+  'a raccoon', 'jazz hands', 'a cactus', 'a llama', 'Publix', 'a lawn chair', 'a ghost', 'a pickle',
+]

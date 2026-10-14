@@ -1,4 +1,4 @@
-// QA driver for Draw Bluff (3 players). Everyone draws their secret prompt, then for each
+// QA driver for Draw Bluff (3 players, or one phone and two bots with --mode solo). Everyone draws their secret prompt, then for each
 // drawing: one guesser tries to submit the real title (rejected), both write lies, picks vary
 // (find the truth, fall for a lie, get caught by the House), a like during the reveal.
 // Ends the night after the game.
@@ -53,56 +53,78 @@ async function play({ phones, shot, wait }) {
   await shot('draw-one-done')
   for (const p of phones.slice(1)) await p.getByRole('button', { name: 'Done', exact: true }).click()
 
-  for (let d = 0; d < phones.length; d++) {
+  const LIKE = /^(Like this drawing|Liked)$/
+  const p0 = phones[0]
+  for (let d = 0; d < 8; d++) {
+    // Wait for the next drawing: someone sees "That's yours" or a title box (in solo the artist may be a bot).
     let artist = null
-    for (let t = 0; t < 60 && !artist; t++) {
+    let guessers = []
+    for (let t = 0; t < 120; t++) {
+      if (await p0.getByRole('button', { name: 'Next game' }).count()) break
+      artist = null
       for (const p of phones) if (await p.getByText("That's yours").count()) artist = p
-      if (!artist) await wait(300)
+      guessers = []
+      for (const p of phones) if (p !== artist && (await p.getByLabel('Your fake title').count())) guessers.push(p)
+      // Wait until every phone has caught up (in apart mode the host phone hears first).
+      if ((artist || guessers.length) && guessers.length === phones.length - (artist ? 1 : 0)) break
+      await wait(300)
     }
-    if (!artist) break
-    const real = (await artist.locator('[data-qa="prompt"]').first().textContent()).trim()
-    const [g0, g1] = phones.filter((p) => p !== artist)
-    await g0.getByLabel('Your fake title').waitFor({ timeout: 10000 })
+    if (!artist && !guessers.length) break
+    const real = artist ? (await artist.locator('[data-qa="prompt"]').first().textContent()).trim() : null
+    const [g0, g1] = guessers
     await wait(400)
     await shot(`d${d + 1}-title`)
 
-    // Try to pass off the real title: rejected on the phone.
-    await lie(g0, real)
-    await wait(400)
-    await shot(`d${d + 1}-real-rejected`)
-    await lie(g0, LIES[d][0])
-    await wait(500)
-    await shot(`d${d + 1}-one-lie-in`)
-    await lie(g1, LIES[d][1])
+    if (g0 && real) {
+      // Try to pass off the real title: rejected on the phone.
+      await lie(g0, real)
+      await wait(400)
+      await shot(`d${d + 1}-real-rejected`)
+    }
+    if (g0) {
+      await lie(g0, LIES[d % LIES.length][0])
+      await wait(500)
+      await shot(`d${d + 1}-one-lie-in`)
+    }
+    if (g1) await lie(g1, LIES[d % LIES.length][1])
 
-    // Both guessers see the titles (the host phone hears first in apart mode).
-    await g0.getByRole('button', { name: LIES[d][1], exact: true }).waitFor({ timeout: 15000 })
-    await g1.getByRole('button', { name: LIES[d][0], exact: true }).waitFor({ timeout: 15000 })
+    // Everyone's phone moves to the picks (the host phone hears first in apart mode).
+    for (const g of guessers) await g.locator('button[aria-pressed]').first().waitFor({ timeout: 60000 })
+    if (artist) await artist.getByText("They're picking. Don't make a face.").waitFor({ timeout: 60000 })
     await wait(500)
     await shot(`d${d + 1}-pick`)
-    const texts = await optionTexts(g1)
-    const house = texts.find((t) => t !== real && t !== LIES[d][0] && t !== LIES[d][1])
-    const plan = d === 0 ? [real, house] : d === 1 ? [LIES[d][1], real] : [real, real]
-    await g0.getByRole('button', { name: plan[0], exact: true }).click()
-    await wait(500)
-    await shot(`d${d + 1}-picked-one`)
-    await g1.getByRole('button', { name: plan[1], exact: true }).click()
+    if (g0 && g1 && real) {
+      const texts = await optionTexts(g1)
+      const house = texts.find((t) => t !== real && !LIES[d % LIES.length].includes(t))
+      const plan = d === 0 ? [real, house] : d === 1 ? [LIES[d][1], real] : [real, real]
+      await g0.getByRole('button', { name: plan[0], exact: true }).click()
+      await wait(500)
+      await shot(`d${d + 1}-picked-one`)
+      await g1.getByRole('button', { name: plan[1], exact: true }).click()
+    } else if (g0) {
+      // Solo guesser: take the first title that isn't yours.
+      await g0.locator('button[aria-pressed]:not([disabled])').first().click()
+      await wait(500)
+      await shot(`d${d + 1}-picked-one`)
+    }
 
-    await g0.getByRole('button', { name: /^(Like this drawing|Liked)$/ }).waitFor({ timeout: 10000 })
+    // Reveal: beats every few seconds until the next drawing or the results.
+    const watcher = g0 ?? artist
+    const inReveal = async () => (await watcher.getByRole('button', { name: LIKE }).count()) + (await watcher.getByText(/likes? on your drawing$/).count()) > 0
+    for (let t = 0; t < 120 && !(await inReveal()); t++) await wait(300)
     for (let beat = 0; beat < 6; beat++) {
       await wait(1200)
-      if (beat === 0 || (beat === 1 && d === 1)) {
-        await g0.getByRole('button', { name: /^(Like this drawing|Liked)$/ }).click()
-        if (d === 1) await g1.getByRole('button', { name: /^(Like this drawing|Liked)$/ }).click()
+      if (g0 && (beat === 0 || (beat === 1 && d === 1))) {
+        await g0.getByRole('button', { name: LIKE }).click()
+        if (d === 1 && g1) await g1.getByRole('button', { name: LIKE }).click()
         await wait(400)
       }
       await shot(`d${d + 1}-reveal-${beat}`)
       await wait(2600)
-      if (!(await g0.getByRole('button', { name: /^(Like this drawing|Liked)$/ }).count())) break
+      if (!(await inReveal())) break
     }
   }
 
-  const p0 = phones[0]
   await p0.getByRole('button', { name: 'Next game' }).waitFor({ timeout: 30000 })
   await wait(1000)
   await shot('results')

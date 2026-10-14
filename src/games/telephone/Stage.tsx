@@ -369,7 +369,7 @@ function Tally({ s, who, compact, skip }: { s: TelephoneState; who: Who; compact
             <TvLabel>Most loved drawing</TvLabel>
             {draw ? (
               <>
-                <div className="w-full max-w-[300px]"><SketchCanvas strokes={draw.st.strokes} listen={false} /></div>
+                <div className="w-full max-w-[288px]"><SketchCanvas strokes={draw.st.strokes} listen={false} /></div>
                 <div className="text-lg font-bold" style={{ color: who(draw.st.by)?.color }}>{who(draw.st.by)?.name}</div>
               </>
             ) : <div className="text-xl text-ink-3">None yet. Tap a star.</div>}

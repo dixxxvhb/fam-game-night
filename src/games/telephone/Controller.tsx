@@ -6,8 +6,7 @@ import { Btn, cx, Label } from '../../ui/kit'
 import { Countdown } from '../../ui/Countdown'
 import { SketchCanvas, StrokeThumb } from '../sketch/Canvas'
 import { DrawPad } from '../_draw/Pad'
-import { favScores, incoming, MAX_TEXT, mineNow, revealed, type TelephoneState, type TStep } from './logic'
-import { PROMPTS } from './prompts'
+import { favScores, incoming, MAX_TEXT, mineNow, revealed, suggestion, type TelephoneState, type TStep } from './logic'
 
 type Send = ControllerProps<TelephoneState>['send']
 type Who = (id: string) => RoomPlayer | undefined
@@ -49,6 +48,7 @@ export function TelephoneController({ state: s, room, me, now, send }: Controlle
 function WriteStep({ s, mine, me, who, now, send }: { s: TelephoneState; mine: TStep; me: string; who: Who; now: () => number; send: Send }) {
   const [draft, setDraft] = useState(mine.text)
   const [editing, setEditing] = useState(false)
+  const [asked, setAsked] = useState(0)
   const autoSent = useRef(false)
   const input = useRef<HTMLInputElement>(null)
   const prev = incoming(s, me)
@@ -72,8 +72,11 @@ function WriteStep({ s, mine, me, who, now, send }: { s: TelephoneState; mine: T
   }
 
   function suggest() {
-    const pool = PROMPTS.filter((p) => p !== draft)
-    setDraft(pool[Math.floor(Math.random() * pool.length)] ?? '')
+    let n = asked
+    let line = suggestion(s, me, n)
+    if (line === draft) line = suggestion(s, me, ++n)
+    setAsked(n + 1)
+    setDraft(line)
     input.current?.focus()
   }
 

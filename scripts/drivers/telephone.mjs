@@ -1,5 +1,5 @@
-// QA driver for Telephone (3 players, 6 steps). Everyone writes a first line (one uses
-// "Give me one"), then chains pass around: draw, describe, draw... One describe step is left
+// QA driver for Telephone (3 players, 6 steps; or one phone and two bots with --mode solo).
+// Everyone writes a first line (one uses "Give me one"), then chains pass around: draw, describe, draw... One describe step is left
 // typed but unsent so the clock runs out and the phone auto-sends it. Then the replay: some
 // beats run on their own, most are skipped with Next, stars get tapped along the way.
 // Ends the night after the game.
@@ -102,7 +102,7 @@ export default async function ({ phones, shot, wait }) {
       if (beat % 3 !== 2 && (await fav.count())) await fav.click()
     }
     if (label.startsWith('recap')) {
-      const stars = phones[2].getByRole('button', { name: /^Favorite: step/ })
+      const stars = phones[phones.length - 1].getByRole('button', { name: /^Favorite: step/ })
       if (await stars.count()) await stars.first().click()
       await wait(500)
       await shot(`replay-${label}-starred`)

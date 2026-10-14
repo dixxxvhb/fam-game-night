@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type TelephoneState } from './logic'
+import { bot, outcome, reduce, setup, tick, type TelephoneState } from './logic'
 import { TelephoneStage } from './Stage'
 import { TelephoneController } from './Controller'
 
@@ -19,6 +19,7 @@ const telephone: GameDef<TelephoneState> = {
   reduce,
   tick,
   outcome,
+  bot,
   Stage: TelephoneStage,
   Controller: TelephoneController,
 }

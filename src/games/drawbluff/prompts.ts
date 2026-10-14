@@ -166,3 +166,37 @@ const RAW: [string, string, string, string][] = [
 ]
 
 export const BLUFF_PROMPTS: BluffPrompt[] = RAW.map(([prompt, a, b, c]) => ({ prompt, house: [a, b, c] }))
+
+// Lies bots write when they don't borrow one of the House's spare titles.
+export const GENERIC_LIES: string[] = [
+  'my uncle at a wedding',
+  'the wifi going out',
+  'a potato with a secret',
+  'leg day',
+  'a goose in witness protection',
+  'the last day of summer',
+  'a very tired dancer',
+  'an alligator at the DMV',
+  'Florida in August',
+  'a ghost who lost his keys',
+  'the group project',
+  'a raccoon at prom',
+  'a cat judging you',
+  'my phone at 1 percent',
+  'a sandwich with feelings',
+  'the dentist, but worse',
+  'a horse who knows too much',
+  'Monday morning',
+  'a snail in a hurry',
+  'a pirate who lost a bet',
+  'the floor after a recital',
+  'a frog with a podcast',
+  'grandma on a jet ski',
+  'the worst haircut ever',
+  'a cloud having a bad day',
+  'a dog doing taxes',
+  'the backstage snack table',
+  'a burrito on vacation',
+  'a lamp that saw everything',
+  'my landlord, probably',
+]
