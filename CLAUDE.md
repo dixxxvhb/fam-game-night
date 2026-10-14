@@ -10,7 +10,7 @@ Dixon, Johnnyboy (John) and Torii's game night. The TV (or any browser) is the c
 React 19 + TS + Vite 7 + Tailwind v4 + react-router (HashRouter) on GitHub Pages (`base: '/fam-game-night/'`). Realtime + saving via Supabase, **inside figgg's project** (`swjqlfcqvcrnydpyjyog`) in its own `gamenight` schema, reached only through `public.gn_*` security-definer functions (`supabase/gamenight.sql`). Never add game-night tables to figgg's `public` schema (figgg's export/wipe enumerates it).
 
 ## Games (18, all live)
-Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Board Night (Mario Party, 11 minigames), Kart, Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together only), Bowl (Wii Bowling), Arena (Bomberman, together only). Every game has a `bot()` policy.
+Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Party Park (id `board`, Mario Party, 15 minigames), Kart, Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together only), Bowl (Wii Bowling), Arena (Bomberman, together only). Every game has a `bot()` policy.
 
 ## Platform features
 - Bots (Gator, Pigeon, Toaster, Nana, Roomba) can sit in any lobby; any game with a bot is practice and never saved. "Play solo" = one device hosts with two bots.
@@ -44,6 +44,14 @@ Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Board 
 - Three players is the design center: voting games need a fix for three (the House, vote on everything but your own).
 - Phone controls: big, few, thumb-sized (min 44px), no hover, no tiny text. TV: readable from a couch (big type).
 - Look: dark riso world. Tokens in `src/index.css` (`bg-paper`, `bg-tile`, `text-ink/-2/-3`, `border-line`, `hot` accent, player colors). Bungee (`font-display`) for display only, Atkinson body, Plex Mono for codes/labels. UI kit in `src/ui/kit.tsx`. No emojis anywhere.
+
+## Party Park (id `board`, rebuilt 2026-10-14)
+Its own bright daytime world (not the riso look): a bootleg Florida theme park hosted by Mingo the flamingo; players pick one of eight Florida critters. Brief and lane map: `docs/plans/2026-10-14-party-park.md`.
+- `src/games/board/park/`: `cast.tsx` (critters + Mingo, moods), `ui.tsx` (the look kit: PARK colors, Sticker, PartyButton, Portrait, Coin, ParkStar, Banner), `World.tsx` + `world/` (3D-tilted board, camera, tokens, dice block, compact mini map), `show/` (every TV stage), `phone/` (every phone screen), `music.ts` (synthesized soundtrack: `useParkMusic(track)`, `music.stinger(id)`, music switch in the headers).
+- Stages added to the engine: `pick` (critters), `order` (hit the block, highest first), `mgSpin` (roulette). `who(id).char` is the player's critter.
+- Minigames: 11 tap games (`minigames/*.ts` + `.view.tsx`, park scenes) and 4 real-time ones (coconut, frenzy, tubes, paint) on `minigames/rt.ts`: each phone owns its critter and streams position on `board:rt`, the host judges reports, bots run a deterministic sim every screen shares.
+- Dev pages: `#/park-cast` (cast sheet), `#/park-mg/<id>?format=ffa|1v2|coop|duel&bots=1` (one minigame with bots, TV + pad side by side), `#/park-music` (every track and stinger). `node scripts/_render-music.mjs <base> <dir>` renders the soundtrack to WAV offline for level/tempo checks. `node scripts/_shot.mjs <url> <png> [w] [h] [waitMs]` for quick shots.
+- Room QA: `--name "Party Park" --opts Short --driver scripts/drivers/board.mjs` (the driver picks critters and hits the order block with real taps).
 
 ## Deploy
 Push to `main` → GitHub Actions → Pages (secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` = figgg's URL + publishable key). Verify with `gh run list --limit 1`.
