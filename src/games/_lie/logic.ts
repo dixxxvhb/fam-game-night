@@ -1,4 +1,4 @@
-import type { GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
+import type { BotMove, GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
 import { freshFirst, shuffle } from '../../lib/shuffle'
 
@@ -542,7 +542,63 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
     }
   }
 
-  return { setup, reduce, tick, outcome }
+  // ---------------- bots ----------------
+
+  /** A lie for a bot: a House lie the House isn't playing and nobody wrote, else one borrowed from another question. */
+  function botLie(s: LieState, random: () => number): string {
+    const cur = s.cur
+    const taken = [cur.decoy, cur.item.truth, ...Object.values(cur.lies).map((l) => l.text)]
+    const fits = (t: string) => t.length <= cfg.maxLen && !taken.some((x) => sameAnswer(x, t)) && !isTruth(t, cur.item, cfg.kind)
+    const spare = cur.spares.filter(fits)
+    if (spare.length) return spare[Math.floor(random() * spare.length)]
+    // Borrow: sample other questions' House lies, keep the one shaped most like the truth
+    // (capitalized like it, about as many words), so it doesn't stick out too badly.
+    const wordCount = (t: string) => t.trim().split(/\s+/).length
+    const upper = (t: string) => /^[A-Z0-9]/.test(t.trim())
+    const shape = (t: string) => (upper(t) === upper(cur.item.truth) ? 0 : 2) + Math.abs(wordCount(t) - wordCount(cur.item.truth))
+    let borrowed: string | null = null
+    for (let tries = 0; tries < 30 && bank.length > 1; tries++) {
+      const other = bank[Math.floor(random() * bank.length)]
+      if (other.id === cur.item.id) continue
+      const t = other.house[Math.floor(random() * other.house.length)]
+      if (t && fits(t) && (borrowed === null || shape(t) < shape(borrowed))) borrowed = t
+    }
+    return borrowed ?? cur.spares[0] ?? cur.decoy
+  }
+
+  /**
+   * Bots: write a spare House lie (or one borrowed from another question) 6 to 25 seconds
+   * in, pick the truth about a third of the time and otherwise a random lie that isn't
+   * theirs, and now and then heart the lie being revealed.
+   */
+  function bot(s: LieState, id: string, ctx: GameCtx): BotMove | null {
+    if (!ctx.players.some((p) => p.id === id)) return null
+    const cur = s.cur
+    const elapsed = ctx.now - s.stageStartedAt
+    const ready = (min: number, max: number, chance: number) => elapsed >= min && (elapsed >= max || ctx.random() < chance)
+    if (s.stage === 'lie') {
+      if (cur.lies[id] || !ready(6000, 25_000, 0.03)) return null
+      return { type: 'lie', payload: { text: botLie(s, ctx.random) } }
+    }
+    if (s.stage === 'pick') {
+      if (cur.picks[id] || !ready(4000, 15_000, 0.05)) return null
+      const open = cur.answers.filter((a) => !a.by.includes(id))
+      const truth = open.find((a) => a.truth)
+      const lies = open.filter((a) => !a.truth)
+      const pick = truth && (ctx.random() < 0.35 || !lies.length) ? truth : lies[Math.floor(ctx.random() * lies.length)]
+      return pick ? { type: 'pick', payload: { answerId: pick.id } } : null
+    }
+    if (s.stage === 'reveal') {
+      const step = cur.steps[cur.step]
+      if (step?.kind !== 'lie' || elapsed < BEAT_FLIP_MS) return null
+      const a = cur.answers.find((x) => x.id === step.answerId)
+      if (!a || a.truth || !a.by.length || a.by.includes(id) || (cur.likes[a.id] ?? []).includes(id)) return null
+      return ctx.random() < 0.015 ? { type: 'like', payload: { answerId: a.id } } : null
+    }
+    return null
+  }
+
+  return { setup, reduce, tick, outcome, bot }
 }
 
 // ---------------- view helpers ----------------

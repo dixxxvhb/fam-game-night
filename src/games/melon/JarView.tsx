@@ -44,6 +44,7 @@ export function JarView({
   frame,
   frameWidth = 4,
   style,
+  snap,
   children,
 }: {
   playerId: string
@@ -56,6 +57,8 @@ export function JarView({
   frameWidth?: number
   /** Overlay drawn on top of the jar, inside the frame. */
   children?: ReactNode
+  /** A jar to draw instead of the stream (bots have no phone; see botjar.ts). Pass a stable object per change. */
+  snap?: JarSnap
 }) {
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -109,6 +112,12 @@ export function JarView({
     if (snap) take(snap)
     dirty.current = true
   }, [playerId, game])
+
+  useEffect(() => {
+    if (!snap) return
+    latest.set(`${game}:${playerId}`, snap)
+    take(snap)
+  }, [snap, playerId, game])
 
   useEffect(() => {
     dirty.current = true

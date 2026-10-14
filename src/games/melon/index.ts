@@ -2,6 +2,7 @@ import type { GameDef } from '../../engine/types'
 import { outcome, reduce, setup, tick, type MelonState } from './logic'
 import { MelonStage } from './Stage'
 import { MelonController } from './Controller'
+import { bot } from './bot'
 
 const melon: GameDef<MelonState> = {
   id: 'melon',
@@ -22,6 +23,7 @@ const melon: GameDef<MelonState> = {
   outcome,
   Stage: MelonStage,
   Controller: MelonController,
+  bot,
 }
 
 export default melon

@@ -2,6 +2,7 @@ import type { GameDef } from '../../engine/types'
 import { outcome, reduce, setup, tick, type PercentState } from './logic'
 import { PercentStage } from './Stage'
 import { PercentController } from './Controller'
+import { bot } from './bot'
 
 const percent: GameDef<PercentState> = {
   id: 'percent',
@@ -21,6 +22,7 @@ const percent: GameDef<PercentState> = {
   outcome,
   Stage: PercentStage,
   Controller: PercentController,
+  bot,
 }
 
 export default percent

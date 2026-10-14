@@ -3,6 +3,7 @@ import { outcome, reduce, setup, tick, type QuipState } from './logic'
 import { QuipStage } from './Stage'
 import { QuipController } from './Controller'
 import { PACK_OPTIONS } from './prompts'
+import { bot } from './bot'
 
 const quip: GameDef<QuipState> = {
   id: 'quip',
@@ -20,6 +21,7 @@ const quip: GameDef<QuipState> = {
   outcome,
   Stage: QuipStage,
   Controller: QuipController,
+  bot,
 }
 
 export default quip

@@ -7,6 +7,7 @@ import { Crown } from 'lucide-react'
 import { clock, fmt, fruit } from './fruits'
 import { biggest, type MelonState } from './logic'
 import { FruitIcon, JarView } from './JarView'
+import { botSnap } from './botjar'
 import { JAR_ASPECT } from './draw'
 
 const HIT_SHOW_MS = 3500
@@ -29,6 +30,13 @@ function OutCover({ big }: { big: boolean }) {
       <span className={cx('font-display leading-none text-bad', big ? 'text-7xl' : 'text-xl')}>OUT</span>
     </div>
   )
+}
+
+/** Bots have no phone streaming a jar: draw their model jar instead (frozen when they top out). */
+function botJar(s: MelonState, p: RoomPlayer, now: number) {
+  const me = s.players[p.id]
+  if (!p.bot || !me || s.stage === 'ready') return undefined
+  return botSnap(p.id, s.startsAt, Math.min(now, me.outAt ?? now, s.endsAt), me.junkIn)
 }
 
 const TV_FRAME = 5
@@ -60,7 +68,7 @@ function TvJar({ s, p, leader, now, crowded }: { s: MelonState; p: RoomPlayer; l
         <span className={cx('truncate font-bold', crowded ? 'text-xl' : 'text-2xl')}>{p.name}</span>
         {leader && <Crown size={30} className="shrink-0 text-hot" strokeWidth={2.5} aria-label="Leading" />}
       </div>
-      <JarView playerId={p.id} game={s.startsAt} frame={p.color} frameWidth={TV_FRAME} className="relative w-full shrink-0" style={{ height: jarH }}>
+      <JarView playerId={p.id} game={s.startsAt} snap={botJar(s, p, now)} frame={p.color} frameWidth={TV_FRAME} className="relative w-full shrink-0" style={{ height: jarH }}>
         {!me?.alive && <OutCover big />}
         {s.mode === 'attack' && me?.alive && (incoming > 0 || hit) && (
           <div className="absolute inset-x-0 top-3 flex justify-center animate-rise">
@@ -78,11 +86,11 @@ function TvJar({ s, p, leader, now, crowded }: { s: MelonState; p: RoomPlayer; l
   )
 }
 
-function MiniJar({ s, p, leader, wide, tight }: { s: MelonState; p: RoomPlayer; leader: boolean; wide: boolean; tight: boolean }) {
+function MiniJar({ s, p, leader, wide, tight, now }: { s: MelonState; p: RoomPlayer; leader: boolean; wide: boolean; tight: boolean; now: number }) {
   const me = s.players[p.id]
   return (
     <div className={cx('flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-tile p-1.5', !wide && 'flex-col gap-1')}>
-      <JarView playerId={p.id} game={s.startsAt} frame={p.color} frameWidth={2} className={cx('relative shrink-0', tight ? 'h-[70px] w-[50px]' : 'h-[92px] w-[68px]')}>
+      <JarView playerId={p.id} game={s.startsAt} snap={botJar(s, p, now)} frame={p.color} frameWidth={2} className={cx('relative shrink-0', tight ? 'h-[70px] w-[50px]' : 'h-[92px] w-[68px]')}>
         {!me?.alive && <OutCover big={false} />}
       </JarView>
       <div className={cx('grid min-w-0', !wide && 'justify-items-center')}>
@@ -110,7 +118,7 @@ export function MelonStage({ state: s, room, now, compact }: StageProps<MelonSta
     if (!others.length) return null
     return (
       <div className="flex gap-2">
-        {others.map((p) => <MiniJar key={p.id} s={s} p={p} leader={leader === p.id} wide={others.length <= 2} tight={others.length >= 4} />)}
+        {others.map((p) => <MiniJar key={p.id} s={s} p={p} now={t} leader={leader === p.id} wide={others.length <= 2} tight={others.length >= 4} />)}
       </div>
     )
   }
