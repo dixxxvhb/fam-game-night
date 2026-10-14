@@ -44,7 +44,7 @@ export function PickScreen({ s, room, me, now, send, apart }: ScreenProps) {
           <div className="kp-rays absolute inset-0" />
           <div className="kp-pop relative">
             <div className="kp-bob">
-              <KartArt char={mine} color={p?.color} size={land ? 220 : 270} view={1} pose="trick" anim />
+              <KartArt char={mine} color={p?.color} size={land ? 220 : 270} view={3} pose="trick" anim />
             </div>
           </div>
         </div>
@@ -93,7 +93,7 @@ export function PickScreen({ s, room, me, now, send, apart }: ScreenProps) {
             >
               <div className={cx('relative', by && 'opacity-45 grayscale')} style={{ height: land ? 64 : 80, width: land ? 104 : 124 }}>
                 <div className="absolute inset-x-0 bottom-1 mx-auto rounded-full" style={{ height: land ? 18 : 22, background: c.color, opacity: 0.35 }} />
-                <div className="absolute left-1/2 -translate-x-1/2" style={{ top: land ? -12 : -16 }}><KartArt char={c.id} size={land ? 80 : 100} view={1} /></div>
+                <div className="absolute left-1/2 -translate-x-1/2" style={{ top: land ? -12 : -16 }}><KartArt char={c.id} size={land ? 80 : 100} view={3} /></div>
               </div>
               <div className="mt-0.5 font-party leading-none" style={{ fontSize: land ? 21 : 24 }}>{c.name}</div>
               <div className="text-[15px] font-bold leading-tight" style={{ color: PARK.ink2 }}>{c.kind}</div>
