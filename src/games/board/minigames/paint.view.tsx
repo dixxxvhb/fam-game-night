@@ -81,8 +81,28 @@ function Washer({ x, rows, dir }: { x: number; rows: [number, number]; dir: 1 | 
 
 // ---------------- TV ----------------
 
+const SPARE_PAINT = ['#FF5D4E', '#3E7BFA', '#FFC83A', '#9B5CF6', '#FF7AA2', '#2C9C86']
+
+function rgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+function near(a: string, b: string): boolean {
+  const [r1, g1, b1] = rgb(a)
+  const [r2, g2, b2] = rgb(b)
+  return Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2) < 140
+}
+
+/** Paint colors per seat: the critter's color, unless it is too close to someone else's (Chomp and Zippy are both green). */
 function colorsOf(s: PaintState, who: Who): (string | null)[] {
-  return s.players.map((id) => critter(charOf(who, id, s.players))!.color)
+  const out: string[] = []
+  for (const id of s.players) {
+    let c = critter(charOf(who, id, s.players))!.color
+    if (out.some((o) => near(o, c))) c = SPARE_PAINT.find((x) => !out.some((o) => near(o, x))) ?? c
+    out.push(c)
+  }
+  return out
 }
 
 export function PaintStage({ s, run, who, now, compact }: MgViewProps<PaintState>) {
