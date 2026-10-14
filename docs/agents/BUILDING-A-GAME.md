@@ -25,6 +25,9 @@ You are building ONE game for a party platform that Dixon (Dixxx), John (Johnnyb
 - Content (prompts, questions, words): in `setup`, order your pool with `freshFirst(pool, idOf, ctx.used, ctx.random)` from `src/lib/shuffle.ts` so the group doesn't see repeats across nights, and return the ids you used in `outcome().used`.
 - `outcome()` returns placements for every player in the game (ties share a place), a one-line `summary`, and up to 6 `highlights` for the Hall of Fame where it makes sense (best answer, wildest moment). Keep highlight content under ~40 KB.
 
+## Bots (required)
+Every game needs a `bot(state, botId, ctx)` policy on its GameDef so people can play solo and test alone (see the doc comment in `src/engine/types.ts` and the Sketch bot at the end of `src/games/sketch/logic.ts`). The host calls it about 5 times a second for each bot; return `{ type, payload }` to act as that bot's phone would, or null to wait. Rules: act at human speed (random chance per call, or wait on timestamps in state), never act when it isn't the bot's turn or the phase doesn't allow it, make the bot decent but beatable (use ctx.random), and keep it cheap (no heavy search every tick). Real-time games where the action happens on the phone (physics jars, racing, arenas) can simulate a simpler bot on the host side or in the host Stage; say what you did. Test it: a vitest that runs a full game with one human doing the minimum and two bots, driven only by `tick` + `bot`, must reach an outcome. QA: `--mode solo` (one phone hosting with two bots) must play a full game.
+
 ## Verify before you report
 1. `npx tsc -b` clean, `npx vitest run` green (all tests, not just yours).
 2. Start your own dev server on YOUR port only: `npx vite --port <your port> --strictPort` (run it in the background, kill it when done). Never use another port and never touch another lane's server.
