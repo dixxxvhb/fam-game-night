@@ -4,7 +4,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ControllerProps } from '../../engine/types'
 import { useSendStream, useTicker } from '../../engine/context'
 import { Btn, cx, Label } from '../../ui/kit'
-import { fmtMs, ordinal, trackName, TRIAL_RUNS, type KartState } from './logic'
+import { charOf, fmtMs, ordinal, trackName, TRIAL_RUNS, type KartState } from './logic'
+import { CAST } from '../board/park/cast'
 import { autoSteer, ITEM_NAMES, makeWorld, step, STEP, type ItemKind, type KartInput, type World } from './sim'
 import { InputSender, localInputs, quantizeSteer, SOLO_PADS_H, steerWithHysteresis } from './input'
 import { getTrack } from './tracks'
@@ -23,7 +24,29 @@ export function KartController(props: ControllerProps<KartState>) {
   if (!room.gamePlayers.includes(me)) {
     return <div className="p-6 text-center text-ink-2">{s.kind === 'trial' ? "You're in the next one. Watch the times roll in." : "You're in the next race. Watch the screen."}</div>
   }
+  if (s.stage === 'pick') return <PickList {...props} />
+  if (s.stage === 'cupIntro' || s.stage === 'trackIntro' || s.stage === 'raceResult' || s.stage === 'podium') {
+    return <div className="grid h-full content-center p-6 text-center text-xl text-ink-2">{s.stage === 'trackIntro' ? `Next: ${trackName(s.track)}. ` : ''}Look at the screen.</div>
+  }
   return s.kind === 'trial' ? <TrialDriver {...props} /> : <Wheel {...props} />
+}
+
+/** Stopgap critter pick (wave 2 replaces it with the real pick screen). */
+function PickList({ state: s, me, send }: ControllerProps<KartState>) {
+  const mine = charOf(s, me)
+  const taken = new Set(Object.values(s.chars).filter(Boolean))
+  return (
+    <div className="grid gap-2 p-4">
+      <Label>{mine ? `You drive ${CAST.find((c) => c.id === mine)?.name ?? mine}` : 'Pick your driver'}</Label>
+      <div className="grid grid-cols-2 gap-2">
+        {CAST.map((c) => (
+          <Btn key={c.id} aria-label={`Pick ${c.name}`} disabled={!!mine || taken.has(c.id)} onClick={() => send('pick', { char: c.id })}>
+            {c.name}
+          </Btn>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ---------------- shared controls ----------------
@@ -213,8 +236,9 @@ function Wheel({ state: s, me, now, room }: ControllerProps<KartState>) {
   const soloRef = useLatest(solo)
   const push = () => {
     if (!activeRef.current) return
+    // Apart: the host phone runs the race (local hand-off); the other phones need the network.
     if (soloRef.current) localInputs.set(me, { ...readRef.current(), at: performance.now() })
-    else senderRef.current?.set(readRef.current(), performance.now())
+    if (!soloRef.current || room.players.filter((p) => room.gamePlayers.includes(p.id) && !p.bot).length > 1) senderRef.current?.set(readRef.current(), performance.now())
   }
   const controls = useControls(steering.mode, steering.tilt, s.gas, push)
   useLayoutEffect(() => { readRef.current = controls.read })
@@ -436,7 +460,7 @@ function TrialDriver({ state: s, room, me, send }: ControllerProps<KartState>) {
 
   const p = room.players.find((x) => x.id === me)
   const racer = useMemo(() => [{ id: me, name: p?.name ?? me, color: p?.color ?? '#8790B6' }], [me, p?.name, p?.color])
-  const [firstWorld] = useState(() => makeWorld({ trackId: s.track, laps: 1, racers: racer, seed: s.seed, items: false, walled: true }))
+  const [firstWorld] = useState(() => makeWorld({ trackId: s.track, laps: 1, racers: racer, seed: s.seed, items: false, walled: true, speed: s.speed, gas: s.gas }))
   const worldRef = useRef<World>(firstWorld)
 
   // A lap report can get lost on the way to the host: resend it until it shows up in state.
@@ -453,7 +477,7 @@ function TrialDriver({ state: s, room, me, send }: ControllerProps<KartState>) {
     if (over || allIn || saving || phaseRef.current !== 'idle') return
     if (steering.mode === 'needs-tap') void steering.request()
     sendRef.current('trial:start')
-    worldRef.current = makeWorld({ trackId: s.track, laps: 1, racers: racer, seed: s.seed + runs + 1, items: false, walled: true })
+    worldRef.current = makeWorld({ trackId: s.track, laps: 1, racers: racer, seed: s.seed + runs + 1, items: false, walled: true, speed: s.speed, gas: s.gas })
     countEnd.current = performance.now() + 3000
     setCounting(3)
     setPhase('count')

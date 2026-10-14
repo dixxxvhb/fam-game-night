@@ -3,12 +3,14 @@
 // closed-loop: the sim exposes window.__kartQA.hint() (which way the centerline bends ahead),
 // and each phone holds LEFT or RIGHT accordingly, so karts actually go around.
 //
-// Together: a full 3-lap race on Oval with shots every ~5 s, then ~25 s on each other track.
-// Apart: every phone drives its 3 time-trial runs.
+// Every mode starts with the critter pick (each phone taps a free critter, bots pick themselves).
+// Together / solo / apart race: the whole Grand Prix (4 races, 3 laps each) with shots every
+// ~12 s, then ~25 s of a single race on a Hurricane Cup track. Apart time trial (--opts "Time trial"):
+// every phone drives its 3 runs.
 // Also measures 'kart:in' messages per phone two ways: websocket frames seen by the browser
 // (CDP), and the controller's own send log. Both must stay at or under 10 in any rolling second.
 
-const TRACKS = [['Figure Eight', 'eight'], ['Swamp', 'swamp'], ['Night Drive', 'night']]
+const TRACKS = [['Seven Mile Bridge', 'keys']]
 
 function maxRolling(times) {
   let best = 0
@@ -37,7 +39,29 @@ async function watchFrames(page) {
 }
 
 export default async function ({ tv, phones, shot, wait }) {
-  const apart = !tv
+  /** Every phone taps the first free critter, retrying for a few seconds until each has one. */
+  async function pickAll() {
+    const done = phones.map(() => false)
+    for (let tries = 0; tries < 20 && done.some((d) => !d); tries++) {
+      for (const [i, p] of phones.entries()) {
+        if (done[i]) continue
+        if ((await p.getByText(/^You drive /).count()) > 0) { done[i] = true; continue }
+        const btn = p.locator('button[aria-label^="Pick "]:not([disabled])').first()
+        if (await btn.count()) await btn.click().catch(() => {})
+      }
+      await wait(300)
+    }
+  }
+  // Pick: every phone taps the first free critter.
+  await wait(800)
+  await shot('pick')
+  await pickAll()
+  await wait(600)
+  await shot('picked')
+  // A time trial shows "Start run"; a race does not.
+  await wait(2500)
+  const trial = !tv && (await phones[0].getByRole('button', { name: /^Start run/ }).count()) > 0
+  const apart = !tv && trial
   // Solo (--mode solo): one phone racing AI karts; the race runs on that phone.
   const solo = !tv && phones.length === 1
   const screen = tv ?? phones[0]
@@ -54,8 +78,16 @@ export default async function ({ tv, phones, shot, wait }) {
     if (!(await l.count()) || !(await r.count())) return null
     return { L: await l.boundingBox(), R: await r.boundingBox() }
   }
+  const boxesAt = phones.map(() => 0)
   async function steer(i, want) {
     const p = phones[i]
+    // Between races the controller remounts: a held pad on the old element never reaches the
+    // new one, so every few seconds let go and look the pads up again.
+    if (Date.now() - boxesAt[i] > 3000) {
+      boxesAt[i] = Date.now()
+      if (held[i]) { await p.mouse.up(); held[i] = null }
+      boxes[i] = await padBoxes(i)
+    }
     if (held[i] === want) return
     if (held[i]) { await p.mouse.up(); held[i] = null }
     if (!want) return
@@ -76,9 +108,18 @@ export default async function ({ tv, phones, shot, wait }) {
   async function hints(page) {
     try { return await page.evaluate(() => (window.__kartQA?.hint ? window.__kartQA.hint() : {})) } catch { return {} }
   }
+  // Who runs the sim (and exposes the steering hint): the TV, or in apart mode the host phone.
+  let simPage = tv
+  async function findSim() {
+    if (tv) return tv
+    for (const p of phones) {
+      try { if (await p.evaluate(() => Boolean(window.__kartQA?.hint))) return p } catch { /* moving */ }
+    }
+    return simPage ?? phones[0]
+  }
 
-  /** Drive for up to `ms`, or until `done()` says stop. Shots every ~5 s. */
-  async function drive(label, ms, done) {
+  /** Drive for up to `ms`, or until `done()` says stop. Shots every ~shotEvery ms. */
+  async function drive(label, ms, done, shotEvery = 5000) {
     const start = Date.now()
     let lastShot = 0
     let lastFire = Date.now()
@@ -86,8 +127,9 @@ export default async function ({ tv, phones, shot, wait }) {
     let drifting = phones.map(() => 0)
     while (Date.now() - start < ms) {
       if (done && (await done())) break
+      if (!tv && (!simPage || Date.now() % 5 === 0)) simPage = await findSim()
+      const h = await hints(simPage ?? phones[0])
       for (let i = 0; i < phones.length; i++) {
-        const h = await hints(apart ? phones[i] : tv)
         const v = h[phones[i].playerId] ?? 0
         await steer(i, v > 0.22 ? 'R' : v < -0.22 ? 'L' : null)
         // Drift through the hard part of a turn now and then.
@@ -99,12 +141,12 @@ export default async function ({ tv, phones, shot, wait }) {
           drifting[i] = 0
         }
       }
-      if ((!apart || solo) && Date.now() - lastFire > 2500) {
+      if (!apart && Date.now() - lastFire > 2500) {
         lastFire = Date.now()
         const p = phones[Math.floor(Math.random() * phones.length)]
         await touch(p, 'Fire', 'pointerdown', 9)
       }
-      if (Date.now() - lastShot > 5000) {
+      if (Date.now() - lastShot > shotEvery) {
         lastShot = Date.now()
         await shot(`${label}-${String(n++).padStart(2, '0')}`)
       }
@@ -122,27 +164,30 @@ export default async function ({ tv, phones, shot, wait }) {
   let gatorShot = false
   const resultsUp = async () => (await phones[0].getByRole('button', { name: 'Next game' }).count()) > 0
 
-  if (!apart || solo) {
-    // Get-ready panel, then a countdown digit.
-    await shot('ready')
-    await wait(2200)
-    await shot('countdown')
-    let froze = false
+  if (!apart) {
+    // Cup intro / track intro panels, then the whole cup.
+    await shot('intro')
+    let froze = 0
     let winnerShot = false
-    await drive('oval', 170_000, async () => {
+    await drive('cup', 900_000, async () => {
       if (tv) try { hostRecv = (await tv.evaluate(() => window.__kartQA?.recv?.() ?? null)) ?? hostRecv } catch { /* fine */ }
       if (!winnerShot && (await screen.getByText(/ WINS$/).count())) {
         winnerShot = true
         await wait(300)
         await shot('winner')
       }
-      if (!froze && (await screen.getByText('Finish', { exact: true }).count())) {
-        froze = true
+      if ((await screen.getByText('Finish', { exact: true }).count()) && Date.now() - froze > 20_000) {
+        froze = Date.now()
+        winnerShot = false
         await wait(500)
         await shot('freeze')
       }
+      if (await screen.getByText('Cup', { exact: true }).count()) {
+        await shot('podium')
+        await wait(16_000)
+      }
       return resultsUp()
-    })
+    }, 12_000)
     await wait(1500)
     await shot('results')
   } else {
@@ -193,17 +238,20 @@ export default async function ({ tv, phones, shot, wait }) {
   if (!apart) console.log(' host received (kart:in per player):', JSON.stringify(hostRecv))
   if (solo) console.log(' (solo: the controller hands input to the Stage on the same phone, so no kart:in goes over the network)')
 
-  if (!apart) {
-    // A lap of each other track, for the look of them. Abort from the TV after ~25 s.
+  if (tv) {
+    // A single race on a Hurricane Cup track, for the look of it. Abort from the TV after ~25 s.
     for (const [label, id] of TRACKS) {
       await phones[0].getByRole('button', { name: 'Next game' }).click().catch(() => {})
       await wait(800)
-      const card = phones[0].locator('button[aria-expanded]', { hasText: /Kart/ }).first()
+      const card = phones[0].locator('button[aria-expanded]', { hasText: /Kart|Turnpike/ }).first()
       if ((await card.getAttribute('aria-expanded')) !== 'true') await card.click()
+      await phones[0].getByRole('button', { name: 'Single race', exact: true }).click()
       await phones[0].getByRole('button', { name: label, exact: true }).click()
-      await phones[0].getByRole('button', { name: /^Start Kart/ }).click()
+      await phones[0].getByRole('button', { name: /^Start (Kart|Turnpike)/ }).click()
       for (let i = 0; i < phones.length; i++) boxes[i] = null
-      await wait(6500)
+      await wait(1000)
+      await pickAll()
+      await wait(6500 + 4500)
       await drive(id, 25_000)
       await tv.getByRole('button', { name: 'End game' }).click()
       await wait(1000)

@@ -27,17 +27,21 @@ export function sameInput(a: KartInput, b: KartInput): boolean {
   return a.s === b.s && a.g === b.g && a.b === b.b && a.f === b.f
 }
 
-/** Host side: turn whatever arrived on the stream into a clean input, or null for junk. */
+/**
+ * Host side: turn whatever arrived on the stream into a clean input, or null for junk.
+ * Accepts the contract's wire names too: h = hop/drift held (same as b), u = item press counter (same as f).
+ */
 export function sanitizeInput(d: unknown): KartInput | null {
   if (!d || typeof d !== 'object' || Array.isArray(d)) return null
   const o = d as Record<string, unknown>
   const s = Number(o.s)
-  const f = Number(o.f ?? 0)
+  const f = Number(o.f ?? o.u ?? 0)
   if (!Number.isFinite(s) || !Number.isFinite(f)) return null
+  const hop = o.b ?? o.h
   return {
     s: quantizeSteer(s),
     g: o.g === 1 || o.g === true ? 1 : 0,
-    b: o.b === 1 || o.b === true ? 1 : 0,
+    b: hop === 1 || hop === true ? 1 : 0,
     f: Math.max(0, Math.min(1_000_000, Math.floor(f))),
   }
 }

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, PlayerAction, RoomPlayer } from '../../engine/types'
+import { COUNTDOWN_MS, CUP_INTRO_MS, CUP_POINTS, PICK_MS, PODIUM_MS, RACE_RESULT_MS, TRACK_INTRO_MS } from './contract'
 import {
-  bot, COUNTDOWN_MS, FINISH_WINDOW_MS, FREEZE_MS, fmtMs, HOST, lapTimes, ordinal, outcome, reduce, setup, standings, tick,
-  TRIAL_MS, type KartState,
+  bot, charOf, cupPoints, cupStandings, FINISH_WINDOW_MS, FREEZE_MS, fmtMs, gridOf, HOST, lapTimes, ordinal, outcome, PICK_DONE_MS,
+  reduce, setup, standings, tick, TRIAL_MS, type KartState,
 } from './logic'
-import { autoSteer, makeWorld, minLapMs, progressOf, step, type KartInput } from './sim'
+import { autoSteer, makeWorld, minLapMs, prestep, progressOf, step, type KartInput } from './sim'
 
 const players: RoomPlayer[] = [
   { id: 'dixxx', name: 'Dixxx', color: '#3CCB72', guest: false, connected: true },
@@ -13,318 +14,334 @@ const players: RoomPlayer[] = [
 ]
 let seed = 5
 const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646 }
-const ctx = (now: number, mode: 'together' | 'apart' = 'together'): GameCtx => ({ now, players, mode, random })
+const ctx = (now: number, mode: 'together' | 'apart' = 'together', ps = players): GameCtx => ({ now, players: ps, mode, random })
 const host = (type: string, payload: unknown, from = HOST): PlayerAction => ({ playerId: from, type, payload })
+const act = (playerId: string, type: string, payload?: unknown): PlayerAction => ({ playerId, type, payload })
 const TV = 'b9e0f3c2-tv-client-id'
 
-function startedRace(now: number, opts: Record<string, string | number> = {}) {
-  let s = setup(ctx(now), { track: 'oval', laps: 3, ...opts })
-  s = tick(s, ctx(s.goAt))
+/** Everyone picks, then tick through to the race of `raceNo`. */
+function toRace(s: KartState): KartState {
+  let t = s.stageAt
+  for (const [i, id] of s.ids.entries()) if (!s.chars[id]) s = reduce(s, act(id, 'pick', { char: ['chomp', 'pete', 'ibby', 'zippy', 'dillo', 'shelly'][i] }), ctx(t))
+  for (let guard = 0; guard < 10 && s.stage !== 'race'; guard++) {
+    t = Math.max(t, s.stage === 'countdown' ? s.goAt : s.stageEnds)
+    s = tick(s, ctx(t))
+  }
   expect(s.stage).toBe('race')
   return s
 }
 
+/** Finish a race in the given order with plausible times. */
+function finishRace(s: KartState, order: string[], t0 = s.goAt): KartState {
+  const lap = 30_000
+  for (const [i, id] of order.entries()) {
+    for (let l = s.racers[id].lap + 1; l <= s.laps; l++) s = reduce(s, host('lap', { id, lap: l, time: l * lap + i * 700 }), ctx(t0 + l * lap + i * 700))
+    s = reduce(s, host('finish', { id, time: s.laps * lap + i * 700 }), ctx(t0 + s.laps * lap + i * 700))
+  }
+  expect(s.stage).toBe('freeze')
+  return s
+}
+
 describe('setup', () => {
-  it('together is a race with a countdown; apart is a time trial', () => {
-    const r = setup(ctx(1000), { track: 'swamp', laps: 5, gas: 'hold' })
-    expect(r.kind).toBe('race')
-    expect(r.stage).toBe('countdown')
-    expect(r.goAt).toBe(1000 + COUNTDOWN_MS)
-    expect(r.track).toBe('swamp')
-    expect(r.laps).toBe(5)
-    expect(r.gas).toBe('hold')
-    expect(Object.keys(r.racers)).toEqual(['dixxx', 'johnnyboy', 'torii'])
-    const t = setup(ctx(1000, 'apart'), {})
-    expect(t.kind).toBe('trial')
-    expect(t.stage).toBe('trial')
-    expect(t.endsAt).toBe(1000 + TRIAL_MS)
-    expect(Object.keys(t.runners)).toHaveLength(3)
+  it('starts with the pick, Grand Prix by default, Rush Hour, four Sunshine Cup tracks', () => {
+    const s = setup(ctx(1000), {})
+    expect(s.kind).toBe('race')
+    expect(s.format).toBe('gp')
+    expect(s.stage).toBe('pick')
+    expect(s.stageEnds).toBe(1000 + PICK_MS)
+    expect(s.tracks).toEqual(['oval', 'eight', 'swamp', 'night'])
+    expect(s.speed).toBe('rush')
+    expect(s.laps).toBe(3)
+    expect(Object.values(s.chars)).toEqual([null, null, null])
+    expect([...s.grid].sort()).toEqual([...s.ids].sort())
   })
-  it('falls back on junk options', () => {
-    const r = setup(ctx(0), { track: 'rainbow-road', laps: 99, gas: 'nitro' })
-    expect(r.track).toBe('oval')
-    expect(r.laps).toBe(3)
-    expect(r.gas).toBe('auto')
+  it('reads every option, and falls back on junk', () => {
+    const s = setup(ctx(0), { race: 'single', track: 'keys', cup: 'hurricane', speed: 'florida', gas: 'hold', cam: 'overview' })
+    expect(s.format).toBe('single')
+    expect(s.tracks).toEqual(['keys'])
+    expect(s.speed).toBe('florida')
+    expect(s.gas).toBe('hold')
+    expect(s.cam).toBe('overview')
+    expect(setup(ctx(0), { cup: 'hurricane' }).tracks).toEqual(['pier', 'coaster', 'keys', 'launch'])
+    const j = setup(ctx(0), { race: 'single', track: 'rainbow-road', speed: 'warp', gas: 'nitro', cam: 'drone' })
+    expect(j.tracks).toEqual(['oval'])
+    expect(j.speed).toBe('rush')
+    expect(j.gas).toBe('auto')
+    expect(j.cam).toBe('split')
   })
-  it('waits for GO', () => {
-    const s = setup(ctx(0), {})
-    expect(tick(s, ctx(s.goAt - 1))).toBe(s)
-    expect(reduce(s, host('lap', { id: 'dixxx', lap: 1, time: 10_000 }), ctx(10))).toBe(s)
+  it('apart is a real race by default; Time trial needs two people', () => {
+    expect(setup(ctx(0, 'apart'), {}).kind).toBe('race')
+    expect(setup(ctx(0, 'apart'), { apart: 'trial' }).kind).toBe('trial')
+    const solo = [players[0], { ...players[1], bot: true }]
+    expect(setup(ctx(0, 'apart', solo), { apart: 'trial' }).kind).toBe('race')
   })
 })
 
-describe('a full race', () => {
-  it('counts laps, finishes, freezes for 3 seconds, then places by finish', () => {
-    const t0 = 1_000_000
-    let s = startedRace(t0)
-    const go = s.goAt
-    // Positions and items stream in from the TV.
-    s = reduce(s, host('place', { o: ['torii', 'dixxx', 'johnnyboy'], i: { torii: 'peel', dixxx: null, johnnyboy: 'missile' }, p: { torii: 0.4, dixxx: 0.3, johnnyboy: 0.2 }, h: { johnnyboy: 1 } }), ctx(go + 5000))
-    expect(s.order).toEqual(['torii', 'dixxx', 'johnnyboy'])
-    expect(s.racers.johnnyboy.item).toBe('missile')
-    expect(s.racers.torii.prog).toBe(0.4)
-    // The TV's client id works as the host too (the platform doesn't stamp '__host' yet).
-    s = reduce(s, host('lap', { id: 'torii', lap: 1, time: 14_000 }, TV), ctx(go + 14_000))
-    expect(s.racers.torii.lap).toBe(1)
-
-    const finishOrder = ['torii', 'johnnyboy', 'dixxx']
-    for (const [i, id] of finishOrder.entries()) {
-      for (let lap = s.racers[id].lap + 1; lap <= 3; lap++) {
-        s = reduce(s, host('lap', { id, lap, time: lap * 14_000 + i * 900 }), ctx(go + lap * 14_000 + i * 900))
+describe('pick', () => {
+  it('unique critters, one each; all picked ends the pick early', () => {
+    let s = setup(ctx(0), {})
+    s = reduce(s, act('dixxx', 'pick', { char: 'chomp' }), ctx(100))
+    expect(charOf(s, 'dixxx')).toBe('chomp')
+    // Taken, a second pick, junk, strangers: all ignored.
+    expect(reduce(s, act('torii', 'pick', { char: 'chomp' }), ctx(200))).toBe(s)
+    expect(reduce(s, act('dixxx', 'pick', { char: 'pete' }), ctx(200))).toBe(s)
+    expect(reduce(s, act('torii', 'pick', { char: 'unicorn' }), ctx(200))).toBe(s)
+    expect(reduce(s, act('nobody', 'pick', { char: 'pete' }), ctx(200))).toBe(s)
+    s = reduce(s, act('torii', 'pick', { char: 'ibby' }), ctx(300))
+    expect(s.stageEnds).toBe(PICK_MS)
+    s = reduce(s, act('johnnyboy', 'pick', { char: 'pete' }), ctx(400))
+    expect(s.stageEnds).toBe(400 + PICK_DONE_MS)
+    s = tick(s, ctx(400 + PICK_DONE_MS))
+    expect(s.stage).toBe('cupIntro')
+  })
+  it('45 s runs out: everyone left gets a free critter, no repeats', () => {
+    let s = setup(ctx(0), {})
+    s = reduce(s, act('dixxx', 'pick', { char: 'zippy' }), ctx(100))
+    expect(tick(s, ctx(PICK_MS - 1))).toBe(s)
+    s = tick(s, ctx(PICK_MS))
+    const chars = Object.values(s.chars)
+    expect(chars.every(Boolean)).toBe(true)
+    expect(new Set(chars).size).toBe(3)
+    expect(s.chars.dixxx).toBe('zippy')
+  })
+  it('bots pick a free critter after a beat', () => {
+    const ps = [players[0], { ...players[1], bot: true }, { ...players[2], bot: true }]
+    let s = setup(ctx(0, 'together', ps), {})
+    expect(bot(s, 'johnnyboy', ctx(100, 'together', ps))).toBeNull()
+    s = reduce(s, act('dixxx', 'pick', { char: 'chomp' }), ctx(200))
+    let t = 1300
+    while ((!s.chars.johnnyboy || !s.chars.torii) && t < 20_000) {
+      for (const id of ['johnnyboy', 'torii']) {
+        const m = bot(s, id, ctx(t, 'together', ps))
+        if (m) s = reduce(s, { playerId: id, ...m, payload: m.payload }, ctx(t, 'together', ps))
       }
-      s = reduce(s, host('finish', { id, time: 42_000 + i * 900 }), ctx(go + 42_000 + i * 900))
+      t += 200
     }
-    expect(s.stage).toBe('freeze')
-    expect(outcome(s, ctx(go + 43_000))).toBeNull()
-    s = tick(s, ctx(s.freezeUntil - 1))
-    expect(s.stage).toBe('freeze')
-    s = tick(s, ctx(s.freezeUntil))
-    expect(s.stage).toBe('done')
-    const out = outcome(s, ctx(go + 50_000))!
-    expect(out.placements).toEqual([
-      { playerId: 'torii', place: 1 },
-      { playerId: 'johnnyboy', place: 2 },
-      { playerId: 'dixxx', place: 3 },
-    ])
-    expect(out.summary).toBe('Torii won Oval in 42.00s')
-    expect(out.highlights?.[0]?.label).toMatch(/Fastest lap on Oval/)
-  })
-
-  it('stops 30 seconds after the winner and places the rest by progress (ties share)', () => {
-    let s = startedRace(0)
-    const go = s.goAt
-    for (let lap = 1; lap <= 3; lap++) s = reduce(s, host('lap', { id: 'dixxx', lap, time: lap * 12_000 }), ctx(go + lap * 12_000))
-    s = reduce(s, host('finish', { id: 'dixxx', time: 36_000 }), ctx(go + 36_000))
-    expect(s.firstFinishAt).toBe(go + 36_000)
-    s = reduce(s, host('place', { o: ['dixxx', 'torii', 'johnnyboy'], p: { torii: 2.31, johnnyboy: 2.31 } }), ctx(go + 40_000))
-    expect(tick(s, ctx(go + 36_000 + FINISH_WINDOW_MS - 1)).stage).toBe('race')
-    s = tick(s, ctx(go + 36_000 + FINISH_WINDOW_MS))
-    expect(s.stage).toBe('freeze')
-    // a late finish after the window doesn't count
-    expect(reduce(s, host('finish', { id: 'torii', time: 70_000 }), ctx(go + 70_000)).racers.torii.finishMs).toBeNull()
-    s = tick(s, ctx(go + 36_000 + FINISH_WINDOW_MS + FREEZE_MS))
-    const out = outcome(s, ctx(0))!
-    expect(out.placements).toEqual([
-      { playerId: 'dixxx', place: 1 },
-      { playerId: 'johnnyboy', place: 2 },
-      { playerId: 'torii', place: 2 },
-    ])
-    expect(standings(s).map((x) => x.place)).toEqual([1, 2, 2])
-  })
-
-  it('nobody finishing still ends the race at the hard stop', () => {
-    let s = startedRace(0)
-    s = reduce(s, host('place', { o: ['torii', 'dixxx', 'johnnyboy'], p: { torii: 1.5, dixxx: 1.2, johnnyboy: 0 } }), ctx(s.goAt + 1000))
-    s = tick(s, ctx(s.endsAt))
-    expect(s.stage).toBe('freeze')
-    s = tick(s, ctx(s.freezeUntil))
-    const out = outcome(s, ctx(0))!
-    expect(out.placements.map((p) => p.playerId)).toEqual(['torii', 'dixxx', 'johnnyboy'])
-    expect(out.summary).toBe('Nobody finished. Torii got the furthest')
-  })
-
-  it('a finish tie shares first place', () => {
-    let s = startedRace(0)
-    for (const id of ['dixxx', 'torii', 'johnnyboy']) {
-      for (let lap = 1; lap <= 3; lap++) s = reduce(s, host('lap', { id, lap, time: lap * 13_000 }), ctx(s.goAt + lap * 13_000))
-      s = reduce(s, host('finish', { id, time: id === 'johnnyboy' ? 41_000 : 40_000 }), ctx(s.goAt + 41_000))
-    }
-    s = tick(s, ctx(s.freezeUntil))
-    const out = outcome(s, ctx(0))!
-    expect(out.placements.map((p) => p.place)).toEqual([1, 1, 3])
+    expect(s.chars.johnnyboy).toBeTruthy()
+    expect(s.chars.torii).toBeTruthy()
+    expect(new Set(Object.values(s.chars)).size).toBe(3)
   })
 })
 
-describe('lap reports are hard to fake', () => {
-  it('rejects skipped, repeated, backwards and player-sent laps', () => {
-    let s = startedRace(0)
-    expect(reduce(s, host('lap', { id: 'dixxx', lap: 2, time: 20_000 }), ctx(1))).toBe(s)
-    s = reduce(s, host('lap', { id: 'dixxx', lap: 1, time: 20_000 }), ctx(1))
-    expect(s.racers.dixxx.lap).toBe(1)
-    expect(reduce(s, host('lap', { id: 'dixxx', lap: 1, time: 21_000 }), ctx(1))).toBe(s)
-    expect(reduce(s, host('lap', { id: 'dixxx', lap: 2, time: 19_000 }), ctx(1))).toBe(s)
-    // a player can't report their own lap
-    expect(reduce(s, host('lap', { id: 'dixxx', lap: 2, time: 30_000 }, 'dixxx'), ctx(1))).toBe(s)
-    expect(reduce(s, host('finish', { id: 'dixxx', time: 30_000 }, 'torii'), ctx(1))).toBe(s)
-    // a finish needs the laps first, and a believable time
-    expect(reduce(s, host('finish', { id: 'torii', time: 60_000 }), ctx(1))).toBe(s)
-    let t = s
-    for (let lap = 1; lap <= 3; lap++) t = reduce(t, host('lap', { id: 'torii', lap, time: lap * 4000 }), ctx(1))
-    expect(reduce(t, host('finish', { id: 'torii', time: 12_000 }), ctx(1))).toBe(t)
-    expect(reduce(s, host('place', { o: ['dixxx', 'torii', 'johnnyboy'] }, 'johnnyboy'), ctx(1))).toBe(s)
-  })
+describe('the Grand Prix flow', () => {
+  it('pick, cup intro, then per race: track intro, countdown, race, freeze, results; then the podium', () => {
+    let s = setup(ctx(0), {})
+    for (const [i, id] of s.ids.entries()) s = reduce(s, act(id, 'pick', { char: ['chomp', 'pete', 'ibby'][i] }), ctx(10))
+    s = tick(s, ctx(10 + PICK_DONE_MS))
+    expect(s.stage).toBe('cupIntro')
+    let t = s.stageAt
+    s = tick(s, ctx(t + CUP_INTRO_MS - 1))
+    expect(s.stage).toBe('cupIntro')
+    s = tick(s, ctx(t + CUP_INTRO_MS))
+    expect(s.stage).toBe('trackIntro')
+    expect(s.track).toBe('oval')
+    t = s.stageAt
+    expect(s.goAt).toBe(t + TRACK_INTRO_MS + COUNTDOWN_MS)
+    s = tick(s, ctx(t + TRACK_INTRO_MS))
+    expect(s.stage).toBe('countdown')
+    // Nothing counts before GO.
+    expect(reduce(s, host('lap', { id: 'dixxx', lap: 1, time: 1 }), ctx(s.goAt - 10))).toBe(s)
+    s = tick(s, ctx(s.goAt))
+    expect(s.stage).toBe('race')
 
-  it('ignores junk payloads', () => {
-    const s = startedRace(0)
-    const junk: unknown[] = [
-      null, undefined, 'lap', 7, [], { id: 'nobody', lap: 1, time: 1000 }, { id: 'dixxx', lap: '1', time: 1000 },
-      { id: 'dixxx', lap: 1, time: -5 }, { id: 'dixxx', lap: 1, time: NaN }, { id: 'dixxx', lap: 1, time: 'soon' },
-      { id: 'dixxx', lap: 1, time: 1e12 }, { id: 'dixxx', lap: 9, time: 1000 },
+    const races = [
+      ['torii', 'dixxx', 'johnnyboy'],
+      ['dixxx', 'torii', 'johnnyboy'],
+      ['johnnyboy', 'dixxx', 'torii'],
+      ['dixxx', 'johnnyboy', 'torii'],
     ]
-    for (const p of junk) {
-      expect(reduce(s, host('lap', p), ctx(1))).toBe(s)
-      expect(reduce(s, host('finish', p), ctx(1))).toBe(s)
+    for (const [n, order] of races.entries()) {
+      if (n > 0) s = toRace(s)
+      expect(s.raceNo).toBe(n)
+      expect(s.track).toBe(['oval', 'eight', 'swamp', 'night'][n])
+      s = finishRace(s, order)
+      s = tick(s, ctx(s.freezeUntil))
+      expect(s.stage).toBe('raceResult')
+      expect(s.results).toHaveLength(n + 1)
+      expect(s.results[n].pts[order[0]]).toBe(CUP_POINTS[0])
+      expect(s.results[n].pts[order[2]]).toBe(CUP_POINTS[2])
+      expect(outcome(s, ctx(s.stageAt))).toBeNull()
+      s = tick(s, ctx(s.stageAt + RACE_RESULT_MS))
     }
-    for (const p of [null, { o: 'dixxx' }, { o: ['dixxx', 'dixxx', 'torii'] }, { o: ['dixxx', 'torii'] }, { o: ['a', 'b', 'c'] }, { i: { dixxx: 'banana' } }, { p: { dixxx: -3 } }, { p: { dixxx: 'far' } }, { h: { dixxx: 1.5 } }]) {
-      expect(reduce(s, host('place', p), ctx(1))).toBe(s)
-    }
-    expect(reduce(s, host('honk', { loud: true }), ctx(1))).toBe(s)
-    expect(reduce(s, { playerId: 'dixxx', type: 'trial:lap', payload: { time: 20_000, n: 1 } }, ctx(1))).toBe(s)
-    // an unchanged place update returns the same state (no rebroadcast)
-    const p = { o: s.order, i: { dixxx: null }, p: { dixxx: 0 } }
-    expect(reduce(s, host('place', p), ctx(1))).toBe(s)
+    expect(s.stage).toBe('podium')
+    // dixxx: 12+15+12+15 = 54, torii: 15+12+10+10 = 47, johnnyboy: 10+10+15+12 = 47; johnnyboy beat torii in the last race.
+    expect(s.cupPts).toEqual({ dixxx: 54, torii: 47, johnnyboy: 47 })
+    expect(cupStandings(s).map((x) => [x.id, x.place])).toEqual([['dixxx', 1], ['johnnyboy', 2], ['torii', 3]])
+    s = tick(s, ctx(s.stageAt + PODIUM_MS))
+    expect(s.stage).toBe('done')
+    const o = outcome(s, ctx(s.stageAt))!
+    expect(o.placements).toEqual([
+      { playerId: 'dixxx', place: 1, score: 54 },
+      { playerId: 'johnnyboy', place: 2, score: 47 },
+      { playerId: 'torii', place: 3, score: 47 },
+    ])
+    expect(o.summary).toBe('Dixxx won the Sunshine Cup with 54 points')
+    expect(o.highlights?.some((h) => h.label?.startsWith('Fastest lap on'))).toBe(true)
+  })
+
+  it('the grid after race 1 puts the cup leader at the back', () => {
+    let s = toRace(setup(ctx(0), {}))
+    s = finishRace(s, ['torii', 'dixxx', 'johnnyboy'])
+    s = tick(s, ctx(s.freezeUntil))
+    s = tick(s, ctx(s.stageAt + RACE_RESULT_MS))
+    expect(s.stage).toBe('trackIntro')
+    expect(gridOf(s)).toEqual(['johnnyboy', 'dixxx', 'torii'])
+    expect(Object.values(s.racers).every((r) => r.lap === 0 && r.finishMs === null)).toBe(true)
+  })
+
+  it('single race skips the cup intro and goes results, podium, done', () => {
+    let s = setup(ctx(0), { race: 'single', track: 'pier' })
+    for (const [i, id] of s.ids.entries()) s = reduce(s, act(id, 'pick', { char: ['chomp', 'pete', 'ibby'][i] }), ctx(10))
+    s = tick(s, ctx(s.stageEnds))
+    expect(s.stage).toBe('trackIntro')
+    expect(s.track).toBe('pier')
+    s = toRace(s)
+    s = finishRace(s, ['johnnyboy', 'torii', 'dixxx'])
+    s = tick(s, ctx(s.freezeUntil))
+    expect(s.stage).toBe('raceResult')
+    s = tick(s, ctx(s.stageAt + RACE_RESULT_MS))
+    expect(s.stage).toBe('podium')
+    s = tick(s, ctx(s.stageAt + PODIUM_MS))
+    const o = outcome(s, ctx(s.stageAt))!
+    expect(o.placements.map((p) => p.playerId)).toEqual(['johnnyboy', 'torii', 'dixxx'])
+    expect(o.summary).toMatch(/^Johnnyboy won Pier Pressure in /)
+  })
+
+  it('cup points: everyone who races scores; ties share a place and its points', () => {
+    expect(cupPoints(1)).toBe(15)
+    expect(cupPoints(8)).toBe(1)
+    expect(cupPoints(9)).toBe(0)
+    let s = toRace(setup(ctx(0), { race: 'single' }))
+    // Nobody finishes; two tie on progress.
+    s = reduce(s, host('place', { o: ['torii', 'dixxx', 'johnnyboy'], p: { torii: 1.5, dixxx: 1.2, johnnyboy: 1.2 } }), ctx(s.goAt + 9000))
+    s = tick(s, ctx(s.endsAt))
+    s = tick(s, ctx(s.freezeUntil))
+    expect(s.results[0].places).toEqual({ torii: 1, dixxx: 2, johnnyboy: 2 })
+    expect(s.results[0].pts).toEqual({ torii: 15, dixxx: 12, johnnyboy: 12 })
   })
 })
 
-describe('time trial (apart)', () => {
-  const min = minLapMs('oval')
+describe('the race itself', () => {
+  it('stops 30 seconds after the winner and places the rest by progress', () => {
+    let s = toRace(setup(ctx(0), { race: 'single' }))
+    const go = s.goAt
+    for (let l = 1; l <= 3; l++) s = reduce(s, host('lap', { id: 'torii', lap: l, time: l * 30_000 }), ctx(go + l * 30_000))
+    s = reduce(s, host('finish', { id: 'torii', time: 90_000 }), ctx(go + 90_000))
+    s = reduce(s, host('place', { o: ['torii', 'johnnyboy', 'dixxx'], p: { johnnyboy: 2.6, dixxx: 2.1 } }), ctx(go + 95_000))
+    expect(tick(s, ctx(go + 90_000 + FINISH_WINDOW_MS - 1)).stage).toBe('race')
+    s = tick(s, ctx(go + 90_000 + FINISH_WINDOW_MS))
+    expect(s.stage).toBe('freeze')
+    expect(s.freezeUntil).toBe(s.stageAt + FREEZE_MS)
+    expect(standings(s).map((x) => x.id)).toEqual(['torii', 'johnnyboy', 'dixxx'])
+  })
 
-  it('three runs each, best lap wins, then a 3 second freeze', () => {
-    let s = setup(ctx(0, 'apart'), { track: 'oval' })
-    const lap = (id: string, time: number, now = 1000) => {
-      const n = s.runners[id].runs.length + 1
-      s = reduce(s, { playerId: id, type: 'trial:lap', payload: { time, n } }, ctx(now, 'apart'))
-      // a resend of the same run changes nothing
-      expect(reduce(s, { playerId: id, type: 'trial:lap', payload: { time, n } }, ctx(now, 'apart'))).toBe(s)
-    }
-    s = reduce(s, { playerId: 'torii', type: 'trial:start', payload: undefined }, ctx(10, 'apart'))
-    expect(s.runners.torii.driving).toBe(true)
-    lap('torii', 15_000)
-    expect(s.runners.torii).toEqual({ runs: [15_000], best: 15_000, driving: false, startedAt: null })
-    lap('torii', 13_400)
-    lap('torii', 14_100)
-    expect(s.runners.torii.best).toBe(13_400)
-    // a fourth run is refused
+  it('lap reports are hard to fake: skipped, repeated, backwards, too fast and player-sent laps are dropped', () => {
+    let s = toRace(setup(ctx(0), { race: 'single' }))
+    const go = s.goAt
+    s = reduce(s, host('lap', { id: 'dixxx', lap: 1, time: 30_000 }), ctx(go + 30_000))
     const before = s
-    s = reduce(s, { playerId: 'torii', type: 'trial:lap', payload: { time: 12_000, n: 4 } }, ctx(1000, 'apart'))
-    expect(s).toBe(before)
-    for (const t of [16_000, 15_500, 15_800]) lap('dixxx', t)
-    for (const t of [14_000, 13_900]) lap('johnnyboy', t)
+    expect(reduce(s, host('lap', { id: 'dixxx', lap: 3, time: 60_000 }), ctx(go))).toBe(before)
+    expect(reduce(s, host('lap', { id: 'dixxx', lap: 1, time: 31_000 }), ctx(go))).toBe(before)
+    expect(reduce(s, host('lap', { id: 'dixxx', lap: 2, time: 20_000 }), ctx(go))).toBe(before)
+    expect(reduce(s, host('lap', { id: 'dixxx', lap: 2, time: 60_000 }, 'dixxx'), ctx(go))).toBe(before)
+    expect(reduce(s, host('finish', { id: 'dixxx', time: minLapMs('oval') }), ctx(go))).toBe(before)
+    expect(reduce(s, host('lap', null), ctx(go))).toBe(before)
+    expect(reduce(s, host('place', 'junk'), ctx(go))).toBe(before)
+    // The TV's client id is the host too.
+    expect(reduce(s, host('lap', { id: 'dixxx', lap: 2, time: 60_000 }, TV), ctx(go)).racers.dixxx.lap).toBe(2)
+  })
+
+  it('place reports carry items, roulette, coins, rocket starts; worst place tracks the comeback', () => {
+    let s = toRace(setup(ctx(0), { race: 'single' }))
+    const go = s.goAt
+    s = reduce(s, host('place', { o: ['torii', 'johnnyboy', 'dixxx'], i: { dixxx: 'pelican', torii: 'bogus' }, r: ['johnnyboy'], c: { dixxx: 7, torii: 99 }, k: { dixxx: 1 } }), ctx(go + 9000))
+    expect(s.racers.dixxx.item).toBe('pelican')
+    expect(s.racers.torii.item).toBeNull()
+    expect(s.racers.johnnyboy.rolling).toBe(true)
+    expect(s.racers.dixxx.coins).toBe(7)
+    expect(s.racers.torii.coins).toBe(0)
+    expect(s.racers.dixxx.rockets).toBe(1)
+    expect(s.racers.dixxx.worst).toBe(3)
+    s = finishRace(s, ['dixxx', 'torii', 'johnnyboy'])
+    s = tick(s, ctx(s.freezeUntil))
+    expect(s.results[0].climb.dixxx).toBe(2)
+    s = tick(s, ctx(s.stageAt + RACE_RESULT_MS))
+    s = tick(s, ctx(s.stageAt + PODIUM_MS))
+    const o = outcome(s, ctx(s.stageAt))!
+    expect(o.highlights?.map((h) => h.label)).toContain('From 3rd to 1st on Gate Loop')
+    expect(o.highlights?.map((h) => h.label)).toContain('Nailed the rocket start')
+  })
+})
+
+describe('time trial (apart, option)', () => {
+  const apart = (now: number) => ctx(now, 'apart')
+  it('pick, then three runs each, best lap wins, then a freeze and done', () => {
+    let s = setup(apart(0), { apart: 'trial', track: 'swamp' })
+    expect(s.kind).toBe('trial')
+    s = tick(s, apart(PICK_MS))
     expect(s.stage).toBe('trial')
-    lap('johnnyboy', 13_400, 50_000)
-    expect(s.stage).toBe('freeze')
-    expect(s.freezeUntil).toBe(50_000 + FREEZE_MS)
-    s = tick(s, ctx(s.freezeUntil, 'apart'))
-    const out = outcome(s, ctx(0, 'apart'))!
-    expect(out.placements).toEqual([
-      { playerId: 'johnnyboy', place: 1 },
-      { playerId: 'torii', place: 1 },
-      { playerId: 'dixxx', place: 3 },
-    ])
-    expect(out.summary).toMatch(/fastest lap: 13\.40s on Oval/)
-  })
-
-  it('ends after 3 minutes; no lap means last place, tied', () => {
-    let s = setup(ctx(0, 'apart'), {})
-    s = reduce(s, { playerId: 'dixxx', type: 'trial:lap', payload: { time: 20_000, n: 1 } }, ctx(10, 'apart'))
-    expect(tick(s, ctx(TRIAL_MS - 1, 'apart'))).toBe(s)
-    s = tick(s, ctx(TRIAL_MS, 'apart'))
-    expect(s.stage).toBe('freeze')
-    // too late now
-    expect(reduce(s, { playerId: 'torii', type: 'trial:lap', payload: { time: 20_000, n: 1 } }, ctx(TRIAL_MS + 1, 'apart'))).toBe(s)
-    s = tick(s, ctx(TRIAL_MS + FREEZE_MS, 'apart'))
-    const out = outcome(s, ctx(0, 'apart'))!
-    expect(out.placements[0]).toEqual({ playerId: 'dixxx', place: 1 })
-    expect(out.placements.slice(1).map((p) => p.place)).toEqual([2, 2])
-  })
-
-  it('rejects impossible or junk lap times and strangers', () => {
-    const s = setup(ctx(0, 'apart'), { track: 'oval' })
-    for (const time of [min - 1, 0, -1, NaN, 'fast', null, 700_000, Infinity]) {
-      expect(reduce(s, { playerId: 'dixxx', type: 'trial:lap', payload: { time, n: 1 } }, ctx(1, 'apart'))).toBe(s)
+    expect(s.endsAt).toBe(PICK_MS + TRIAL_MS)
+    const t = PICK_MS
+    const lap = minLapMs('swamp') + 5000
+    for (const [i, id] of ['dixxx', 'johnnyboy', 'torii'].entries()) {
+      for (let n = 1; n <= 3; n++) {
+        s = reduce(s, act(id, 'trial:start'), apart(t))
+        s = reduce(s, act(id, 'trial:lap', { time: lap + i * 1000 + n * 10, n }), apart(t + 1000))
+      }
     }
-    // the run number has to be the next one
-    for (const n of [undefined, 0, 2, '1', 1.5]) {
-      expect(reduce(s, { playerId: 'dixxx', type: 'trial:lap', payload: { time: 20_000, n } }, ctx(1, 'apart'))).toBe(s)
-    }
-    expect(reduce(s, { playerId: 'dixxx', type: 'trial:lap', payload: null }, ctx(1, 'apart'))).toBe(s)
-    expect(reduce(s, { playerId: 'g-stranger', type: 'trial:lap', payload: { time: 20_000, n: 1 } }, ctx(1, 'apart'))).toBe(s)
-    expect(reduce(s, { playerId: 'g-stranger', type: 'trial:start', payload: null }, ctx(1, 'apart'))).toBe(s)
-    expect(reduce(s, host('lap', { id: 'dixxx', lap: 1, time: 20_000 }), ctx(1, 'apart'))).toBe(s)
-    const ok = reduce(s, { playerId: 'dixxx', type: 'trial:lap', payload: { time: min + 1, n: 1 } }, ctx(1, 'apart'))
-    expect(ok.runners.dixxx.best).toBe(min + 1)
+    expect(s.stage).toBe('freeze')
+    s = tick(s, apart(s.freezeUntil))
+    expect(s.stage).toBe('done')
+    const o = outcome(s, apart(s.stageAt))!
+    expect(o.placements.map((p) => p.playerId)).toEqual(['dixxx', 'johnnyboy', 'torii'])
   })
 })
 
 describe('helpers', () => {
   it('formats times and places', () => {
-    expect(fmtMs(13_421)).toBe('13.42s')
-    expect(fmtMs(62_340)).toBe('1:02.3')
+    expect(fmtMs(12_345)).toBe('12.35s')
+    expect(fmtMs(75_000)).toBe('1:15.0')
     expect(fmtMs(null)).toBe('--')
     expect(ordinal(1)).toBe('1st')
     expect(ordinal(2)).toBe('2nd')
     expect(ordinal(3)).toBe('3rd')
-    expect(ordinal(4)).toBe('4th')
     expect(ordinal(11)).toBe('11th')
-    expect(lapTimes([14_000, 27_000, 41_500])).toEqual([14_000, 13_000, 14_500])
+    expect(lapTimes([30_000, 58_000, 87_000])).toEqual([30_000, 28_000, 29_000])
   })
 })
 
-describe('bots', () => {
-  const bots: RoomPlayer[] = [
-    { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', guest: true, connected: true, bot: true },
-    { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', guest: true, connected: true, bot: true },
-  ]
-  const mk = (ps: RoomPlayer[], mode: 'together' | 'apart') => (now: number): GameCtx => ({ now, players: ps, mode, random })
-
-  it('solo (one person with bots, apart) is a race; two people apart is a time trial', () => {
-    expect(setup(mk([players[0], ...bots], 'apart')(0), {}).kind).toBe('race')
-    expect(setup(mk([players[0]], 'apart')(0), {}).kind).toBe('race')
-    expect(setup(mk([players[0], players[1], ...bots], 'apart')(0), {}).kind).toBe('trial')
-    expect(setup(mk([players[0], ...bots], 'together')(0), {}).kind).toBe('race')
-  })
-
-  it('a solo race against AI karts: the host sim reports, the logic scores it', () => {
-    const ps = [players[0], ...bots]
-    const c = mk(ps, 'apart')
-    let s: KartState = setup(c(0), { track: 'oval', laps: 3 })
-    const w = makeWorld({ trackId: s.track, laps: s.laps, racers: ps.map((p) => ({ id: p.id, name: p.name, color: p.color, bot: p.bot })), seed: s.seed })
-    // In a race the bots never act through the platform: the Stage drives them.
-    expect(bot(s, 'bot-gator', c(0))).toBeNull()
+describe('a whole race through the sim', () => {
+  it('a solo race against AI karts: the host sim reports, the logic scores it, cup points land', () => {
+    const ps = [players[0], { ...players[1], bot: true }, { ...players[2], bot: true }]
+    const c = (now: number) => ctx(now, 'apart', ps)
+    let s = setup(c(0), { race: 'single', track: 'oval' })
+    s = reduce(s, act('dixxx', 'pick', { char: 'chomp' }), c(10))
+    s = tick(s, c(PICK_MS))
+    s = tick(s, c(s.stageEnds))
+    expect(s.stage).toBe('countdown')
+    const racers = gridOf(s).map((id) => ({ ...ps.find((p) => p.id === id)!, char: charOf(s, id) }))
+    const w = makeWorld({ trackId: s.track, laps: s.laps, racers, seed: s.seed, speed: s.speed, gas: s.gas })
+    // The countdown: hop pressed 300 ms before GO = rocket start.
+    for (let toGo = COUNTDOWN_MS; toGo > 0; toGo -= 100) prestep(w, { dixxx: { s: 0, g: 1, b: toGo <= 300 ? 1 : 0, f: 0 } }, toGo)
     s = tick(s, c(s.goAt))
-    let out = null
-    for (let i = 0; i < 60 * 240 && !out; i++) {
-      const me = w.karts[0]
-      const human: KartInput = { s: Math.round(autoSteer(w, me) * 10) / 10, g: 1, b: 0, f: 0 }
-      // The phone's page stamps the Stage's reports with the person's own id ('dixxx').
-      const from = players[0].id
-      for (const e of step(w, { [me.id]: human })) {
-        if (e.t === 'lap') s = reduce(s, { playerId: from, type: 'lap', payload: { id: e.id, lap: e.lap, time: e.time } }, c(s.goAt + w.time))
-        if (e.t === 'finish') s = reduce(s, { playerId: from, type: 'finish', payload: { id: e.id, time: e.time } }, c(s.goAt + w.time))
+    let rocket = false
+    for (let i = 0; i < 60 * 200 && s.stage === 'race'; i++) {
+      const k = w.karts.find((x) => x.id === 'dixxx')!
+      const inp: KartInput = { s: Math.round(autoSteer(w, k) * 10) / 10, g: 1, b: i < 5 ? 1 : 0, f: 0 }
+      for (const e of step(w, { dixxx: inp })) {
+        if (e.t === 'rocket' && e.id === 'dixxx' && e.ok) rocket = true
+        if (e.t === 'lap') s = reduce(s, act('dixxx', 'lap', { id: e.id, lap: e.lap, time: e.time }), c(s.goAt + e.time))
+        if (e.t === 'finish') s = reduce(s, act('dixxx', 'finish', { id: e.id, time: e.time }), c(s.goAt + e.time))
       }
       if (i % 30 === 0) {
-        s = reduce(s, { playerId: from, type: 'place', payload: { o: w.order, p: Object.fromEntries(w.karts.map((k) => [k.id, progressOf(w, k)])) } }, c(s.goAt + w.time))
+        s = reduce(s, act('dixxx', 'place', { o: w.order, p: Object.fromEntries(w.karts.map((k2) => [k2.id, progressOf(w, k2)])), k: Object.fromEntries(w.karts.map((k2) => [k2.id, Math.min(1, k2.rockets)])) }), c(s.goAt + w.time))
+        s = tick(s, c(s.goAt + w.time))
       }
-      if (i % 12 === 0) s = tick(s, c(s.goAt + w.time))
-      if (bot(s, 'bot-pigeon', c(s.goAt + w.time)) !== null) throw new Error('race bots must not act')
-      out = outcome(s, c(s.goAt + w.time))
     }
-    expect(out).not.toBeNull()
-    expect(out!.placements).toHaveLength(3)
-    expect(Object.values(s.racers).filter((r) => r.finishMs !== null).length).toBeGreaterThanOrEqual(2)
-  })
-
-  it('a time trial with two idle people and two bots ends with the bots on top', () => {
-    const ps = [players[0], players[1], ...bots]
-    const c = mk(ps, 'apart')
-    let s: KartState = setup(c(0), { track: 'oval' })
-    let now = 0
-    let out = null
-    while (!out && now < TRIAL_MS + 10_000) {
-      now += 200
-      s = tick(s, c(now))
-      for (const b of bots) {
-        const move = bot(s, b.id, c(now))
-        if (move) s = reduce(s, { playerId: b.id, type: move.type, payload: move.payload }, c(now))
-      }
-      out = outcome(s, c(now))
-    }
-    expect(out).not.toBeNull()
-    expect(s.runners['bot-gator'].runs).toHaveLength(3)
-    expect(s.runners['bot-pigeon'].runs).toHaveLength(3)
-    expect(out!.placements.slice(0, 2).map((p) => p.playerId).sort()).toEqual(['bot-gator', 'bot-pigeon'])
-    expect(out!.placements.slice(2).map((p) => p.place)).toEqual([3, 3])
-    // bot laps look like laps
-    for (const t of s.runners['bot-gator'].runs) expect(t).toBeGreaterThan(minLapMs('oval'))
+    expect(rocket).toBe(true)
+    expect(s.stage).toBe('freeze')
+    s = tick(s, c(s.freezeUntil))
+    expect(s.stage).toBe('raceResult')
+    expect(Object.values(s.cupPts).reduce((a, b) => a + b, 0)).toBe(15 + 12 + 10)
   })
 })

@@ -34,6 +34,10 @@ describe('sanitizeInput (host side)', () => {
     expect(sanitizeInput({ s: -5, g: true, b: true, f: 2.9 })).toEqual({ s: -1, g: 1, b: 1, f: 2 })
     expect(sanitizeInput({ s: 0 })).toEqual({ s: 0, g: 0, b: 0, f: 0 })
   })
+  it("takes the contract's wire names too (h = hop/drift, u = item counter)", () => {
+    expect(sanitizeInput({ s: 0.2, g: 1, h: 1, u: 3 })).toEqual({ s: 0.2, g: 1, b: 1, f: 3 })
+    expect(sanitizeInput({ s: 0, h: true })).toEqual({ s: 0, g: 0, b: 1, f: 0 })
+  })
   it('drops junk', () => {
     for (const junk of [null, undefined, 3, 'left', [], [1, 2], { s: 'x' }, { s: NaN }, { s: 0, f: 'many' }, { f: 1 }]) {
       expect(sanitizeInput(junk)).toBeNull()
