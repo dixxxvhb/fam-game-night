@@ -397,6 +397,9 @@ function arrive(n: BoardState, ctx: GameCtx) {
   land(n, ctx)
 }
 
+const BLUE_LINES = ['Free money. Do not ask where from.', 'The board likes you. For now.', 'Coins. Shiny. Yours.', 'Rent money, basically.']
+const RED_LINES = ['The board giveth. Mostly it taketh.', 'That one stings.', 'Gone. Like a Saturday.', 'Coins, but backwards.']
+
 function land(n: BoardState, ctx: GameCtx) {
   const id = curId(n)
   const p = n.players[id]
@@ -411,10 +414,10 @@ function land(n: BoardState, ctx: GameCtx) {
     const doubled = p.doubleBlue
     if (doubled) { amt *= 2; p.doubleBlue = false }
     const got = addCoins(n, id, amt)
-    note(n, ctx, { kind, who: id, title: `+${got} coins`, text: doubled ? 'Happy Hour paid out.' : mult > 1 ? 'Double in the last five.' : undefined, delta: { [id]: got } }, 'endTurn')
+    note(n, ctx, { kind, who: id, title: `+${got} coins`, text: doubled ? 'Happy Hour paid out.' : mult > 1 ? 'Double in the last five.' : BLUE_LINES[(n.turn + n.cur) % BLUE_LINES.length], delta: { [id]: got } }, 'endTurn')
   } else if (kind === 'red') {
     const got = addCoins(n, id, -RED_COINS * mult)
-    note(n, ctx, { kind, who: id, title: got ? `${got} coins` : 'Nothing to lose', text: got ? (mult > 1 ? 'Double in the last five.' : undefined) : 'Broke people are immune to red spaces.', delta: { [id]: got } }, 'endTurn')
+    note(n, ctx, { kind, who: id, title: got ? `${got} coins` : 'Nothing to lose', text: got ? (mult > 1 ? 'Double in the last five.' : RED_LINES[(n.turn + n.cur) % RED_LINES.length]) : 'Broke people are immune to red spaces.', delta: { [id]: got } }, 'endTurn')
   } else if (kind === 'event') {
     p.events += 1
     const evId = n.eventDeck[n.eventNo % n.eventDeck.length]

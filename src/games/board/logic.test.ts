@@ -255,7 +255,9 @@ describe('the Star', () => {
   })
 
   it('once per pass: declining keeps moving and it does not ask again', () => {
-    let { s, now } = atRoll()
+    const r0 = atRoll()
+    const now = r0.now
+    let s = r0.s
     const id = curId(s)
     s = setP(s, id, { pos: 10, coins: 25 })
     s = rig(s, { star: 12, stage: 'star', endsAt: now + CHOICE_MS, starOffered: true, move: { from: 10, path: [11, 12], at: now, left: 3, stop: 'star' } })
