@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent, useLayoutEffect } from 'react'
 import type { ControllerProps } from '../../engine/types'
 import { useSendStream, useTicker } from '../../engine/context'
 import { cx, Label } from '../../ui/kit'
@@ -21,18 +21,18 @@ function JarPlay({ s, me, now, send, room }: { s: MelonState; me: string; now: (
   const canvas = useRef<HTMLCanvasElement>(null)
   const jarRef = useRef<Jar | null>(null)
   const live = useRef({ s, send, sendStream, me, players: room.players })
-  live.current = { s, send, sendStream, me, players: room.players }
+  useLayoutEffect(() => { live.current = { s, send, sendStream, me, players: room.players } })
 
   const [box, setBox] = useState({ w: 0, h: 0, zone: 0 })
   const boxRef = useRef(box)
-  boxRef.current = box
+  useLayoutEffect(() => { boxRef.current = box })
   const [score, setScore] = useState(s.players[me]?.score ?? 0)
   const [held, setHeld] = useState(dealTier)
   const [next, setNext] = useState(dealTier)
   const heldRef = useRef(held)
-  heldRef.current = held
+  useLayoutEffect(() => { heldRef.current = held })
   const nextRef = useRef(next)
-  nextRef.current = next
+  useLayoutEffect(() => { nextRef.current = next })
   const [dropped, setDropped] = useState(false)
   const [toppedOut, setToppedOut] = useState(false)
   const [toast, setToast] = useState<{ text: string; key: number } | null>(null)
@@ -91,6 +91,7 @@ function JarPlay({ s, me, now, send, room }: { s: MelonState; me: string; now: (
       if (jar && !jar.over) jar.queueJunk(inc.n)
       live.current.send('absorb', { id: inc.id })
       const from = live.current.players.find((p) => p.id === inc.from)?.name ?? 'Someone'
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the toast reacts to junk arriving from the host
       setToast({ text: `${from} sent you ${inc.n}`, key: inc.id })
     }
   }, [incoming])

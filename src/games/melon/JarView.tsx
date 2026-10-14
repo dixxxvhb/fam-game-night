@@ -108,7 +108,7 @@ export function JarView({
     moving.current = []
     if (snap) take(snap)
     dirty.current = true
-  }, [playerId, game]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [playerId, game])
 
   useEffect(() => {
     dirty.current = true
