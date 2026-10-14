@@ -1,6 +1,6 @@
 import type { GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
-import { shuffle } from '../../lib/shuffle'
+import { freshFirst, shuffle } from '../../lib/shuffle'
 import { ABOUT, PACKS, PROMPTS, PROMPT_BY_ID, SAFETY_FALLBACK, promptsForPack } from './prompts'
 
 /**
@@ -147,7 +147,7 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Quip
   const pack = PACKS[String(opts.pack ?? '')] ? String(opts.pack) : 'mixed'
   const perRound = ids.length >= 5 ? 3 : 2
   const need = perRound * 2 + 1
-  let chosen = shuffle(promptsForPack(pack), ctx.random).slice(0, need)
+  let chosen = freshFirst(promptsForPack(pack), (p) => p.id, ctx.used, ctx.random).slice(0, need)
   if (chosen.length < need) {
     const extra = shuffle(PROMPTS.filter((p) => !chosen.includes(p)), ctx.random)
     chosen = [...chosen, ...extra].slice(0, need)
@@ -414,5 +414,6 @@ export function outcome(s: QuipState, ctx: GameCtx): GameOutcome | null {
       houseScore: s.houseScore,
       houseWins: s.prompts.filter((p) => p.result?.houseWins).length,
     },
+    used: s.prompts.map((p) => p.id),
   }
 }
