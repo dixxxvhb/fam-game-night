@@ -6,7 +6,7 @@ import { getGame } from '../games/registry'
 import { cleanCode, getTabMe, lsSet } from '../lib/ids'
 import { Avatar, Btn, cx, Label, Spinner } from '../ui/kit'
 import { GameShelf, LostHost, MuteButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
-import { LogOut, Share2 } from 'lucide-react'
+import { LogOut, Share2, X } from 'lucide-react'
 
 /** A phone in the room. In apart mode the hosting phone also runs the room. */
 export default function Play() {
@@ -18,6 +18,7 @@ export default function Play() {
   const room = useRoom(code.length === 4 && me ? code : null, { me, host, mode: host ? 'apart' : undefined })
   const s = room.state
   const nav = useNavigate()
+  const [confirmEnd, setConfirmEnd] = useState(false)
   useRoomSounds(s, s?.mode === 'apart')
 
   useEffect(() => {
@@ -52,6 +53,11 @@ export default function Play() {
       <div className="flex-1" />
       <StatusDot status={room.status} />
       {s?.mode === 'apart' && <MuteButton />}
+      {s?.phase === 'playing' && (
+        <button onClick={() => setConfirmEnd(true)} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="End this game" title="End this game">
+          <X size={18} />
+        </button>
+      )}
       {s?.phase === 'lobby' && !room.isHost && (
         <button onClick={leave} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="Leave room" title="Leave room">
           <LogOut size={18} />
@@ -83,6 +89,13 @@ export default function Play() {
     <div className="flex h-full min-h-0 flex-col">
       {header}
       <LostHost heardAt={room.heardAt} isHost={room.isHost} what={apart ? 'the host phone' : 'the TV'} />
+      {confirmEnd && s.phase === 'playing' && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-line bg-tile px-4 py-3" role="alertdialog" aria-label="End this game?">
+          <span className="flex-1 font-bold">End this game for everyone? No points.</span>
+          <Btn size="sm" variant="danger" onClick={() => { setConfirmEnd(false); room.send('room', 'abort') }}>End it</Btn>
+          <Btn size="sm" onClick={() => setConfirmEnd(false)}>Keep playing</Btn>
+        </div>
+      )}
       <main className="min-h-0 flex-1 overflow-y-auto">
         {s.phase === 'lobby' && <PhoneLobby room={room} />}
 
