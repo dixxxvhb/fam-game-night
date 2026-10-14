@@ -978,7 +978,7 @@ export function outcome(s: BoardState, ctx: GameCtx): GameOutcome | null {
   const line = ranking(s).map((id) => `${nameOf(ctx, id)} ${s.players[id].stars}/${s.players[id].coins}`).join(' · ')
   const highlights: Highlight[] = [
     ...s.moments.slice(0, 5).map((m) => ({ playerId: m.playerId, kind: 'moment' as const, label: m.label, content: { text: m.text } })),
-    { playerId: winners[0], kind: 'moment', label: `Board Night, ${s.turns} turns`, content: { text: line } },
+    { playerId: winners[0], kind: 'moment', label: `Party Park, ${s.turns} turns`, content: { text: line } },
   ]
   return {
     placements,
