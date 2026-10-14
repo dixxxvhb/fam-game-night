@@ -12,6 +12,10 @@ import { StroopPad, StroopStage } from './stroop.view'
 import { MathPad, MathStage } from './math.view'
 import { ClosestPad, ClosestReveal, ClosestStage } from './closest.view'
 import { ReflexPad, ReflexStage } from './reflex.view'
+import { CocoPad, CocoStage } from './coconut.view'
+import { FrenzyPad, FrenzyStage } from './frenzy.view'
+import { TubesPad, TubesStage } from './tubes.view'
+import { PaintPad, PaintStage } from './paint.view'
 
 export interface MgViews {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- each minigame has its own state type
@@ -35,4 +39,8 @@ export const VIEWS: Record<string, MgViews> = {
   math: { Stage: MathStage, Pad: MathPad },
   closest: { Stage: ClosestStage, Pad: ClosestPad, Reveal: ClosestReveal },
   reflex: { Stage: ReflexStage, Pad: ReflexPad },
+  coconut: { Stage: CocoStage, Pad: CocoPad },
+  frenzy: { Stage: FrenzyStage, Pad: FrenzyPad },
+  tubes: { Stage: TubesStage, Pad: TubesPad },
+  paint: { Stage: PaintStage, Pad: PaintPad },
 }

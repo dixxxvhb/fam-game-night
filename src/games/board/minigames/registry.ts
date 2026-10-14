@@ -10,9 +10,13 @@ import { stroop } from './stroop'
 import { math } from './math'
 import { closest } from './closest'
 import { reflex } from './reflex'
+import { coconut } from './coconut'
+import { frenzy } from './frenzy'
+import { tubes } from './tubes'
+import { paint } from './paint'
 
 /** Every minigame (logic only; views live in views.tsx). */
-export const MINIGAMES: Minigame[] = [mash, quickdraw, clock, memory, oddone, potato, eight, stroop, math, closest, reflex]
+export const MINIGAMES: Minigame[] = [mash, quickdraw, clock, memory, oddone, potato, eight, stroop, math, closest, reflex, coconut, frenzy, tubes, paint]
 
 export function minigame(id: string): Minigame | null {
   return MINIGAMES.find((m) => m.id === id) ?? null
