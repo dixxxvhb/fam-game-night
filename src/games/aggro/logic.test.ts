@@ -7,6 +7,8 @@ import {
   NOMOVE_MS,
   ROLL_MS,
   bestMove,
+  bot,
+  botPick,
   legalMoves,
   outcome,
   reduce,
@@ -407,4 +409,46 @@ describe('whole games on autopilot', () => {
     }
   }
   it('had some Aggros along the way', () => expect(captures).toBeGreaterThan(5))
+})
+
+describe('bots', () => {
+  const bots = [P('dixxx', 'Dixxx', '#3CCB72'), P('bot-gator', 'Gator', '#2DD4BF'), P('bot-pigeon', 'Pigeon', '#94A3B8')]
+  it('wait their turn, pause like a person, then roll', () => {
+    const s = board([allBase(), allBase(), allBase()], { turn: 1, endsAt: 1000 + ROLL_MS, phaseTotal: ROLL_MS }, bots)
+    expect(bot(s, 'bot-pigeon', ctx(5000, () => 0, bots))).toBeNull()
+    expect(bot(s, 'bot-gator', ctx(1100, () => 0, bots))).toBeNull()
+    expect(bot(s, 'bot-gator', ctx(3000, () => 0, bots))).toEqual({ type: 'roll', payload: { seq: s.seq } })
+  })
+  it('go for the Aggro when there is one', () => {
+    let s = board([[at(0, 10), at(0, 30), BASE, BASE], [at(0, 13), BASE, BASE, BASE], allBase()], {}, bots)
+    s = roll(s, 3)
+    expect(s.moves.length).toBeGreaterThan(1)
+    const hit = s.moves.findIndex((m) => m.hit === 1)
+    let picks = 0
+    for (let k = 0; k < 50; k++) if (botPick(s, seeded) === hit) picks++
+    expect(picks).toBeGreaterThan(40)
+  })
+  it('a human doing nothing and two bots finish a game on tick + bot alone', () => {
+    let now = 10_000
+    const c = () => ctx(now, seeded, bots)
+    let s = setup(c(), { speed: 'classic' })
+    let botMoves = 0
+    for (let i = 0; i < 200_000 && s.phase !== 'done'; i++) {
+      now += 200
+      s = tick(s, c())
+      for (const id of ['bot-gator', 'bot-pigeon']) {
+        const mv = bot(s, id, c())
+        if (!mv) continue
+        const next = reduce(s, { playerId: id, type: mv.type, payload: mv.payload }, c())
+        expect(next).not.toBe(s)
+        s = next
+        botMoves++
+      }
+    }
+    expect(s.phase).toBe('done')
+    const out = outcome(s, c())!
+    expect(out.placements).toHaveLength(3)
+    expect(out.placements[0].score).toBe(4)
+    expect(botMoves).toBeGreaterThan(50)
+  })
 })

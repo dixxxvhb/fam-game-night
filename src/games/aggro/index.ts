@@ -1,5 +1,5 @@
 import type { GameDef } from '../../engine/types'
-import { outcome, reduce, setup, tick, type AggroState } from './logic'
+import { bot, outcome, reduce, setup, tick, type AggroState } from './logic'
 import { AggroStage } from './Stage'
 import { AggroController } from './Controller'
 
@@ -27,6 +27,7 @@ const aggro: GameDef<AggroState> = {
   reduce,
   tick,
   outcome,
+  bot,
   Stage: AggroStage,
   Controller: AggroController,
 }

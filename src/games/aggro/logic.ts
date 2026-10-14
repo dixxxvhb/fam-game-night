@@ -2,6 +2,7 @@ import type { GameCtx, GameOutcome, Highlight, PlayerAction } from '../../engine
 import {
   BASE,
   CENTER,
+  ENTRY_PROGRESS,
   LOOP,
   SIDE,
   STARS,
@@ -10,6 +11,7 @@ import {
   homeStarOf,
   isHome,
   isStar,
+  isTrack,
   posAtProgress,
   progressOf,
   startOf,
@@ -391,4 +393,61 @@ export function outcome(s: AggroState, ctx: GameCtx): GameOutcome | null {
       aggros: Object.fromEntries(s.seats.map((id, k) => [id, s.hits[k]])),
     },
   }
+}
+
+// ---------------- bots ----------------
+
+/** How many opponent marbles could land on `pos` with one roll next turn (a rough danger read). */
+function threats(s: Pick<AggroState, 'arms' | 'marbles'>, seat: number, pos: number): number {
+  if (!isTrack(pos)) return 0
+  let n = 0
+  s.marbles.forEach((row, k) => {
+    if (k === seat) return
+    const arm = s.arms[k]
+    if (row.includes(BASE) && startOf(arm) === pos) n++
+    for (const p of row) {
+      if (!isTrack(p)) continue
+      const q = progressOf(arm, p)
+      for (let r = 1; r <= 6; r++) {
+        if (q + r <= ENTRY_PROGRESS && posAtProgress(arm, q + r) === pos) { n++; break }
+      }
+    }
+  })
+  return n
+}
+
+/** A decent, beatable pick: Aggro when it can, get out on a 1 or 6, else go far, and mind the landing spot. */
+export function botPick(s: AggroState, random: () => number): number {
+  if (s.moves.length <= 1) return 0
+  if (random() < 0.12) return Math.floor(random() * s.moves.length)
+  const seat = s.turn
+  let best = 0
+  let bestScore = -Infinity
+  s.moves.forEach((mv, i) => {
+    let score = mv.gain
+    // The victim sits on mv.to; the farther along it was, the sweeter.
+    if (mv.hit >= 0) score += 100 + Math.max(0, progressOf(s.arms[mv.hit], mv.to)) / 2
+    if (mv.kind === 'out') score += 60
+    if (isHome(mv.to) && !isHome(mv.from)) score += 40
+    score -= 22 * threats(s, seat, mv.to)
+    if (isTrack(mv.from)) score += 12 * threats(s, seat, mv.from)
+    score += random() * 25
+    if (score > bestScore) { bestScore = score; best = i }
+  })
+  return best
+}
+
+/** Rolls and picks at a person's pace: a beat after the phase opens, then a random moment. */
+export function bot(s: AggroState, id: string, ctx: GameCtx): { type: string; payload?: unknown } | null {
+  if (s.phase === 'done' || s.seats[s.turn] !== id) return null
+  const since = ctx.now - (s.endsAt - s.phaseTotal)
+  if (s.phase === 'roll') {
+    if (since < 900 || ctx.random() > 0.3) return null
+    return { type: 'roll', payload: { seq: s.seq } }
+  }
+  if (s.phase === 'choose' && !s.auto && s.moves.length > 1) {
+    if (since < 1400 || ctx.random() > 0.25) return null
+    return { type: 'move', payload: { i: botPick(s, ctx.random), seq: s.seq } }
+  }
+  return null
 }

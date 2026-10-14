@@ -3,9 +3,12 @@
 // Together mode: shoots the Classic first turn (How it works card), then ends that game from
 // the TV and restarts in Quick so the board gets busy fast. Apart mode has no way to end a game
 // from a phone, so it plays the Classic game qa-room started.
+// Solo mode (one phone, two bots; run with --opts Quick): plays the whole game to the results screen.
 // Phones can lag the host, so every tap waits for that phone's state version (data-aggro-seq) to move.
 export default async function ({ tv, phones, shot, wait }) {
   const host = phones[0]
+  const solo = !tv && phones.length === 1
+  const done = async () => (await host.getByRole('button', { name: 'Next game' }).count()) > 0
   const pad = (n) => String(n).padStart(2, '0')
   const seqOf = (p) => p.evaluate(() => Number(document.querySelector('[data-aggro-seq]')?.getAttribute('data-aggro-seq') ?? -1))
   const phaseOf = (p) => p.evaluate(() => document.querySelector('[data-aggro-phase]')?.getAttribute('data-aggro-phase') ?? '')
@@ -52,19 +55,25 @@ export default async function ({ tv, phones, shot, wait }) {
   let shots = 0
   let hopShot = false
   let turn = 0
-  for (let tries = 0; turn < 40 && tries < 120; tries++) {
+  const maxTurns = solo ? 400 : 40
+  for (let tries = 0; turn < maxTurns && tries < maxTurns * 3; tries++) {
     let p = null
-    for (let i = 0; i < 100 && !p; i++) {
+    // Bots (solo) can chain bonus rolls, so wait longer for a turn to come round.
+    for (let i = 0, end = Date.now() + (solo ? 60_000 : 25_000); Date.now() < end && !p; i++) {
       p = await roller()
-      if (!p) await wait(200)
+      if (!p) {
+        if (solo && (await done())) break
+        await wait(200)
+      }
     }
+    if (solo && (await done())) break
     if (!p) {
       console.log(`turn ${turn}: nobody could roll`)
       for (const ph of phones) console.log(`  ${ph.playerId}: ${(await ph.locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 300)}`)
       await shot(`t${pad(turn)}-stuck`)
       break
     }
-    const snap = turn % 5 === 0 || (after >= 0 && turn - after <= 1)
+    const snap = solo ? turn % 10 === 0 || (after >= 0 && turn - after <= 1) : turn % 5 === 0 || (after >= 0 && turn - after <= 1)
     if (snap) { await shot(`t${pad(turn)}-${p.playerId}-roll`); shots++ }
     const before = await seqOf(p)
     const clicked = await p.getByRole('button', { name: 'Roll the die' }).click({ timeout: 3000 }).then(() => true, () => false)
@@ -121,11 +130,12 @@ export default async function ({ tv, phones, shot, wait }) {
       if (after < 0) after = turn
       if (!hitPick) { await shot(`t${pad(turn)}-aggro-log`); shots++ }
     }
-    if (after >= 0 && turn - after >= 3) break
+    if (!solo && after >= 0 && turn - after >= 3) break
   }
   console.log(`aggro driver: ${aggros ? `saw an Aggro on turn ${after}` : 'no Aggro'}, ${turn} turns, ${shots} shot sets`)
-  await wait(600)
-  await shot('end')
+  await wait(1200)
+  await shot(solo ? 'results' : 'end')
+  if (solo && !(await done())) console.log('solo: the game did not reach results')
   if (tv) {
     await tv.getByRole('button', { name: 'End game' }).click()
     await wait(800)
