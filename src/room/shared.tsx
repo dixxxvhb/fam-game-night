@@ -8,7 +8,7 @@ import { nightStandings } from '../engine/points'
 import { Avatar, Btn, cx, Label } from '../ui/kit'
 import { CORE, GUEST_COLORS, guestId } from '../lib/players'
 import type { SavedMe } from '../lib/ids'
-import { loadSeason } from '../data/api'
+import { getSaveStatus, loadSeason } from '../data/api'
 import { seasonStats } from '../data/season'
 
 export function joinUrl(code: string) {
@@ -166,7 +166,7 @@ export function NightSummary({ state, big = false }: { state: RoomState; big?: b
         ) : (
           <div className={cx('font-display', big ? 'text-5xl' : 'text-3xl')}>No games, no winner</div>
         )}
-        <div className="text-ink-2">{state.games.length} {state.games.length === 1 ? 'game' : 'games'} played. Saved to the season.</div>
+        <div className="text-ink-2">{state.games.length} {state.games.length === 1 ? 'game' : 'games'} played. {getSaveStatus() === 'off' ? 'Test mode, not saved.' : 'Saved to the season.'}</div>
         <BeltCall state={state} big={big} />
       </div>
       <div className="mx-auto grid w-full max-w-md gap-2 text-left">

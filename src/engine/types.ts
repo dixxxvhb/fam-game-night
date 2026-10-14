@@ -114,6 +114,7 @@ export interface ControllerProps<S> {
   send: (type: string, payload?: unknown) => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the registry holds games of different state types
 export interface GameDef<S = any> {
   /** a-z, 0-9, dashes; max 32. Stored with every result. */
   id: string
