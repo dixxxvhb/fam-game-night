@@ -1,0 +1,55 @@
+/* Party Park phone controller motion. CSS transforms only; reduced motion is handled globally. */
+
+@keyframes ppp-wobble {
+  0%, 100% { transform: rotate(-4deg) translateY(0) scale(1, 1); }
+  25% { transform: rotate(3deg) translateY(-6px) scale(0.98, 1.03); }
+  50% { transform: rotate(-2deg) translateY(0) scale(1.04, 0.96); }
+  75% { transform: rotate(4deg) translateY(-4px) scale(0.99, 1.02); }
+}
+.ppp-wobble { animation: ppp-wobble 1.6s ease-in-out infinite; }
+
+@keyframes ppp-pop {
+  0% { transform: scale(0.4); opacity: 0; }
+  55% { transform: scale(1.18); opacity: 1; }
+  75% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+.ppp-pop { animation: ppp-pop 420ms cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+
+@keyframes ppp-up {
+  0% { transform: translateY(26px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.ppp-up { animation: ppp-up 320ms cubic-bezier(0.2, 0.8, 0.3, 1.15) both; }
+
+@keyframes ppp-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-8px) rotate(3deg); }
+}
+.ppp-float { animation: ppp-float 2.2s ease-in-out infinite; }
+
+@keyframes ppp-shake {
+  0%, 100% { transform: translateX(0) rotate(0); }
+  20% { transform: translateX(-5px) rotate(-6deg); }
+  40% { transform: translateX(5px) rotate(5deg); }
+  60% { transform: translateX(-4px) rotate(-4deg); }
+  80% { transform: translateX(3px) rotate(3deg); }
+}
+.ppp-shake { animation: ppp-shake 180ms linear infinite; }
+
+@keyframes ppp-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+.ppp-pulse { animation: ppp-pulse 1.1s ease-in-out infinite; }
+
+.ppp-press { transition: transform 70ms ease-out; }
+.ppp-press:active { transform: translateY(5px) scale(0.98); }
+
+/* Wide cards: a gentler pop so the overshoot never spills past the gutter. */
+@keyframes ppp-pop-soft {
+  0% { transform: translateY(14px) scale(0.92); opacity: 0; }
+  60% { transform: translateY(-2px) scale(1.02); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+.ppp-pop-soft { animation: ppp-pop-soft 380ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
