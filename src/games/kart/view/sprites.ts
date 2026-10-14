@@ -8,6 +8,26 @@
  */
 import { critter, INK } from '../../board/park/cast'
 import type { CritterId, Prop, SceneThing } from '../contract'
+import * as garage from '../garage/sprites'
+
+/** Garage art anchor/size, for drawers that place karts by body width. */
+export const KART_ART = garage.KART
+
+/**
+ * The garage numbers views clockwise as seen from above (2 = its left side, nose screen-left);
+ * the camera's viewIndex runs the other way round (2 = nose screen-right). Mirror here.
+ */
+export function kartSprite(char: CritterId | null, color: string, view: number, pose: KartPose): HTMLCanvasElement {
+  return garage.kartSprite(char, color, (8 - (((Math.round(view) % 8) + 8) % 8)) % 8, pose)
+}
+
+export function propSprite(kind: Prop['kind'], night = false, text?: string): HTMLCanvasElement {
+  return garage.propSprite(kind, night, text)
+}
+
+export function thingSprite(kind: SceneThing['kind']): HTMLCanvasElement {
+  return garage.thingSprite(kind)
+}
 
 export type KartPose = 'drive' | 'left' | 'right' | 'spin' | 'trick' | 'hurt'
 
@@ -195,7 +215,7 @@ function kartSide(c: CanvasRenderingContext2D, color: string, hc: string, hurt: 
  * A kart seen from one of 8 views (0 = from behind, clockwise: 2 = nose to screen right,
  * 4 = facing us, 6 = nose to screen left) in a pose. ~192 px square, bottom-center anchor.
  */
-export function kartSprite(char: CritterId | null, color: string, view: number, pose: KartPose): HTMLCanvasElement {
+export function placeholderKart(char: CritterId | null, color: string, view: number, pose: KartPose): HTMLCanvasElement {
   const v = ((Math.round(view) % 8) + 8) % 8
   const key = `k:${char}:${color}:${v}:${pose}`
   return cached(key, KS, KS, (c) => {
@@ -720,7 +740,7 @@ const PROP_SIZE: Partial<Record<Prop['kind'], [number, number]>> = {
 
 const GLOW = new Set<Prop['kind']>(['neon', 'lamp'])
 
-export function propSprite(kind: Prop['kind'], night = false): HTMLCanvasElement {
+export function placeholderProp(kind: Prop['kind'], night = false): HTMLCanvasElement {
   const [w, h] = PROP_SIZE[kind] ?? [100, 100]
   return cached(`p:${kind}:${night ? 1 : 0}`, w, h, (c) => {
     drawProp(c, kind, w, h)
@@ -734,7 +754,7 @@ export function propSprite(kind: Prop['kind'], night = false): HTMLCanvasElement
 
 // ---------------- things ----------------
 
-export function thingSprite(kind: SceneThing['kind']): HTMLCanvasElement {
+export function placeholderThing(kind: SceneThing['kind']): HTMLCanvasElement {
   return cached(`t:${kind}`, 96, 96, (c) => {
     const w = 96
     const h = 96

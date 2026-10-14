@@ -11,7 +11,7 @@ import { KART_W, project, viewIndex, type Cam } from './camera'
 import type { Particles } from './fx'
 import { horizonStrip, STRIP_H, STRIP_W } from './horizon'
 import { fxOf, gatorOf, PROP_H, propsFor, seeded, thingsOf, type ViewScene } from './look'
-import { kartSprite, propSprite, thingSprite, THING_H, type KartPose } from './sprites'
+import { KART_ART, kartSprite, propSprite, thingSprite, THING_H, type KartPose } from './sprites'
 
 export interface PaneFx {
   /** 0..1 love bug smear on this pane. */
@@ -105,7 +105,7 @@ export function drawPane(c: CanvasRenderingContext2D, o: DrawOpts) {
     if (p.kind === 'rocket' && rocket > 0) wz = rocket * rocket * 1400
     const pr = project(cam, p.x, p.y, wz, 14)
     if (!pr || pr.z > cam.fogFar) continue
-    const spr = propSprite(p.kind, night)
+    const spr = propSprite(p.kind, night, p.text)
     const hp = (p.h ?? PROP_H[p.kind]) * pr.k * cam.props
     if (hp < 1.5) continue
     const wp = (hp * spr.width) / spr.height
@@ -226,7 +226,9 @@ export function drawPane(c: CanvasRenderingContext2D, o: DrawOpts) {
         const bounce = k.spin ? 0 : Math.sin(t * 22 + k.seat) * dw * 0.006
         const dy = pr.sy + bounce
         if (k.level === 1) c.globalAlpha = a * 0.85
-        c.drawImage(spr, pr.sx - dw / 2, dy - dw, dw, dw)
+        // garage art: body width KART_ART.BODY_W px, anchored at the road point (AX, AY)
+        const ks = (dw * 0.92) / KART_ART.BODY_W
+        c.drawImage(spr, pr.sx - KART_ART.AX * ks, dy - KART_ART.AY * ks, KART_ART.W * ks, KART_ART.H * ks)
         if (k.boost && (view === 7 || view === 0 || view === 1)) {
           c.globalCompositeOperation = 'lighter'
           for (const side of [-1, 1]) {
