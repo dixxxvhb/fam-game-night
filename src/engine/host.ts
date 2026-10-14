@@ -98,6 +98,7 @@ export class HostEngine {
     this.timers.forEach((t) => clearInterval(t))
     this.timers = []
     if (this.pendingBroadcast) clearTimeout(this.pendingBroadcast)
+    this.pendingBroadcast = null
   }
 
   subscribe(fn: () => void) {
