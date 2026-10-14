@@ -469,7 +469,9 @@ export function kartLayers(char: CritterId | null, color: string, view: number, 
   }
   const depth = (p: V) => -dot(rotate(p, rot), cam.toCam)
 
-  interface Item { d: number; ink: string; paint: string; driver?: boolean }
+  // `inkFill` / `inkTube` are the fat dark outline under everything. All of it is one color and
+  // sits under the paint, so it is merged into a few paths (far fewer SVG elements to rasterize).
+  interface Item { d: number; inkFill?: string; inkTube?: [number, string]; paint: string; driver?: boolean }
   const items: Item[] = []
   const SW = 3.2
   const OUT = 9
@@ -488,7 +490,7 @@ export function kartLayers(char: CritterId | null, color: string, view: number, 
       }
       items.push({
         d: depth(centroid(part.pts)) + part.bias,
-        ink: `<path d="${d}" fill="${INK}" stroke="${INK}" stroke-width="${OUT}" stroke-linejoin="round"/>`,
+        inkFill: d,
         paint: `<path d="${d}" fill="${fill}" stroke="${INK}" stroke-width="${SW}" stroke-linejoin="round"/>`,
       })
     } else if (part.k === 'tube') {
@@ -496,7 +498,7 @@ export function kartLayers(char: CritterId | null, color: string, view: number, 
       const d = pathOf(pts, false)
       items.push({
         d: depth(centroid(part.pts)) + part.bias,
-        ink: `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${part.w + OUT}" stroke-linecap="round" stroke-linejoin="round"/>`,
+        inkTube: [part.w + OUT, d],
         paint: `<path d="${d}" fill="none" stroke="${INK}" stroke-width="${part.w + SW * 2}" stroke-linecap="round" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${part.color}" stroke-width="${part.w}" stroke-linecap="round" stroke-linejoin="round"/>`,
       })
     } else {
@@ -533,7 +535,7 @@ export function kartLayers(char: CritterId | null, color: string, view: number, 
       }
       items.push({
         d: depth(part.c) + part.bias,
-        ink: `<path d="${hd}" fill="${INK}" stroke="${INK}" stroke-width="${OUT}" stroke-linejoin="round"/>`,
+        inkFill: hd,
         paint,
       })
     }
@@ -561,11 +563,15 @@ export function kartLayers(char: CritterId | null, color: string, view: number, 
       overlay += `<g transform="translate(${n1(s[0])} ${n1(s[1] - 14)}) rotate(${n1(ang)})"><ellipse cx="0" cy="0" rx="13" ry="${n1(4 + 3 * facing)}" fill="none" stroke="${INK}" stroke-width="7"/><ellipse cx="0" cy="0" rx="13" ry="${n1(4 + 3 * facing)}" fill="none" stroke="#5B5577" stroke-width="3"/></g>`
     }
     driver = { transform, mood: MOOD[pose], back, backMarkup: back ? critterBack(char, Math.max(-1, Math.min(1, noseX))) : '', overlay }
-    items.push({ d: seatD - 0.5, ink: '', paint: '', driver: true })
+    items.push({ d: seatD - 0.5, paint: '', driver: true })
   }
 
   items.sort((a, b2) => b2.d - a.d)
-  const ink = items.map((i) => i.ink).join('')
+  const fills = items.filter((i) => i.inkFill).map((i) => i.inkFill).join(' ')
+  const tubes = new Map<number, string[]>()
+  for (const i of items) if (i.inkTube) { const l = tubes.get(i.inkTube[0]) ?? []; l.push(i.inkTube[1]); tubes.set(i.inkTube[0], l) }
+  let ink = fills ? `<path d="${fills}" fill="${INK}" stroke="${INK}" stroke-width="${OUT}" stroke-linejoin="round"/>` : ''
+  for (const [w, ds] of tubes) ink += `<path d="${ds.join(' ')}" fill="none" stroke="${INK}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`
   let before = `<g>${ink}</g>`
   let after = ''
   let passed = false

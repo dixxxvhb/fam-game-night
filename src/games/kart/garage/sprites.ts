@@ -24,7 +24,7 @@ import type { Prop, SceneThing } from '../contract'
 import { critterMarkup } from './critters'
 import { KART, kartLayers, type KartPose } from './kart3d'
 import { BASE, propArt, propSvgInner, type PropKind } from './props'
-import { rasterize, svgDoc, allReady, shade } from './raster'
+import { rasterize, svgDoc, allReady, shade, touch, withPriority } from './raster'
 import { thingArt, THING_KINDS } from './things'
 import { PROP_KINDS } from './props'
 
@@ -73,7 +73,7 @@ export function kartSprite(char: CritterId | null, color: string, view: number, 
       g.stroke()
     })
     cache.set(key, c)
-  }
+  } else touch(c)
   return c
 }
 
@@ -102,7 +102,7 @@ export function propSprite(kind: Prop['kind'], night = false, text?: string): HT
       g.fill()
     })
     cache.set(key, c)
-  }
+  } else touch(c)
   return c
 }
 
@@ -119,27 +119,37 @@ export function thingSprite(kind: SceneThing['kind']): HTMLCanvasElement {
       g.fill()
     })
     cache.set(key, c)
-  }
+  } else touch(c)
   return c
 }
+
+/** The views and poses a chase cam shows almost all the time (from behind, driving or steering). */
+const FIRST_VIEWS = [0, 7, 1]
+const FIRST_POSES: KartPose[] = ['drive', 'left', 'right']
+const ALL_POSES: KartPose[] = ['drive', 'left', 'right', 'spin', 'trick', 'hurt']
 
 /**
  * Warm the cache: every view and pose of the given racers' karts, every prop (day and night) and
  * every thing. Resolves when all of it is real art. Pass the room's critters (null for anyone
  * without one; their plain kart uses `colors[i]` if given, else a neutral).
+ * Order: every racer's from-behind views (7 / 0 / 1) x drive / left / right and the road things
+ * first, then everything else. `propKinds` limits props to one track's kinds (default: all).
+ * A sprite a renderer asks for while it is still queued jumps to the front on its own.
  */
-export async function preloadGarage(chars: (CritterId | null)[], colors: string[] = [], opts: { props?: boolean; night?: boolean } = {}): Promise<void> {
-  chars.forEach((ch, i) => {
-    const color = colors[i] ?? critter(ch)?.color ?? '#8C87A6'
-    for (let v = 0; v < 8; v++) for (const p of ['drive', 'left', 'right', 'spin', 'trick', 'hurt'] as const) kartSprite(ch, color, v, p)
+export async function preloadGarage(chars: (CritterId | null)[], colors: string[] = [], opts: { props?: boolean; night?: boolean; propKinds?: PropKind[] } = {}): Promise<void> {
+  const racers = chars.map((ch, i) => ({ ch, color: colors[i] ?? critter(ch)?.color ?? '#8C87A6' }))
+  withPriority(1, () => {
+    for (const v of FIRST_VIEWS) for (const p of FIRST_POSES) for (const r of racers) kartSprite(r.ch, r.color, v, p)
+    for (const t of THING_KINDS) thingSprite(t)
   })
-  if (opts.props !== false) {
-    for (const k of PROP_KINDS) {
-      propSprite(k, false)
-      if (opts.night !== false) propSprite(k, true)
+  withPriority(2, () => {
+    for (const r of racers) for (let v = 0; v < 8; v++) for (const p of ALL_POSES) kartSprite(r.ch, r.color, v, p)
+    if (opts.props !== false) {
+      const kinds = opts.propKinds ? [...new Set(opts.propKinds)] : PROP_KINDS
+      for (const k of kinds) propSprite(k, false)
+      if (opts.night !== false) for (const k of kinds) propSprite(k, true)
     }
-  }
-  for (const t of THING_KINDS) thingSprite(t)
+  })
   await allReady()
 }
 
