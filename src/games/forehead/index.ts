@@ -11,7 +11,7 @@ const forehead: GameDef<ForeheadState> = {
   instead: 'Instead of Heads Up',
   minPlayers: 2,
   maxPlayers: 8,
-  modes: ['together'],
+  modes: ['together', 'apart'],
   minutes: 10,
   options: [
     { key: 'deck', label: 'Deck', choices: DECK_OPTIONS, default: 'mixed' },

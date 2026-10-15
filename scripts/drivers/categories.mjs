@@ -1,6 +1,8 @@
 // QA driver for Categories: three rounds through the phones. Round 1 covers every rule
 // on camera: a duplicate, an alliteration, a wrong letter, an article, a blank, a
 // challenge that throws an answer out, and thumbs up. Rounds 2 and 3 go quicker.
+// The Letter Machine roll is shot mid-spin and on landing every round. CAT_HURRY=1 also
+// lets the round 2 clock run out (nobody locks in) to shoot the last ten seconds.
 const WORDS = {
   A: ['Apple', 'Anchor', 'Avocado', 'Alligator', 'Acrobat', 'Antelope', 'Arugula', 'Atlas', 'Accordion', 'Asteroid'],
   B: ['Banana', 'Bagel', 'Balloon', 'Beaver', 'Bowling', 'Biscuit', 'Blender', 'Burrito', 'Bongo', 'Broccoli'],
@@ -37,15 +39,23 @@ function answerFor(L, p, i, round) {
   return w[(i * 3 + p + 2) % 9]
 }
 
-export default async function ({ phones, shot, wait }) {
+export default async function ({ tv, phones, shot, wait }) {
   const until = async (fn, ms = 20000, step = 250) => {
     const end = Date.now() + ms
     while (Date.now() < end) { if (await fn()) return true; await wait(step) }
     return false
   }
   const visible = (p, sel) => p.locator(sel).first().isVisible().catch(() => false)
+  const watcher = tv ?? phones[0]
+  const hurry = process.env.CAT_HURRY === '1'
+  const secsLeft = async () => Number(await watcher.locator('[data-cat-secs]').first().getAttribute('data-cat-secs', { timeout: 500 }).catch(() => null) ?? 999)
 
   for (let round = 0; round < 3; round++) {
+    // The machine: lever, spin, landing.
+    if (await until(async () => (await watcher.locator('[data-cat-roll="spin"], [data-cat-roll="lever"]').count()) > 0, 25000, 60)) {
+      await shot(`r${round + 1}-roll-spin`)
+      if (await until(async () => (await watcher.locator('[data-cat-roll="landed"]').count()) > 0, 6000, 50)) await shot(`r${round + 1}-roll-landed`)
+    } else console.log(`round ${round + 1}: never saw the machine spin`)
     const ok = await until(async () => (await Promise.all(phones.map((p) => visible(p, '#cat-answer')))).every(Boolean), 30000)
     if (!ok) { console.log(`round ${round + 1}: write screen never showed`); break }
     const label = await phones[0].locator('[aria-label^="Letter "]').first().getAttribute('aria-label')
@@ -68,9 +78,21 @@ export default async function ({ phones, shot, wait }) {
       }
       await wait(500)
       if (round === 0 && p === 0) await shot('r1-review-list')
+      if (hurry && round === 1) continue
       await ph.getByRole('button', { name: 'Lock it in' }).click()
       await wait(400)
       if (round === 0 && p === 1) await shot('r1-two-locked')
+    }
+
+    if (hurry && round === 1) {
+      // Let the clock run: the last ten seconds speed up, then pencils down.
+      await until(async () => (await secsLeft()) <= 8, 130000, 300)
+      await shot('r2-hurry')
+      await until(async () => (await secsLeft()) <= 3, 10000, 100)
+      await shot('r2-panic')
+      await until(async () => (await secsLeft()) <= 0, 6000, 100)
+      await wait(300)
+      await shot('r2-pencils-down')
     }
 
     // Judging, category by category.

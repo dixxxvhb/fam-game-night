@@ -1,6 +1,8 @@
-// QA driver for Forehead (together only). Every turn the Guesser taps "Ready, use buttons"
+// QA driver for Forehead (together and apart). Every turn the Guesser taps "Ready, use buttons"
 // (Playwright has no motion sensor), then gets some, passes one, and double-taps Got it
 // once to prove a shaky double call counts once. Turns run the full 60 seconds.
+// Reads the game through data-fh-* attributes (data-fh-stage, data-fh-got) on the TV root,
+// or on a phone's Controller root in apart mode.
 export default async function ({ tv, phones, shot, wait }) {
   const until = async (fn, ms = 20000, step = 250) => {
     const end = Date.now() + ms
@@ -11,10 +13,10 @@ export default async function ({ tv, phones, shot, wait }) {
     for (const p of phones) if (await p.getByText("You're the Guesser").first().isVisible().catch(() => false)) return p
     return null
   }
-  const tvGot = async () => {
-    const t = await tv.getByText(/^\d+ got$/).first().innerText().catch(() => '')
-    return Number(t.split(' ')[0] || -1)
-  }
+  // The screen that shows the room's count: the TV, or (apart) any phone that is not the Guesser's.
+  const view = (g) => tv ?? phones.find((p) => p !== g) ?? phones[0]
+  const gotOn = async (page) => Number((await page.locator('[data-fh-got]').first().getAttribute('data-fh-got').catch(() => '-1')) ?? -1)
+  const stageIs = async (page, st) => (await page.locator(`[data-fh-stage="${st}"]`).count()) > 0
 
   for (let turn = 0; turn < 12; turn++) {
     let g = null
@@ -27,28 +29,44 @@ export default async function ({ tv, phones, shot, wait }) {
     if (full) await shot(`turn${turn}-set`)
     const playing = await until(() => g.getByRole('button', { name: 'Got it' }).isVisible().catch(() => false), 8000, 100)
     if (!playing) { console.log(`turn ${turn}: buttons never showed`); break }
+    const started = Date.now()
     await wait(800)
+    if (full) await shot(`turn${turn}-flip`)
     await g.getByRole('button', { name: 'Got it' }).click()
-    await wait(350)
+    // FH_GUESSER_SHOTS=<dir>: grab the Guesser's own flash right away (a full shot() is too slow to catch it).
+    if (full && process.env.FH_GUESSER_SHOTS) await g.screenshot({ path: `${process.env.FH_GUESSER_SHOTS}/guesser-got.png` })
+    await wait(300)
     if (full) await shot(`turn${turn}-flash`)
     await wait(700)
     await g.getByRole('button', { name: 'Got it' }).click()
     await wait(900)
     await g.getByRole('button', { name: 'Pass' }).click()
-    await wait(900)
-    const before = await tvGot()
+    if (full && process.env.FH_GUESSER_SHOTS) await g.screenshot({ path: `${process.env.FH_GUESSER_SHOTS}/guesser-pass.png` })
+    await wait(260)
+    if (full) await shot(`turn${turn}-pass`)
+    await wait(700)
+    const before = await gotOn(view(g))
     // A shaky double tap: two clicks a few ms apart. Should count once.
     await g.getByRole('button', { name: 'Got it' }).dblclick()
     await wait(900)
-    const after = await tvGot()
+    const after = await gotOn(view(g))
     console.log(`turn ${turn}: double tap moved got ${before} -> ${after}`)
-    if (turn % 2 === 0) { await g.getByRole('button', { name: 'Got it' }).click(); await wait(900) }
+    if (turn % 2 === 0) {
+      // Two more in a row: three straight, the club is on fire.
+      for (let i = 0; i < 2; i++) { await g.getByRole('button', { name: 'Got it' }).click(); await wait(1100) }
+      if (full) await shot(`turn${turn}-fire`)
+    }
     if (full || turn === 3) await shot(`turn${turn}-play`)
-    const over = await until(async () => (await tv.getByText(/turn is over/).count()) > 0, 70000, 400)
+    if (full) {
+      // The last ten seconds: the ring pulses and the band lifts.
+      await until(async () => Date.now() - started > 53000, 60000, 250)
+      await shot(`turn${turn}-final10`)
+    }
+    const over = await until(() => stageIs(view(g), 'turnEnd'), 70000, 400)
     if (!over) { console.log(`turn ${turn}: never ended`); break }
-    await wait(600)
+    await wait(1600)
     if (full || turn === 5) await shot(`turn${turn}-end`)
-    await wait(6000)
+    await wait(5000)
     if (await phones[0].getByRole('button', { name: 'Next game' }).isVisible().catch(() => false)) break
   }
 

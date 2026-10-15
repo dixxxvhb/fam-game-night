@@ -4,6 +4,8 @@
 // find the odd tile, watch the flashes, wait for NOW, pick a door). In the finale the ghost
 // sorts everything right, so he should catch the living and come back to win.
 export default async function ({ tv, phones, shot, wait }) {
+  // Other games may be mid-edit on the same dev server: keep Vite's error overlay off these screens.
+  for (const p of [tv, ...phones].filter(Boolean)) await p.addStyleTag({ content: 'vite-error-overlay { display: none !important; }' }).catch(() => {})
   // The host saves its room to localStorage on every change: the driver reads the answer key
   // there so it can be right or wrong on purpose (QA only; the app never shows it).
   const hostPage = tv ?? phones[0]
@@ -28,7 +30,7 @@ export default async function ({ tv, phones, shot, wait }) {
     try { await area.waitFor({ timeout: 6000 }) } catch { return }
     if (kind === 'math') {
       for (let i = 0; i < 3; i++) {
-        const text = await p.locator('[data-trap] .text-6xl').first().innerText().catch(() => '')
+        const text = await p.locator('[data-trap] [data-sum]').first().innerText().catch(() => '')
         const m = text.match(/(\d+) ([+\-x]) (\d+)/)
         if (!m) return
         const [a, op, b] = [Number(m[1]), m[2], Number(m[3])]
@@ -116,16 +118,16 @@ export default async function ({ tv, phones, shot, wait }) {
     }
     if (phase === 'trap') {
       const kind = await attr(phones[0], 'data-trap-kind')
-      await wait(1200)
+      await wait(400)
       await snap(`trap-${kind}-intro`)
       // Everyone in the trap plays at once.
-      const trapped = []
-      for (const p of phones) if (await p.getByText('You are in a trap').count()) trapped.push(p)
+      const seats = (await hostGame())?.trap?.seats ?? {}
+      const trapped = phones.filter((p) => seats[p.playerId])
       const mid = (async () => { await wait(kind === 'memory' ? 6200 : 3600); await snap(`trap-${kind}-play`) })()
       await Promise.all([...trapped.map((p) => playTrap(p, kind)), mid])
       continue
     }
-    if (phase === 'trapResult') { await wait(1200); await snap(`trapresult-${step}`); continue }
+    if (phase === 'trapResult') { await wait(300); await snap(`trapresult-${step}-mid`); await wait(1400); await snap(`trapresult-${step}`); continue }
     if (phase === 'finaleIntro') { await wait(800); await snap('finale-intro'); continue }
     if (phase === 'finaleQ') {
       await wait(500)
@@ -136,7 +138,7 @@ export default async function ({ tv, phones, shot, wait }) {
       for (const [i, p] of phones.entries()) {
         const rows = p.locator('[data-side]')
         // Phones that aren't hosting can lag a moment behind the host.
-        await rows.first().waitFor({ timeout: 8000 }).catch(() => {})
+        await rows.first().waitFor({ timeout: 15000 }).catch(() => {})
         const n = (await rows.count()) / 2
         const ok = good[p.playerId] ?? 2
         for (let k = 0; k < n; k++) await rows.nth(k * 2 + (k < ok ? key[k] : 1 - key[k])).click()
@@ -147,6 +149,8 @@ export default async function ({ tv, phones, shot, wait }) {
       }
       await wait(2600)
       await snap(`${step}-finale-reveal`)
+      // The door opens for whoever got out, once the steps have played.
+      if ((await hostGame())?.winner) { await wait(200); await snap('escape') }
       continue
     }
     await wait(250)

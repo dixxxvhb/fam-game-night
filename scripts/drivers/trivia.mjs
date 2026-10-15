@@ -2,6 +2,12 @@
 // category every time; Johnnyboy answers right and fast, Torii right but slower on most,
 // Dixxx is right about half the time; everyone wagers in the final. Screens once per phase
 // per round, then results.
+import { join } from 'node:path'
+
+// The TV alone screenshots fast enough to catch the wheel mid-spin even on a busy machine.
+const outArg = process.argv.indexOf('--out')
+const outDir = outArg > 0 ? process.argv[outArg + 1] : null
+
 export default async function ({ tv, phones, shot, wait }) {
   // The host saves its room to localStorage on every change: read the answer key from there
   // so the driver can be right or wrong on purpose (QA only; the app never shows it).
@@ -43,7 +49,9 @@ export default async function ({ tv, phones, shot, wait }) {
       continue
     }
     if (cur.phase === 'spin' && isNew) {
-      await wait(1200)
+      await wait(500)
+      if (tv && outDir && round === '1') await tv.screenshot({ path: join(outDir, `r${round}-spin-tv-fast.png`) })
+      await wait(700)
       await snap(`r${round}-spin-mid`)
       await wait(2800)
       await snap(`r${round}-spin-landed`)
@@ -66,8 +74,15 @@ export default async function ({ tv, phones, shot, wait }) {
       const plan = { johnnyboy: right, dixxx: questions % 2 ? right : (right + 1) % 4, torii: questions % 3 ? right : (right + 2) % 4 }
       for (const [k, p] of phones.entries()) {
         const pick = plan[p.playerId] ?? (right + k) % 4
-        // Phones that aren't hosting can lag a moment behind the host.
-        await p.locator(`[data-answer="${pick}"]`).click({ timeout: 8000 })
+        // Phones that aren't hosting can lag a moment behind the host. On a slow machine the
+        // clock can run out while the screenshots are taken: that player just misses this one.
+        try {
+          await p.locator(`[data-answer="${pick}"]:not([disabled])`).click({ timeout: 8000 })
+        } catch {
+          const now = await phaseOf(p)
+          if (now && (now.phase === 'question' || now.phase === 'finalQ') && now.step === cur.step) throw new Error(`${p.playerId} could not answer`)
+          console.warn(`${p.playerId} missed ${key} (the clock ran out)`)
+        }
         await wait(k === 0 ? 900 : 500)
         if (k === Math.min(1, phones.length - 1)) await snap(tag)
       }
@@ -85,6 +100,8 @@ export default async function ({ tv, phones, shot, wait }) {
       await snap('wager-open')
       const style = ['All', 'Half', 'None']
       for (const [i, p] of phones.entries()) {
+        // A slow machine can run the wager clock out mid-way: the rest just keep their default.
+        if ((await phaseOf(p))?.phase !== 'wager') { console.warn(`${p.playerId} missed the wager (the clock ran out)`); continue }
         await p.getByRole('button', { name: style[i % 3], exact: true }).click()
         if (i === 0) await wait(300)
         if (i === 0) await snap('wager-moved')

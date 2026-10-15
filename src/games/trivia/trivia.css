@@ -1,0 +1,194 @@
+/* Trivia Night LIVE. Every class is prefixed tn-. Transforms and opacity only for motion. */
+
+/* ---------- studio ---------- */
+.tn-studio {
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 0%, rgba(255, 62, 165, 0.42), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 15% 100%, rgba(123, 44, 255, 0.35), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 85% 100%, rgba(255, 201, 60, 0.18), transparent 70%),
+    linear-gradient(180deg, #2a0838 0%, #1a0628 58%, #12041d 100%);
+  color: #fff6e6;
+}
+.tn-wall {
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 46px, rgba(0, 0, 0, 0.12) 46px 52px, transparent 52px 98px);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 80%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 55%, transparent 80%);
+}
+.tn-floor {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 79px, rgba(255, 201, 60, 0.08) 79px 81px),
+    linear-gradient(180deg, rgba(255, 62, 165, 0.16), rgba(10, 2, 16, 0.85));
+  transform: perspective(500px) rotateX(48deg);
+  transform-origin: 50% 0;
+}
+
+/* Spotlight cones that sweep slowly from the rig. */
+.tn-spot {
+  position: absolute;
+  top: -40px;
+  width: 300px;
+  height: 900px;
+  background: linear-gradient(180deg, rgba(255, 244, 200, 0.34), rgba(255, 244, 200, 0.06) 70%, transparent);
+  clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+  transform-origin: 50% 0;
+  will-change: transform;
+  pointer-events: none;
+}
+.tn-spot-a { left: 8%; animation: tn-sweep-a 9s ease-in-out infinite alternate; }
+.tn-spot-b { right: 8%; animation: tn-sweep-b 11s ease-in-out infinite alternate; background: linear-gradient(180deg, rgba(255, 120, 200, 0.3), rgba(255, 120, 200, 0.05) 70%, transparent); }
+.tn-spot-c { left: 44%; animation: tn-sweep-c 13s ease-in-out infinite alternate; opacity: 0.6; }
+@keyframes tn-sweep-a { from { transform: rotate(-28deg); } to { transform: rotate(14deg); } }
+@keyframes tn-sweep-b { from { transform: rotate(26deg); } to { transform: rotate(-16deg); } }
+@keyframes tn-sweep-c { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+
+/* ---------- marquee bulbs ---------- */
+/* A box with a border of bulbs that chase (two sets that swap). Children sit above. */
+.tn-bulbs {
+  --b: 12px;
+  --bulb: #fff1b8;
+  position: relative;
+  padding: var(--b);
+  border-radius: var(--r, 20px);
+  background: var(--frame, #5a1240);
+  isolation: isolate;
+  box-shadow: 0 0 0 3px #12041d, 0 10px 0 #12041d, 0 0 40px rgba(255, 62, 165, 0.25);
+}
+.tn-bulbs.tn-sign { box-shadow: 0 0 0 2px #12041d, 0 3px 0 #12041d; }
+.tn-bulbs::before,
+.tn-bulbs::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-size: calc(var(--b) * 2) calc(var(--b) * 2);
+  background-repeat: round;
+  z-index: 0;
+  will-change: opacity;
+}
+.tn-bulbs::before {
+  background-image:
+    radial-gradient(circle at 25% 25%, var(--bulb) 0 17%, rgba(255, 200, 80, 0.45) 19%, transparent 27%),
+    radial-gradient(circle at 75% 75%, var(--bulb) 0 17%, rgba(255, 200, 80, 0.45) 19%, transparent 27%);
+  animation: tn-blink 0.9s steps(1) infinite;
+}
+.tn-bulbs::after {
+  background-image:
+    radial-gradient(circle at 75% 25%, var(--bulb) 0 17%, rgba(255, 200, 80, 0.45) 19%, transparent 27%),
+    radial-gradient(circle at 25% 75%, var(--bulb) 0 17%, rgba(255, 200, 80, 0.45) 19%, transparent 27%);
+  animation: tn-blink 0.9s steps(1) infinite;
+  animation-delay: -0.45s;
+}
+.tn-bulbs > * { position: relative; z-index: 1; }
+.tn-bulbs.tn-off::before, .tn-bulbs.tn-off::after { animation: none; opacity: 0.22; }
+.tn-bulbs.tn-steady::before, .tn-bulbs.tn-steady::after { animation: none; opacity: 1; }
+@keyframes tn-blink { 0% { opacity: 1; } 50% { opacity: 0.2; } }
+
+/* Bulbs inside SVG (wheel rim, timer bar). */
+.tn-bulb-a { animation: tn-blink 0.7s steps(1) infinite; }
+.tn-bulb-b { animation: tn-blink 0.7s steps(1) infinite; animation-delay: -0.35s; }
+.tn-bulb-fast { animation-duration: 0.22s !important; }
+
+/* Text that glows like lit bulbs. */
+.tn-lit { color: #fff4c8; text-shadow: 0 0 6px rgba(255, 210, 90, 0.95), 0 0 18px rgba(255, 140, 60, 0.6); }
+.tn-unlit { color: rgba(255, 244, 200, 0.32); text-shadow: none; }
+.tn-neon { color: #ff5ab8; text-shadow: 0 0 4px #fff, 0 0 10px #ff3ea5, 0 0 24px #ff3ea5, 0 0 40px #ff3ea5; animation: tn-flicker 5s linear infinite; }
+@keyframes tn-flicker { 0%, 91%, 93%, 100% { opacity: 1; } 92% { opacity: 0.45; } }
+
+/* ---------- entrances ---------- */
+.tn-pop { animation: tn-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes tn-pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.tn-rise { animation: tn-rise 0.45s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+@keyframes tn-rise { from { transform: translateY(26px); opacity: 0; } to { transform: none; opacity: 1; } }
+.tn-drop { animation: tn-drop 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes tn-drop { from { transform: translateY(-120%); } to { transform: none; } }
+.tn-slide-l { animation: tn-slide-l 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+@keyframes tn-slide-l { from { transform: translateX(-60px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* The bubble Chip talks in. */
+.tn-bubble { animation: tn-bubble 0.4s cubic-bezier(0.2, 1.5, 0.4, 1) both; transform-origin: 85% 100%; }
+@keyframes tn-bubble { from { transform: scale(0.3) rotate(-6deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Chip bobs while he talks; his tooth sparkles. */
+.tn-chip-bob { animation: tn-bob 1.6s ease-in-out infinite; transform-origin: 50% 100%; will-change: transform; }
+@keyframes tn-bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-5px) rotate(-1deg); } }
+.tn-sparkle { animation: tn-sparkle 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes tn-sparkle { 0%, 70%, 100% { transform: scale(0); opacity: 0; } 80% { transform: scale(1.2); opacity: 1; } 90% { transform: scale(0.8); opacity: 1; } }
+.tn-blink { animation: tn-eyeblink 4.2s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes tn-eyeblink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+
+/* Contestants bounce when they are right, slump when they are wrong. */
+.tn-cheer { animation: tn-cheer 0.5s ease-in-out 4 alternate; }
+@keyframes tn-cheer { to { transform: translateY(-10px); } }
+.tn-slump { animation: tn-slump 0.6s ease-out both; }
+@keyframes tn-slump { to { transform: translateY(8px) rotate(-4deg); } }
+
+/* ---------- reveal moments ---------- */
+.tn-flash { animation: tn-flash 0.42s steps(1) 6; }
+@keyframes tn-flash { 0% { filter: brightness(1.45); } 50% { filter: brightness(0.95); } }
+.tn-dim { opacity: 0.35; transition: opacity 0.4s; }
+
+/* The red X on a wrong answer. */
+.tn-x { animation: tn-x 2.8s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes tn-x { 0% { transform: scale(2.4); opacity: 0; } 8% { transform: scale(1); opacity: 1; } 13% { transform: scale(1.08) rotate(-3deg); } 18% { transform: scale(1) rotate(2deg); } 82% { opacity: 1; transform: none; } 100% { opacity: 0; transform: scale(0.9); } }
+.tn-x-stay { animation: tn-x-stay 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes tn-x-stay { 0% { transform: scale(2.4); opacity: 0; } 40% { transform: scale(1); opacity: 1; } 60% { transform: scale(1.06) rotate(-3deg); } 100% { transform: none; opacity: 1; } }
+
+/* The full-screen red buzzer flash. */
+.tn-redflash { animation: tn-redflash 0.9s ease-out both; }
+@keyframes tn-redflash { 0% { opacity: 0; } 10% { opacity: 0.55; } 100% { opacity: 0; } }
+
+/* Confetti: each piece flies out along --dx/--dy, then falls. */
+.tn-confetti {
+  position: absolute;
+  width: var(--w, 12px);
+  height: var(--h, 18px);
+  border-radius: 2px;
+  opacity: 0;
+  animation: tn-confetti var(--dur, 2.2s) cubic-bezier(0.12, 0.7, 0.4, 1) both;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes tn-confetti {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  45% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(calc(var(--rot) * 0.5)); }
+  100% { opacity: 0; transform: translate(calc(var(--dx) * 1.25), calc(var(--dy) + var(--fall, 520px))) rotate(var(--rot)); }
+}
+
+/* Banner (STEAL, FINAL ROUND) sweeping across. */
+.tn-banner { animation: tn-banner 2.6s cubic-bezier(0.2, 1, 0.3, 1) both; }
+@keyframes tn-banner {
+  0% { transform: translateX(-120%) skewX(-10deg); }
+  18% { transform: translateX(0) skewX(-10deg); }
+  80% { transform: translateX(0) skewX(-10deg); opacity: 1; }
+  100% { transform: translateX(0) skewX(-10deg) scale(1.05); opacity: 0; }
+}
+.tn-banner-stay { animation: tn-banner-stay 0.55s cubic-bezier(0.2, 1.3, 0.3, 1) both; }
+@keyframes tn-banner-stay { from { transform: translateX(-120%) skewX(-10deg); } to { transform: skewX(-10deg); } }
+
+/* Applause sign. */
+.tn-applause-on { animation: tn-applause 0.5s steps(1) infinite; }
+@keyframes tn-applause { 0% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* Rays behind the wheel when it lands. */
+.tn-rays { animation: tn-rays 8s linear infinite; will-change: transform; }
+.tn-layer { position: absolute; inset: 0; will-change: transform; }
+@keyframes tn-rays { to { transform: rotate(360deg); } }
+.tn-land { animation: tn-land 0.6s cubic-bezier(0.2, 1.8, 0.4, 1); }
+@keyframes tn-land { 0% { transform: scale(1); } 35% { transform: scale(1.045); } 100% { transform: scale(1); } }
+
+/* Chips sliding to the pot. */
+.tn-chips-move { transition: transform 0.8s cubic-bezier(0.3, 1.3, 0.5, 1); }
+.tn-float { animation: tn-float 1.8s ease-out both; }
+@keyframes tn-float { 0% { transform: translateY(10px) scale(0.6); opacity: 0; } 20% { transform: translateY(0) scale(1.1); opacity: 1; } 75% { opacity: 1; } 100% { transform: translateY(-26px); opacity: 0.9; } }
+
+/* Phone buttons press down. */
+.tn-press { transition: transform 80ms, box-shadow 80ms; }
+.tn-press:active:not(:disabled) { transform: translateY(5px); }
+.tn-glowpulse { animation: tn-glowpulse 1.1s ease-in-out infinite; }
+@keyframes tn-glowpulse { 0%, 100% { box-shadow: 0 0 0 4px #fff4c8, 0 0 22px 6px rgba(255, 210, 90, 0.7); } 50% { box-shadow: 0 0 0 4px #fff4c8, 0 0 34px 12px rgba(255, 210, 90, 0.95); } }
+.tn-urgent { animation: tn-urgent 0.5s steps(1) infinite; }
+@keyframes tn-urgent { 50% { opacity: 0.4; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tn-spot, .tn-bulbs::before, .tn-bulbs::after, .tn-chip-bob, .tn-rays { animation: none !important; }
+}

@@ -1,31 +1,58 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
-import { ChevronLeft, ChevronRight, List, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { ChevronLeft, ChevronRight, ThumbsDown, ThumbsUp } from 'lucide-react'
 import type { ControllerProps } from '../../engine/types'
 import { useTicker } from '../../engine/context'
-import { Avatar, Btn, cx, Label } from '../../ui/kit'
-import { Countdown } from '../../ui/Countdown'
+import { cx } from '../../ui/kit'
 import { MAX_LEN, normalize, outThreshold, roundPoints, startsWithLetter, type CategoriesState } from './logic'
 import { dupPartners, finder, shownAnswers, statusText } from './view'
-import { LetterTile } from './LetterTile'
+import { clockMood, rollPhase, ROLL_MS, writeStartedAt } from './machine'
+import { C, Card, Dial, Knob, LetterMachine, MiniReel, Pawn, ScorePop, Sheet, Stamp, Tag, useLetterFonts, WOOD_BG } from './look'
+import { Progress, stampFor, Tiles } from './Stage'
 
 type Send = ControllerProps<CategoriesState>['send']
+type Room = ControllerProps<CategoriesState>['room']
+
+/** Stacked wood-colored shadows fill the scroller below the content in apart mode without adding scroll height. */
+const WOOD_FILL = Array.from({ length: 8 }, (_, i) => `0 ${(i + 1) * 150}px 0 0 #4B2B16`).join(', ')
 
 export function CategoriesController({ state: s, room, me, now, send }: ControllerProps<CategoriesState>) {
-  useTicker(250)
+  useTicker(200)
+  useLetterFonts()
+  const apart = room.mode === 'apart'
   const inGame = room.gamePlayers.includes(me)
-  if (!inGame) return <div className="p-6 text-center text-ink-2">You're in the next game. Watch the screen.</div>
+  const shell = (body: ReactNode) => (
+    <div data-cat-stage={s.stage} data-cat-secs={s.stage === 'write' ? Math.ceil(Math.max(0, s.endsAt - now()) / 1000) : undefined} className={apart ? 'flex flex-col' : 'flex min-h-full flex-col'} style={{ background: WOOD_BG, color: C.cream, boxShadow: apart ? WOOD_FILL : undefined }}>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 px-4 pb-8 pt-4">{body}</div>
+    </div>
+  )
+  if (!inGame) return shell(<Card className="p-5 text-center text-xl font-bold">You are in the next game. Watch the machine.</Card>)
 
-  if (s.stage === 'write') {
-    return <WritePad key={`${s.round}-${s.letter}`} s={s} me={me} now={now} send={send} />
-  }
-  if (s.stage === 'judge' || s.stage === 'verdict') return <JudgePad s={s} room={room} me={me} now={now} send={send} />
-  if (s.stage === 'roundEnd') return <RoundPad s={s} room={room} me={me} now={now} />
-  return <div className="p-6 text-center text-ink-2">Adding it up.</div>
+  if (s.stage === 'write') return shell(<WritePad key={`${s.round}-${s.letter}`} s={s} me={me} now={now} send={send} apart={apart} />)
+  if (s.stage === 'judge' || s.stage === 'verdict') return shell(<JudgePad s={s} room={room} me={me} now={now} send={send} apart={apart} />)
+  if (s.stage === 'roundEnd') return shell(<RoundPad s={s} room={room} me={me} now={now} />)
+  return shell(<Card className="p-5 text-center"><div className="cat-display text-3xl">Adding it up</div></Card>)
 }
 
 // ---------------- writing ----------------
 
-function WritePad({ s, me, now, send }: { s: CategoriesState; me: string; now: () => number; send: Send }) {
+function Header({ s, now, filled, apart }: { s: CategoriesState; now: () => number; filled: number; apart: boolean }) {
+  const left = Math.max(0, s.endsAt - now())
+  const secs = Math.ceil(left / 1000)
+  const mood = clockMood(secs)
+  return (
+    <div className="flex items-center gap-3">
+      {!apart && <MiniReel letter={s.letter} round={s.round} ms={Infinity} cell={50} />}
+      <div className="grid min-w-0 flex-1 gap-1.5">
+        <Tag className="truncate text-[12px]" style={{ color: C.mustard }}>Round {s.round + 1} of {s.rounds}</Tag>
+        <Progress filled={filled} total={s.cats.length} size={17} gap={3} />
+      </div>
+      <Dial frac={mood === 'calm' ? left / s.stageTotal : left / 10_000} size={50} mood={mood} />
+      <span className="cat-slab w-[44px] text-right text-[26px] tabular leading-none" style={{ color: mood === 'calm' ? C.cream : C.mustard }}>{secs}</span>
+    </div>
+  )
+}
+
+function WritePad({ s, me, now, send, apart }: { s: CategoriesState; me: string; now: () => number; send: Send; apart: boolean }) {
   const [drafts, setDrafts] = useState<string[]>(() => [...(s.answers[me] ?? Array(s.cats.length).fill(''))])
   const [i, setI] = useState(() => {
     const first = (s.answers[me] ?? []).findIndex((x) => !x)
@@ -37,6 +64,8 @@ function WritePad({ s, me, now, send }: { s: CategoriesState; me: string; now: (
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const locked = s.done.includes(me)
   const timeUp = now() >= s.endsAt
+  const ms = now() - writeStartedAt(s)
+  const rolling = rollPhase(s.stage, ms) !== 'done'
 
   const flush = useCallback((list: string[]) => {
     if (timer.current) { clearTimeout(timer.current); timer.current = null }
@@ -57,7 +86,7 @@ function WritePad({ s, me, now, send }: { s: CategoriesState; me: string; now: (
   // The clock ran out: get the last keystrokes in before the grace ends.
   useEffect(() => { if (timeUp && !locked) flush(drafts) }, [timeUp, locked, drafts, flush])
 
-  useEffect(() => { if (!listOpen && !locked && !timeUp) input.current?.focus() }, [i, listOpen, locked, timeUp])
+  useEffect(() => { if (!listOpen && !locked && !timeUp && !rolling) input.current?.focus() }, [i, listOpen, locked, timeUp, rolling])
 
   function go(to: number) {
     flush(drafts)
@@ -76,129 +105,152 @@ function WritePad({ s, me, now, send }: { s: CategoriesState; me: string; now: (
   }
 
   const filled = drafts.filter((x) => x.trim()).length
-  const header = (
-    <div className="flex items-center gap-4">
-      <LetterTile letter={s.letter} size="lg" />
-      <div className="grid min-w-0 flex-1 gap-2">
-        <Label>Round {s.round + 1} of {s.rounds} · {filled} of {s.cats.length} filled</Label>
-        <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />
-      </div>
-    </div>
-  )
+
+  // The machine is still rolling: watch it land.
+  if (rolling && !locked) {
+    const landed = ms >= ROLL_MS - 700
+    return (
+      <>
+        <div className="grid justify-items-center pt-2">
+          <LetterMachine letter={s.letter} round={s.round} rounds={s.rounds} ms={ms} stage="write" scale={apart ? 0.66 : 0.8} />
+        </div>
+        <Sheet lh={44} className="py-4 pr-4">
+          <div className="cat-marker text-[30px] leading-[44px]" style={{ color: C.marker }}>{landed ? `${s.letter}. Go.` : 'Pen ready...'}</div>
+          <div className="text-[16px] font-bold leading-[44px]" style={{ color: C.ink2 }}>{s.cats.length} categories. One letter. Two minutes.</div>
+        </Sheet>
+      </>
+    )
+  }
+
+  const header = <Header s={s} now={now} filled={filled} apart={apart} />
 
   if (timeUp) {
     return (
-      <div className="grid gap-4 p-4">
+      <>
         {header}
-        <div className="grid gap-1 rounded-2xl bg-tile p-5 text-center animate-pop">
-          <div className="font-display text-3xl text-hot">Pencils down</div>
-          <div className="text-ink-2">{filled} of {s.cats.length} in. Judging starts now.</div>
-        </div>
-      </div>
+        <Sheet lh={44} className="relative py-4 pr-4">
+          <div className="grid min-h-[176px] place-items-center">
+            <Stamp text="Pencils down" size={40} r={-8} />
+          </div>
+          <div className="text-[17px] font-bold leading-[44px]" style={{ color: C.ink2 }}>{filled} of {s.cats.length} in. The tribunal convenes.</div>
+        </Sheet>
+      </>
     )
   }
 
   if (locked) {
     const total = Object.keys(s.answers).length
     return (
-      <div className="grid gap-4 p-4">
+      <>
         {header}
-        <div className="grid gap-1 rounded-2xl bg-good/15 p-5 text-center animate-pop">
-          <div className="font-display text-3xl text-good">Locked in</div>
-          <div className="text-ink-2">{s.done.length >= total ? 'Everyone is in.' : `${s.done.length} of ${total} done. The rest are still sweating.`}</div>
+        <div className="relative">
+          <ReviewList s={s} drafts={s.answers[me] ?? drafts} />
+          <div className="pointer-events-none absolute inset-0 grid place-items-center">
+            <Stamp text="Locked in" tone="green" size={46} r={-9} />
+          </div>
         </div>
-        <ReviewList s={s} drafts={s.answers[me] ?? drafts} />
-        <Btn size="lg" onClick={() => send('undone')}>Wait, let me fix one</Btn>
-      </div>
+        <div className="text-center text-[17px] font-bold">{s.done.length >= total ? 'Everyone is in.' : `${s.done.length} of ${total} done. The rest are still sweating.`}</div>
+        <Knob tone="cream" big onClick={() => send('undone')}>Wait, let me fix one</Knob>
+      </>
     )
   }
 
   if (listOpen) {
     return (
-      <div className="grid gap-4 p-4">
+      <>
         {header}
         <ReviewList s={s} drafts={drafts} onPick={(k) => { setListOpen(false); setI(k) }} />
         <div className="grid grid-cols-2 gap-3">
-          <Btn size="lg" onClick={() => setListOpen(false)}>Keep writing</Btn>
-          <Btn size="lg" variant="primary" onClick={lock}>Lock it in</Btn>
+          <Knob tone="cream" onClick={() => setListOpen(false)}>Keep writing</Knob>
+          <Knob tone="orange" onClick={lock}>Lock it in</Knob>
         </div>
-      </div>
+      </>
     )
   }
 
   const text = drafts[i] ?? ''
   const bad = Boolean(normalize(text)) && !startsWithLetter(text, s.letter)
   return (
-    <div className="grid gap-4 p-4">
+    <>
       {header}
-      <form onSubmit={next} className="grid gap-3">
-        <div className="grid gap-1">
-          <Label>{i + 1} of {s.cats.length}</Label>
-          <label htmlFor="cat-answer" className="min-h-[2.6em] text-2xl font-bold leading-tight">{s.cats[i]}</label>
-        </div>
-        <input
-          id="cat-answer"
-          ref={input}
-          value={text}
-          onChange={(e) => {
-            const v = e.target.value.slice(0, MAX_LEN)
-            setDrafts((d) => d.map((x, k) => (k === i ? v : x)))
-          }}
-          maxLength={MAX_LEN}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="words"
-          spellCheck={false}
-          enterKeyHint={i >= s.cats.length - 1 ? 'done' : 'next'}
-          placeholder={`${s.letter}...`}
-          aria-label={`Answer for ${s.cats[i]}`}
-          className={cx('min-h-16 w-full rounded-xl border-2 bg-tile px-4 text-2xl font-bold outline-none', bad ? 'border-hot' : 'border-line focus:border-ink-3')}
-        />
-        <div className={cx('min-h-6 text-sm', bad ? 'text-hot-ink' : 'text-ink-3')}>
-          {bad ? `Has to start with ${s.letter}. "The" and "a" don't count.` : 'Enter jumps to the next one.'}
-        </div>
+      <form onSubmit={next} className="grid gap-5">
+        <Sheet lh={48} margin={46} className="pb-3 pr-4 pt-[22px]">
+          <div className="flex h-[48px] items-end pb-1.5">
+            <span className="cat-slab text-[15px] tracking-[0.1em]" style={{ color: C.padMargin }}>No. {i + 1} of {s.cats.length}</span>
+          </div>
+          <label htmlFor="cat-answer" key={i} className="cat-rise line-clamp-2 block min-h-[96px] text-[25px] font-bold leading-[48px]" style={{ color: C.ink }}>{s.cats[i]}</label>
+          <div className="relative h-[96px]">
+            <input
+              id="cat-answer"
+              ref={input}
+              value={text}
+              onChange={(e) => {
+                const v = e.target.value.slice(0, MAX_LEN)
+                setDrafts((d) => d.map((x, k) => (k === i ? v : x)))
+              }}
+              maxLength={MAX_LEN}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="words"
+              spellCheck={false}
+              enterKeyHint={i >= s.cats.length - 1 ? 'done' : 'next'}
+              placeholder={`${s.letter}...`}
+              aria-label={`Answer for ${s.cats[i]}`}
+              className="cat-input cat-marker absolute inset-x-0 top-[38px] h-[56px] w-full border-0 bg-transparent p-0 text-[36px] leading-[56px]"
+              style={{ color: bad ? C.red : C.marker, caretColor: C.orange }}
+            />
+            {bad && <svg className="pointer-events-none absolute left-0 top-[86px]" width="100%" height="12" preserveAspectRatio="none" viewBox="0 0 100 12" aria-hidden><path d="M0 6 Q5 0 10 6 T20 6 T30 6 T40 6 T50 6 T60 6 T70 6 T80 6 T90 6 T100 6" fill="none" stroke={C.red} strokeWidth="2.5" vectorEffect="non-scaling-stroke" /></svg>}
+          </div>
+          <div className="flex h-[48px] items-center text-[15px] font-bold" style={{ color: bad ? C.red : C.ink3 }}>
+            {bad ? `Has to start with ${s.letter}. "The" and "a" don't count.` : 'Enter jumps to the next one.'}
+          </div>
+        </Sheet>
         <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-3">
-          <Btn size="lg" onClick={() => go(i - 1)} disabled={i === 0} aria-label="Back"><ChevronLeft size={22} />Back</Btn>
-          <Btn size="lg" variant="primary" type="submit">{i >= s.cats.length - 1 ? 'Review' : 'Next'}<ChevronRight size={22} /></Btn>
+          <Knob tone="cream" onClick={() => go(i - 1)} disabled={i === 0} aria-label="Back"><ChevronLeft size={22} strokeWidth={3} />Back</Knob>
+          <Knob tone="orange" type="submit">{i >= s.cats.length - 1 ? 'Review' : 'Next'}<ChevronRight size={22} strokeWidth={3} /></Knob>
         </div>
       </form>
-      <Btn variant="ghost" onClick={() => { flush(drafts); setListOpen(true) }}><List size={18} />See all {s.cats.length}</Btn>
-    </div>
+      <button type="button" className="mx-auto min-h-12 rounded-full px-5 cat-slab text-[15px] uppercase tracking-[0.12em] underline decoration-2 underline-offset-4" style={{ color: C.mustard }} onClick={() => { flush(drafts); setListOpen(true) }}>
+        See all {s.cats.length}
+      </button>
+    </>
   )
 }
 
 function ReviewList({ s, drafts, onPick }: { s: CategoriesState; drafts: string[]; onPick?: (i: number) => void }) {
   return (
-    <ol className="grid gap-2">
-      {s.cats.map((c, k) => {
-        const t = drafts[k] ?? ''
-        const bad = Boolean(normalize(t)) && !startsWithLetter(t, s.letter)
-        const body = (
-          <>
-            <span className="w-5 shrink-0 font-mono text-ink-3">{k + 1}</span>
-            <span className="grid min-w-0 flex-1 text-left">
-              <span className="truncate text-sm text-ink-2">{c}</span>
-              <span className={cx('truncate text-lg font-bold', !t.trim() ? 'text-ink-3' : bad ? 'text-hot-ink' : 'text-ink')}>{t.trim() || 'empty'}</span>
-            </span>
-          </>
-        )
-        return (
-          <li key={c}>
-            {onPick ? (
-              <button className="flex min-h-14 w-full items-center gap-3 rounded-xl bg-tile px-3 py-2 active:scale-[0.99]" onClick={() => onPick(k)}>{body}</button>
-            ) : (
-              <div className="flex min-h-14 items-center gap-3 rounded-xl bg-tile px-3 py-2">{body}</div>
-            )}
-          </li>
-        )
-      })}
-    </ol>
+    <Sheet lh={58} margin={40} className="pb-1 pr-3 pt-[18px]">
+      <ol>
+        {s.cats.map((c, k) => {
+          const t = drafts[k] ?? ''
+          const bad = Boolean(normalize(t)) && !startsWithLetter(t, s.letter)
+          const body = (
+            <>
+              <span className="cat-slab absolute -left-[42px] w-[28px] text-right text-[14px]" style={{ color: C.padMargin }}>{k + 1}</span>
+              <span className="grid min-w-0 flex-1 text-left">
+                <span className="truncate text-[13px] font-bold leading-[16px]" style={{ color: C.ink2 }}>{c}</span>
+                <span className={cx('cat-marker truncate text-[24px] leading-[34px]')} style={{ color: !t.trim() ? 'rgba(30,26,46,0.25)' : bad ? C.red : C.marker }}>{t.trim() || '...'}</span>
+              </span>
+            </>
+          )
+          return (
+            <li key={c}>
+              {onPick ? (
+                <button type="button" className="relative flex h-[58px] w-full items-center active:opacity-70" onClick={() => onPick(k)}>{body}</button>
+              ) : (
+                <div className="relative flex h-[58px] items-center">{body}</div>
+              )}
+            </li>
+          )
+        })}
+      </ol>
+    </Sheet>
   )
 }
 
 // ---------------- judging ----------------
 
-function JudgePad({ s, room, me, now, send }: { s: CategoriesState; room: ControllerProps<CategoriesState>['room']; me: string; now: () => number; send: Send }) {
+function JudgePad({ s, room, me, now, send, apart }: { s: CategoriesState; room: Room; me: string; now: () => number; send: Send; apart: boolean }) {
   const who = finder(room)
   const list = shownAnswers(s, room.gamePlayers)
   const verdict = s.stage === 'verdict'
@@ -206,24 +258,25 @@ function JudgePad({ s, room, me, now, send }: { s: CategoriesState; room: Contro
   const left = room.gamePlayers.length - s.ready.length
   const need = outThreshold(room.gamePlayers.length)
   const mine = list.find((j) => j.playerId === me)
+  const remain = Math.max(0, s.endsAt - now())
   return (
-    <div className="grid gap-3 p-4">
-      <div className="flex items-center gap-3">
-        <LetterTile letter={s.letter} size="sm" />
+    <>
+      <Card className="flex items-center gap-3 px-3 py-2" lift={6}>
+        {!apart && <MiniReel letter={s.letter} round={s.round} ms={Infinity} cell={36} />}
         <div className="min-w-0 flex-1">
-          <Label>Category {s.judgeIdx + 1} of {s.cats.length}</Label>
-          <div className="text-xl font-bold leading-tight">{s.cats[s.judgeIdx]}</div>
+          <Tag className="text-[12px]" style={{ color: C.orangeDark }}>Category {s.judgeIdx + 1} of {s.cats.length}</Tag>
+          <div key={s.judgeIdx} className="cat-rise text-[21px] font-bold leading-tight">{s.cats[s.judgeIdx]}</div>
         </div>
-      </div>
-      {verdict ? (
-        <div className="rounded-xl bg-tile px-4 py-2 text-center font-bold animate-pop">
-          {mine?.points ? <span className="text-hot">You got +{mine.points}</span> : <span className="text-ink-3">Nothing for you on this one</span>}
-        </div>
-      ) : (
-        <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />
+        {!verdict && <Dial frac={remain / Math.max(1, s.stageTotal)} size={44} />}
+      </Card>
+      {verdict && (
+        <Card tone={mine?.points ? C.mustard : C.creamDark} className="flex items-center gap-3 px-4 py-2" lift={6}>
+          <ScorePop text={mine?.points ? `+${mine.points}` : '0'} size={64} tone={mine?.points ? C.orange : C.cream} />
+          <span className="cat-display text-[24px] leading-tight">{mine?.points ? `You got +${mine.points}` : 'Nothing for you on this one'}</span>
+        </Card>
       )}
-      <div className="grid gap-2">
-        {list.map((j) => {
+      <div className="grid gap-3" key={`${s.round}-${s.judgeIdx}`}>
+        {list.map((j, n) => {
           const p = who(j.playerId)
           const own = j.playerId === me
           const dead = j.status !== 'ok'
@@ -231,83 +284,102 @@ function JudgePad({ s, room, me, now, send }: { s: CategoriesState; room: Contro
           const downOn = (s.downs[j.playerId] ?? []).includes(me)
           const canDown = !verdict && !own && (j.status === 'ok' || j.status === 'out')
           const canUp = !verdict && !own && j.status !== 'blank'
+          const stamp = stampFor(j)
           return (
-            <div key={j.playerId} className={cx('flex items-center gap-3 rounded-2xl bg-tile p-3', own && 'ring-2 ring-line')}>
-              <Avatar name={p?.name ?? j.playerId} color={p?.color ?? '#888'} size={30} dim={dead} />
-              <div className="grid min-w-0 flex-1">
-                <span className="truncate text-sm font-bold" style={{ color: p?.color }}>{own ? 'You' : p?.name ?? j.playerId}</span>
-                <span className={cx('break-words text-lg font-bold leading-tight', dead ? 'text-ink-3' : 'text-ink', dead && j.status !== 'blank' && 'line-through')}>{j.text || '(blank)'}</span>
-                <span className={cx('text-xs', j.status === 'out' ? 'text-bad' : j.status === 'ok' ? (j.allit ? 'text-hot-ink' : 'text-good') : 'text-ink-3')}>
-                  {statusText(j, dupPartners(list, j), (id) => (id === me ? 'you' : who(id)?.name ?? id))}
-                  {j.downs > 0 && j.status !== 'out' ? ` · ${j.downs}/${need} against` : ''}
-                </span>
-              </div>
-              {verdict ? (
-                <span className={cx('w-10 text-right font-display text-2xl', j.points ? 'text-hot' : 'text-ink-3')}>{j.points ? `+${j.points}` : '0'}</span>
-              ) : !own ? (
-                <div className="flex shrink-0 gap-2">
-                  <button
-                    aria-label={`Thumbs up for ${p?.name ?? j.playerId}`}
-                    aria-pressed={upOn}
-                    disabled={!canUp}
-                    onClick={() => send('vote', { idx: s.judgeIdx, owner: j.playerId, kind: 'up' })}
-                    className={cx('grid h-12 w-12 place-items-center rounded-xl border-2 transition-transform active:scale-95 disabled:opacity-30', upOn ? 'border-good bg-good text-paper' : 'border-line text-ink-2')}
-                  >
-                    <ThumbsUp size={20} />
-                  </button>
-                  <button
-                    aria-label={`Thumbs down for ${p?.name ?? j.playerId}`}
-                    aria-pressed={downOn}
-                    disabled={!canDown}
-                    onClick={() => send('vote', { idx: s.judgeIdx, owner: j.playerId, kind: 'down' })}
-                    className={cx('grid h-12 w-12 place-items-center rounded-xl border-2 transition-transform active:scale-95 disabled:opacity-30', downOn ? 'border-bad bg-bad text-paper' : 'border-line text-ink-2')}
-                  >
-                    <ThumbsDown size={20} />
-                  </button>
+            <div key={j.playerId} className="cat-rise relative" style={{ animationDelay: `${n * 70}ms` }}>
+              <Sheet lh={30} margin={26} top={false} className="py-2 pr-2" style={own ? { boxShadow: `0 0 0 3px ${C.mustard}, 0 8px 14px rgba(20,10,4,0.45)` } : undefined}>
+                <div className="flex min-h-[64px] items-center gap-2">
+                  <Pawn color={p?.color ?? '#888'} size={30} mood={dead && j.status !== 'blank' ? 'sad' : verdict && j.points ? 'happy' : 'idle'} />
+                  <div className="relative grid min-w-0 flex-1">
+                    <span className="cat-slab truncate text-[13px] uppercase tracking-[0.08em]" style={{ color: C.ink2 }}>{own ? 'You' : p?.name ?? j.playerId}</span>
+                    <span className="cat-marker break-words text-[25px] leading-[1.1]" style={{ color: j.status === 'blank' ? 'rgba(30,26,46,0.3)' : dead ? 'rgba(30,26,46,0.55)' : C.marker, textDecorationLine: dead && j.status !== 'blank' ? 'line-through' : 'none', textDecorationColor: C.red, textDecorationThickness: 3 }}>
+                      {j.text || '(blank)'}
+                    </span>
+                    <span className="text-[13px] font-bold" style={{ color: j.status === 'out' ? C.red : j.status === 'ok' ? (j.allit ? C.orangeDark : C.avocadoDark) : C.ink3 }}>
+                      {statusText(j, dupPartners(list, j), (id) => (id === me ? 'you' : who(id)?.name ?? id))}
+                      {j.downs > 0 && j.status !== 'out' ? ` · ${j.downs}/${need} against` : ''}
+                    </span>
+                    {stamp && (
+                      <span className="pointer-events-none absolute right-0 top-0">
+                        <Stamp key={stamp.text} text={stamp.text} tone={stamp.tone} size={stamp.text.length > 6 ? 12 : 16} r={n % 2 ? 7 : -8} delay={stamp.text === 'Tossed' ? 0 : 200 + n * 120} />
+                      </span>
+                    )}
+                  </div>
+                  {verdict ? (
+                    <ScorePop text={j.points ? `+${j.points}` : '0'} size={50} tone={j.points ? C.mustard : C.creamDark} delay={n * 100} />
+                  ) : !own ? (
+                    <div className="flex shrink-0 gap-2">
+                      <VoteButton kind="up" on={upOn} disabled={!canUp} label={`Thumbs up for ${p?.name ?? j.playerId}`} onClick={() => send('vote', { idx: s.judgeIdx, owner: j.playerId, kind: 'up' })} />
+                      <VoteButton kind="down" on={downOn} disabled={!canDown} label={`Thumbs down for ${p?.name ?? j.playerId}`} onClick={() => send('vote', { idx: s.judgeIdx, owner: j.playerId, kind: 'down' })} />
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
+              </Sheet>
             </div>
           )
         })}
       </div>
       {!verdict && (
         ready ? (
-          <div className="grid min-h-14 place-items-center rounded-xl bg-tile text-ink-2">Waiting on {left}</div>
+          <div className="grid min-h-14 place-items-center rounded-full border-[3px] cat-display text-[20px]" style={{ borderColor: C.ink, background: C.brown, color: C.creamDark }}>Waiting on {left}</div>
         ) : (
-          <Btn size="lg" variant="primary" onClick={() => send('next', { idx: s.judgeIdx })}>Looks good, next</Btn>
+          <Knob tone="orange" big onClick={() => send('next', { idx: s.judgeIdx })}>Looks good, next</Knob>
         )
       )}
-      {!verdict && <div className="text-center text-sm text-ink-3">Thumbs down to challenge. {need} {need === 1 ? 'vote throws' : 'votes throw'} it out.</div>}
-    </div>
+      {!verdict && <div className="text-center text-[15px] font-bold" style={{ color: C.creamDark }}>Thumbs down to challenge. {need} {need === 1 ? 'vote throws' : 'votes throw'} it out.</div>}
+    </>
   )
 }
 
-function RoundPad({ s, room, me, now }: { s: CategoriesState; room: ControllerProps<CategoriesState>['room']; me: string; now: () => number }) {
+function VoteButton({ kind, on, disabled, label, onClick }: { kind: 'up' | 'down'; on: boolean; disabled: boolean; label: string; onClick: () => void }) {
+  const bg = on ? (kind === 'up' ? C.avocado : C.red) : C.cream
+  const edge = on ? (kind === 'up' ? C.avocadoDark : '#7E140F') : C.creamDark
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={on}
+      disabled={disabled}
+      onClick={onClick}
+      className="grid h-[52px] w-[52px] place-items-center rounded-[14px] border-[3px] transition-transform active:translate-y-[3px] disabled:opacity-30"
+      style={{ background: bg, borderColor: C.ink, color: on ? C.cream : C.ink, boxShadow: `0 4px 0 ${edge}, 0 4px 0 3px ${C.ink}` }}
+    >
+      {kind === 'up' ? <ThumbsUp size={22} strokeWidth={2.6} /> : <ThumbsDown size={22} strokeWidth={2.6} />}
+    </button>
+  )
+}
+
+// ---------------- round over ----------------
+
+function RoundPad({ s, room, me, now }: { s: CategoriesState; room: Room; me: string; now: () => number }) {
   const who = finder(room)
   const pts = roundPoints(s, s.round)
   const rows = [...room.gamePlayers].sort((a, b) => (s.scores[b] ?? 0) - (s.scores[a] ?? 0))
+  const lead = s.scores[rows[0]] ?? 0
   const last = s.round + 1 >= s.rounds
   const secs = Math.max(0, Math.ceil((s.endsAt - now()) / 1000))
   return (
-    <div className="grid gap-4 p-4">
-      <div className="grid gap-1 text-center">
-        <Label>Round {s.round + 1} of {s.rounds}</Label>
-        <div className="font-display text-3xl">You made +{pts[me] ?? 0}</div>
-        <div className="text-ink-2">{last ? 'Final scores coming.' : `Next letter in ${secs}.`}</div>
+    <>
+      <div className="grid justify-items-center gap-2 pt-2 text-center">
+        <Tag className="text-[13px]" style={{ color: C.mustard }}>Round {s.round + 1} of {s.rounds} · Letter {s.letter}</Tag>
+        <ScorePop text={`+${pts[me] ?? 0}`} size={110} tone={pts[me] ? C.mustard : C.creamDark} />
+        <div className="cat-display text-[36px] leading-none" style={{ color: C.cream, textShadow: `3px 4px 0 ${C.ink}` }}>You made +{pts[me] ?? 0}</div>
+        <div className="text-[17px] font-bold" style={{ color: C.creamDark }}>{last ? 'Final scores coming.' : `Next letter in ${secs}.`}</div>
       </div>
-      <div className="grid gap-2">
-        {rows.map((id) => {
+      <Card tone={C.ink} className="grid gap-2 p-2" style={{ boxShadow: `0 0 0 3px ${C.mustard}, 0 8px 0 3px ${C.ink}` }}>
+        {rows.map((id, i) => {
           const p = who(id)
+          const top = (s.scores[id] ?? 0) === lead && lead > 0
           return (
-            <div key={id} className="flex items-center gap-3 rounded-xl bg-tile px-4 py-3">
-              <Avatar name={p?.name ?? id} color={p?.color ?? '#888'} size={30} />
-              <span className="flex-1 truncate font-bold">{id === me ? 'You' : p?.name ?? id}</span>
-              <span className="font-mono text-ink-3 tabular">+{pts[id] ?? 0}</span>
-              <span className="w-12 text-right font-display text-2xl tabular">{s.scores[id] ?? 0}</span>
+            <div key={id} className="cat-rise flex items-center gap-3 rounded-xl px-3 py-1.5" style={{ background: top ? C.orange : C.brown, animationDelay: `${i * 100}ms` }}>
+              <Pawn color={p?.color ?? '#888'} size={28} mood={top ? 'happy' : 'idle'} />
+              <span className="cat-display min-w-0 flex-1 truncate text-[22px]" style={{ color: C.cream }}>{id === me ? 'You' : p?.name ?? id}</span>
+              <span className="cat-slab text-[16px] tabular" style={{ color: C.mustard }}>+{pts[id] ?? 0}</span>
+              <Tiles n={s.scores[id] ?? 0} size={34} />
             </div>
           )
         })}
-      </div>
-    </div>
+      </Card>
+    </>
   )
 }

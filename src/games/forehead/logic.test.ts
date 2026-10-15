@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, RoomPlayer } from '../../engine/types'
 import { DECKS } from './decks'
-import { bot, DEBOUNCE_MS, outcome, READY_MS, reduce, SET_MS, setup, tick, TURN_END_MS, TURN_MS, type ForeheadState } from './logic'
+import { bot, DEBOUNCE_MS, ON_FIRE_AT, outcome, READY_MS, recapOf, reduce, SET_MS, setup, streakOf, tick, TURN_END_MS, TURN_MS, type ForeheadState } from './logic'
 import { facing, freshTilt, landscapeTurn, REARM_MS, tiltStep, type TiltState } from './tilt'
 
 const players: RoomPlayer[] = [
@@ -323,5 +323,72 @@ describe('bots', () => {
     const s = setup({ ...ctx(1), used: seen }, { deck: 'florida' })
     expect(seen).not.toContain(s.word)
     for (const w of s.queue.slice(0, 9)) expect(seen).not.toContain(w)
+  })
+})
+
+describe('the show: streaks and recap', () => {
+  const c = (got: boolean, ms = 3000, word = 'x'): import('./logic').Call => ({ word, got, at: 0, ms })
+  it('counts the gots in a row at the end, a pass resets it', () => {
+    expect(streakOf([])).toBe(0)
+    expect(streakOf([c(true), c(true)])).toBe(2)
+    expect(streakOf([c(true), c(false)])).toBe(0)
+    expect(streakOf([c(true), c(false), c(true), c(true), c(true)])).toBe(3)
+    expect(streakOf([c(true), c(true), c(true)]) >= ON_FIRE_AT).toBe(true)
+  })
+  it('recaps a turn: got, passed, best run, fastest got', () => {
+    expect(recapOf([])).toEqual({ got: 0, passed: 0, best: 0, fastest: null })
+    const r = recapOf([c(true, 4000, 'a'), c(true, 1500, 'b'), c(false, 900, 'c'), c(true, 2000, 'd')])
+    expect(r.got).toBe(3)
+    expect(r.passed).toBe(1)
+    expect(r.best).toBe(2)
+    expect(r.fastest?.word).toBe('b')
+  })
+  it('tracks the streak live through a real turn', () => {
+    let s = setup(ctx(1), {})
+    let now = 1
+    ;({ s, now } = toPlay(s, now))
+    for (const t of ['got', 'got', 'got', 'pass', 'got'] as const) { now += DEBOUNCE_MS + 10; s = call(s, t, now) }
+    expect(recapOf(s.calls).best).toBe(3)
+    expect(streakOf(s.calls)).toBe(1)
+  })
+})
+
+describe('apart mode', () => {
+  it('lists apart, and a game with two bots plays to the end the same way over a call', async () => {
+    const def = (await import('./index')).default
+    expect(def.modes).toEqual(['together', 'apart'])
+    const ps: RoomPlayer[] = [players[0], { ...players[1], bot: true }, { ...players[2], bot: true }]
+    const actx = (now: number): GameCtx => ({ now, players: ps, mode: 'apart', random })
+    let s = setup(actx(1), { turns: 1 })
+    let now = 1
+    for (let i = 0; i < 20_000 && s.stage !== 'done'; i++) {
+      now += 200
+      s = tick(s, actx(now))
+      for (const p of ps.filter((x) => x.bot)) {
+        const m = bot(s, p.id, actx(now))
+        if (m) s = reduce(s, { playerId: p.id, type: m.type, payload: m.payload ?? null }, actx(now))
+      }
+    }
+    expect(s.stage).toBe('done')
+    expect(outcome(s, actx(now))?.placements).toHaveLength(3)
+  })
+})
+
+describe('show reads', () => {
+  it('a call is a moment for a second, then it is not; the mood follows', async () => {
+    const { momentOf, moodFor, MOMENT_MS } = await import('./show')
+    let s = setup(ctx(1), {})
+    let now = 1
+    ;({ s, now } = toPlay(s, now))
+    expect(momentOf(s, () => now)).toBeNull()
+    expect(moodFor(s, null)).toBe('think')
+    now += DEBOUNCE_MS + 10
+    s = call(s, 'got', now)
+    expect(momentOf(s, () => now + 100)?.got).toBe(true)
+    expect(moodFor(s, momentOf(s, () => now + 100))).toBe('happy')
+    expect(momentOf(s, () => now + MOMENT_MS)).toBeNull()
+    now += DEBOUNCE_MS + 10
+    s = call(s, 'pass', now)
+    expect(moodFor(s, momentOf(s, () => now))).toBe('oops')
   })
 })

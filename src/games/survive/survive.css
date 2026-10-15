@@ -1,0 +1,99 @@
+/* The Grand Palmetto. Every class is sv-*. Transforms and opacity only. */
+
+@keyframes sv-sway { 0%, 100% { transform: rotate(-0.8deg); } 50% { transform: rotate(0.8deg); } }
+.sv-sway { animation: sv-sway 5.5s ease-in-out infinite; transform-origin: 50% 100%; }
+
+@keyframes sv-swing { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+.sv-swing { animation: sv-swing 3.2s ease-in-out infinite; }
+
+@keyframes sv-tilt { 0%, 70%, 100% { transform: rotate(0deg); } 80%, 90% { transform: rotate(-4deg); } }
+.sv-tilt { animation: sv-tilt 7s ease-in-out infinite; }
+
+@keyframes sv-jingle { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+.sv-jingle { animation: sv-jingle 1.6s ease-in-out infinite; }
+
+@keyframes sv-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+.sv-blink { animation: sv-blink 4.6s infinite; }
+
+@keyframes sv-flicker {
+  0%, 100% { transform: scale(1, 1); opacity: 1; }
+  20% { transform: scale(0.94, 1.06); opacity: 0.92; }
+  45% { transform: scale(1.05, 0.95); opacity: 1; }
+  70% { transform: scale(0.97, 1.04); opacity: 0.85; }
+}
+.sv-flicker { animation: sv-flicker 0.9s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+
+@keyframes sv-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+.sv-float { animation: sv-float 2.6s ease-in-out infinite; }
+@keyframes sv-shadow-pulse { 0%, 100% { transform: scaleX(1); opacity: 0.35; } 50% { transform: scaleX(0.8); opacity: 0.2; } }
+.sv-shadow-pulse { animation: sv-shadow-pulse 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+@keyframes sv-legs { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.sv-legs { animation: sv-legs 0.22s linear infinite; }
+
+@keyframes sv-buzz { 0%, 86%, 92%, 100% { opacity: 1; } 88% { opacity: 0.25; } 90% { opacity: 0.8; } 91% { opacity: 0.3; } }
+.sv-buzz { animation: sv-buzz 4s infinite; }
+
+@keyframes sv-throb { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.18); } 30% { transform: scale(1); } 45% { transform: scale(1.1); } }
+.sv-throb { animation: sv-throb 1s ease-out infinite; display: inline-block; }
+
+@keyframes sv-pop { 0% { transform: scale(0.4); opacity: 0; } 70% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+.sv-pop { animation: sv-pop 320ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; transform-box: fill-box; transform-origin: center; }
+
+@keyframes sv-rise { 0% { transform: translateY(14px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+.sv-rise { animation: sv-rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes sv-drop-in { 0% { transform: translateY(-40px) rotate(-6deg); opacity: 0; } 60% { transform: translateY(6px) rotate(1deg); opacity: 1; } 100% { transform: translateY(0) rotate(-1.5deg); } }
+.sv-drop-in { animation: sv-drop-in 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes sv-slam { 0% { transform: scale(2.4) rotate(-14deg); opacity: 0; } 60% { transform: scale(0.94) rotate(-8deg); opacity: 1; } 100% { transform: scale(1) rotate(-8deg); opacity: 1; } }
+.sv-slam { animation: sv-slam 380ms cubic-bezier(0.3, 0.8, 0.3, 1) both; }
+
+/* Lightning: two fast white flashes. */
+@keyframes sv-flash { 0% { opacity: 0; } 4% { opacity: 0.55; } 10% { opacity: 0.05; } 16% { opacity: 0.4; } 40%, 100% { opacity: 0; } }
+.sv-flash { background: #EFFFF4; opacity: 0; animation: sv-flash 900ms ease-out both; }
+@keyframes sv-flash-strong { 0% { opacity: 0; } 3% { opacity: 0.85; } 9% { opacity: 0.1; } 14% { opacity: 0.7; } 45%, 100% { opacity: 0; } }
+.sv-flash-strong { background: #F4FFF6; opacity: 0; animation: sv-flash-strong 1100ms ease-out both; }
+
+/* Window lightning in the background, now and then. */
+@keyframes sv-storm { 0%, 91%, 100% { opacity: 0; } 92% { opacity: 0.9; } 93% { opacity: 0.15; } 94.5% { opacity: 0.7; } 97% { opacity: 0; } }
+.sv-storm { animation: sv-storm 11s infinite; }
+
+/* A death: the guest drops through the floor, then the ghost rises. */
+@keyframes sv-sink {
+  0%, 25% { transform: translateY(0) rotate(0deg); }
+  35% { transform: translateY(-10px) rotate(-4deg); }
+  100% { transform: translateY(120%) rotate(6deg); }
+}
+.sv-sink { animation: sv-sink 1300ms cubic-bezier(0.5, 0, 0.9, 0.6) both; }
+@keyframes sv-ghost-up {
+  0% { transform: translateY(70%) scale(0.6); opacity: 0; }
+  60% { transform: translateY(-8%) scale(1.05); opacity: 0.95; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.sv-ghost-up { animation: sv-ghost-up 1000ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes sv-hole { 0%, 20% { transform: scaleX(0); opacity: 0; } 35%, 80% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(0.2); opacity: 0; } }
+.sv-hole { animation: sv-hole 1700ms ease-in-out both; transform-origin: center; }
+
+/* A survivor: a little hop. */
+@keyframes sv-hop { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-26px); } 55% { transform: translateY(0); } 70% { transform: translateY(-10px); } }
+.sv-hop { animation: sv-hop 900ms ease-out both; }
+
+/* The lights go out on someone. */
+@keyframes sv-dim { 0%, 30% { opacity: 1; } 40% { opacity: 0.2; } 48% { opacity: 0.9; } 60%, 100% { opacity: 0.08; } }
+.sv-dim { animation: sv-dim 1200ms linear both; }
+
+@keyframes sv-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
+.sv-shake { animation: sv-shake 420ms ease-in-out both; }
+
+@keyframes sv-heart { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.06); } 24% { transform: scale(1); } 36% { transform: scale(1.04); } }
+.sv-heart { animation: sv-heart 1s ease-out infinite; }
+
+@keyframes sv-door { 0% { transform: perspective(500px) rotateY(0deg); } 100% { transform: perspective(500px) rotateY(-70deg); } }
+.sv-door-open { animation: sv-door 600ms cubic-bezier(0.3, 0.7, 0.2, 1) both; transform-origin: 0% 50%; }
+
+@keyframes sv-walk-out { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-20px) scale(0.6); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-sway, .sv-swing, .sv-tilt, .sv-jingle, .sv-float, .sv-legs, .sv-storm, .sv-heart, .sv-throb { animation: none; }
+}

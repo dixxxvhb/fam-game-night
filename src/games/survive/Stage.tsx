@@ -2,259 +2,293 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import type { StageProps } from '../../engine/types'
 import { useTicker } from '../../engine/context'
 import { sfx } from '../../ui/sfx'
-import { Avatar, cx, Label } from '../../ui/kit'
-import { Countdown } from '../../ui/Countdown'
-import { LETTERS } from '../_quiz/bank'
-import { LockedRow, QuestionBoard, QuestionHead } from '../_quiz/ui'
-import { TRAP_INFO } from './traps'
-import { Track, TRACK_STEP_MS } from './Track'
-import type { SurviveState } from './logic'
+import { cx } from '../../ui/kit'
+import { catLabel } from '../_quiz/categories'
+import { quizMusic, useQuizMusic } from '../_quiz/music'
 import { whoIn } from '../_quiz/who'
-
-type Room = StageProps<SurviveState>['room']
+import type { SurviveState } from './logic'
+import { ST, trackFor } from './music'
+import { Ghost, Guest, ManagerBust, NightManager, type ManagerMood, type ManagerPose } from './hotel/cast'
+import { Corridor, STEP_MS } from './hotel/Corridor'
+import { CandleTimer, DISPLAY, HOTEL, HotelWall, Lightning, Sign, SpeechCard, timeLeft, Title, useHotelFonts } from './hotel/look'
+import { ROOMS, RoomCard } from './hotel/rooms'
+import { AnswerBoard, CheckedIn, questionSize, Register, SortCards, StormWindow, TrapScene } from './hotel/show'
+import { SurviveCompact } from './Compact'
 
 const SORT_STAGGER_MS = 400
 
-export function SurviveStage({ state: s, room, now, compact, me }: StageProps<SurviveState>) {
+export function SurviveStage(props: StageProps<SurviveState>) {
+  const { state: s, now, compact } = props
   useTicker(250)
-  const who = whoIn(room)
-  const inGame = !!me && room.gamePlayers.includes(me)
-  const ghosts = room.gamePlayers.filter((id) => !s.alive[id])
-  const living = room.gamePlayers.length - ghosts.length
+  useHotelFonts()
+  useHotelSound(s, now)
+  if (compact) return <SurviveCompact {...props} />
+  return <TvStage {...props} />
+}
 
-  // Sounds, one per moment.
-  const prev = useRef({ phase: s.phase, n: 0, trapDone: 0 })
+/** Music per phase, stingers per moment, the heartbeat in the last seconds. */
+function useHotelSound(s: SurviveState, now: () => number) {
+  useQuizMusic(trackFor(s.phase))
   const answered = s.phase === 'finaleQ' ? Object.keys(s.finale?.answers ?? {}).length : Object.keys(s.answers).length
-  const trapDone = s.trap ? Object.values(s.trap.seats).filter((x) => x.status !== 'playing').length : 0
+  const seats = s.trap ? Object.values(s.trap.seats) : []
+  const dead = seats.filter((x) => x.status === 'dead').length
+  const lived = seats.filter((x) => x.status === 'survived').length
+  const prev = useRef({ phase: s.phase, n: answered, dead, lived })
   useEffect(() => {
     const p = prev.current
     if (p.phase !== s.phase) {
-      if (s.phase === 'reveal' || s.phase === 'finaleReveal') sfx.play('reveal')
-      if (s.phase === 'trap') sfx.play('whoosh')
-      if (s.phase === 'trapResult') sfx.play(s.lastTrap?.results.some((r) => !r.survived) ? 'bad' : 'good')
-      if (s.phase === 'finaleIntro') sfx.play('start')
-      if (s.phase === 'done') sfx.play('win')
-    } else if (answered > p.n || trapDone > p.trapDone) sfx.play('pop')
-    prev.current = { phase: s.phase, n: answered, trapDone }
-  }, [s.phase, answered, trapDone, s.lastTrap])
+      if (s.phase === 'reveal') {
+        quizMusic.stinger(ST.reveal)
+        if (s.last?.trapped.length) setTimeout(() => quizMusic.stinger(ST.wrong), 700)
+      }
+      if (s.phase === 'trap') quizMusic.stinger(ST.trapOpen)
+      if (s.phase === 'trapResult' && dead > p.dead) quizMusic.stinger(ST.death)
+      if (s.phase === 'trapResult' && dead === p.dead && lived > p.lived) quizMusic.stinger(ST.live)
+      if (s.phase === 'finaleIntro') quizMusic.stinger(ST.hall)
+      if (s.phase === 'finaleReveal') {
+        quizMusic.stinger(ST.reveal)
+        if (s.finale?.last?.revived.length) setTimeout(() => quizMusic.stinger(ST.revive), 2600)
+      }
+      if (s.phase === 'finaleReveal' && s.winner) {
+        const movers = Object.values(s.finale?.last?.moves ?? {}).filter((m) => m > 0).length
+        setTimeout(() => quizMusic.stinger(ST.escape), escapeAt(movers))
+      }
+    } else {
+      if (answered > p.n) sfx.play('pop')
+      if (dead > p.dead) quizMusic.stinger(ST.death)
+      else if (lived > p.lived) quizMusic.stinger(ST.live)
+    }
+    prev.current = { phase: s.phase, n: answered, dead, lived }
+  }, [s.phase, answered, dead, lived, s.last, s.finale?.last])
 
-  const timer = <Countdown endsAt={s.endsAt} total={s.phaseTotal} now={now} className="w-full" />
-  const since = now() - s.phaseAt
+  // Heartbeat under the clock in the last five seconds.
+  const urgent = (s.phase === 'question' || s.phase === 'finaleQ') && s.endsAt - now() <= 5_000 && s.endsAt - now() > 0
+  const beat = urgent ? Math.ceil((s.endsAt - now()) / 1000) : 0
+  useEffect(() => { if (beat > 0) quizMusic.stinger(ST.heart) }, [beat])
+}
+
+/** What the Night Manager is doing right now. */
+function managerFor(s: SurviveState, since: number): { mood: ManagerMood; pose: ManagerPose } {
+  switch (s.phase) {
+    case 'intro': return { mood: 'polite', pose: 'raise' }
+    case 'question': return { mood: s.endsAt - s.phaseAt - since < 5_000 ? 'grin' : 'polite', pose: 'stand' }
+    case 'reveal': return s.last?.trapped.length ? { mood: 'grin', pose: 'point' } : { mood: 'sorry', pose: 'stand' }
+    case 'trap': return { mood: 'grin', pose: 'point' }
+    case 'trapResult': return s.lastTrap?.results.some((r) => !r.survived) ? { mood: 'sorry', pose: 'bow' } : { mood: 'shock', pose: 'stand' }
+    case 'done': return { mood: 'polite', pose: 'bow' }
+    default: return { mood: 'polite', pose: 'raise' }
+  }
+}
+
+function TvStage({ state: s, room, now }: StageProps<SurviveState>) {
+  const who = whoIn(room)
+  const ghosts = room.gamePlayers.filter((id) => !s.alive[id])
+  const living = room.gamePlayers.length - ghosts.length
+  const t = now()
+  const since = t - s.phaseAt
   const qLabel = `Question ${s.qNum} of ${s.qTotal}`
-  let body: ReactNode = null
+  const man = managerFor(s, since)
+  const deaths = s.trap ? Object.values(s.trap.seats).filter((x) => x.status === 'dead').length : 0
+  const movers = Object.values(s.finale?.last?.moves ?? {}).filter((m) => m > 0).length
+  const escaped = s.phase === 'finaleReveal' && !!s.winner && since > escapeAt(movers)
+  const flashKey = s.phase === 'reveal' && s.last?.trapped.length ? `r${s.phaseAt}` : s.phase === 'trap' || s.phase === 'trapResult' ? (deaths ? `d${s.trap?.startAt}-${deaths}` : '') : escaped ? `w${s.phaseAt}` : ''
+
+  // ---- the finale and the escape take the whole hall ----
+  if ((s.phase === 'finaleIntro' || s.phase === 'finaleQ' || s.phase === 'finaleReveal' || s.phase === 'done') && s.finale) {
+    return (
+      <HotelWall className="h-full" dark>
+        {flashKey && <Lightning k={flashKey} strong />}
+        <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_230px] gap-5 p-5">
+          <Finale s={s} room={room} now={now} since={since} ghosts={ghosts} />
+          <aside className="min-h-0 overflow-hidden"><Register s={s} room={room} /></aside>
+        </div>
+      </HotelWall>
+    )
+  }
+
+  let main: ReactNode = null
 
   if (s.phase === 'intro') {
-    body = (
-      <div className="grid h-full content-center justify-items-center gap-5 text-center animate-rise">
-        <Label>Survive the Quiz</Label>
-        <div className={cx('font-display riso', compact ? 'text-3xl' : 'text-8xl')}>Try not to die</div>
-        <HostLine line={s.line} compact={compact} center />
+    main = (
+      <div className="grid h-full content-center gap-6">
+        <div className="sv-rise grid gap-1">
+          <Sign className="text-[20px]">The Grand Palmetto · Daytona · Since 1958</Sign>
+          <Title className="text-[104px]">Survive the Quiz</Title>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <IntroStep n={1} title="Answer wrong" body="You get a room."><Guest color={who(room.gamePlayers[0]).color} mood="scared" size={110} /></IntroStep>
+          <IntroStep n={2} title="Lose the room" body="Every room is a trap."><RoomCard kind="door" size="mini" className="w-[170px]" /></IntroStep>
+          <IntroStep n={3} title="Become a ghost" body="Ghosts still play. Ghosts can still win."><Ghost color={who(room.gamePlayers[room.gamePlayers.length - 1]).color} size={110} /></IntroStep>
+        </div>
+        <SpeechCard>{s.line}</SpeechCard>
       </div>
     )
   }
 
   if ((s.phase === 'question' || s.phase === 'reveal') && s.current) {
     const reveal = s.phase === 'reveal' ? s.last : null
-    const hideBoard = compact && inGame
-    body = (
-      <div className={cx('grid min-h-0 content-start', compact ? 'gap-2' : 'gap-5')}>
-        <QuestionHead text={qLabel} cat={s.current.cat} right={`${living} alive`} compact={compact} />
-        {!reveal && !hideBoard && timer}
-        {!hideBoard && <QuestionBoard q={s.current} room={room} reveal={reveal} compact={compact} ghosts={ghosts} />}
-        {hideBoard && reveal && (
-          <div className="grid gap-1">
-            <div className="text-sm text-ink-2">Answer: <span className="font-bold text-good">{LETTERS[reveal.correct]}. {s.current.options[reveal.correct]}</span></div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              {room.gamePlayers.map((id) => (
-                <span key={id} className="inline-flex items-center gap-1.5">
-                  <Avatar name={who(id).name} color={who(id).color} size={18} dim={!s.alive[id]} />
-                  <span className="font-bold">{who(id).name}</span>
-                  <span className="text-ink-3">{reveal.picks[id] === null ? 'no answer' : LETTERS[reveal.picks[id]!]}</span>
-                </span>
-              ))}
-            </div>
+    const tl = timeLeft(s.endsAt, s.phaseTotal, t)
+    main = (
+      <div className="grid min-h-0 content-start gap-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-baseline gap-4">
+            <Title className="text-[40px]" color={HOTEL.candle}>{qLabel}</Title>
+            <Sign className="text-[18px]">{catLabel(s.current.cat)}</Sign>
+          </div>
+          <Sign className="text-[18px]" style={{ color: living ? HOTEL.lime : HOTEL.blood }}>{living} alive</Sign>
+        </div>
+        {!reveal && <CandleTimer frac={tl.frac} secs={tl.secs} />}
+        <h2 className={cx('font-bold leading-[1.12]', questionSize(s.current.q, false))} style={{ color: HOTEL.ink, textShadow: '0 2px 0 #000' }}>{s.current.q}</h2>
+        <AnswerBoard q={s.current} room={room} reveal={reveal} ghosts={ghosts} />
+        {!reveal && <CheckedIn room={room} done={(id) => !!s.answers[id]} ghosts={ghosts} />}
+        {reveal && since > 500 && <SpeechCard extra={s.lines}>{s.line}</SpeechCard>}
+        {reveal && reveal.trapped.length > 0 && since > 1100 && (
+          <div className="sv-rise flex items-end gap-5">
+            {reveal.trapped.map((id) => (
+              <div key={id} className="grid justify-items-center">
+                <div className="sv-shake"><Guest color={who(id).color} mood="scared" size={96} /></div>
+                <span className="text-[16px] font-bold">{who(id).name}</span>
+              </div>
+            ))}
+            <Sign className="mb-8 text-[20px]" style={{ color: '#FF7A6E' }}>This way to your room</Sign>
           </div>
         )}
-        {!reveal && <LockedRow room={room} done={(id) => !!s.answers[id]} ghosts={ghosts} compact={compact} />}
-        {reveal && <HostLine line={s.line} lines={s.lines} compact={compact} delay={500} since={since} />}
       </div>
     )
   }
 
   if ((s.phase === 'trap' || s.phase === 'trapResult') && s.trap) {
     const run = s.trap
-    const info = TRAP_INFO[run.kind]
-    const t = now()
-    const meTrapped = compact && !!me && !!run.seats[me] && s.phase === 'trap'
-    if (meTrapped) {
-      body = <div className="flex items-center justify-between gap-2"><Label>Trap · {info.name}</Label><span className="text-sm text-ink-3">Good luck down there.</span></div>
-    } else {
-      const ids = Object.keys(run.seats)
-      body = (
-        <div className={cx('grid content-start', compact ? 'gap-2' : 'gap-6')}>
-          <div className="grid gap-1">
-            <Label>{s.phase === 'trap' ? 'Trap' : 'Trap results'} · {qLabel}</Label>
-            <div className={cx('font-display text-hot', compact ? 'text-2xl' : 'text-7xl riso')}>{info.name}</div>
-            {s.phase === 'trap' && <p className={cx('text-ink-2', compact ? 'text-sm' : 'text-2xl')}>{info.rule}</p>}
-          </div>
-          {s.phase === 'trap' && (t < run.startAt
-            ? <div className={cx('font-mono text-ink-2', compact ? 'text-base' : 'text-2xl')}>Starts in {Math.max(1, Math.ceil((run.startAt - t) / 1000))}</div>
-            : <Countdown endsAt={run.endsAt} total={run.endsAt - run.startAt} now={now} className="w-full" />)}
-          <div className={cx('grid', compact ? 'gap-1.5' : 'gap-3')}>
-            {ids.map((id) => {
-              const seat = run.seats[id]
-              const p = who(id)
-              return (
-                <div key={id} className={cx('flex items-center gap-3 rounded-2xl bg-tile', compact ? 'px-3 py-2' : 'px-5 py-4')}>
-                  <Avatar name={p.name} color={p.color} size={compact ? 26 : 48} dim={seat.status === 'dead'} />
-                  <span className={cx('font-bold', compact ? 'text-base' : 'text-3xl')}>{p.name}</span>
-                  <span className={cx('flex-1 truncate text-ink-3', compact ? 'text-sm' : 'text-xl')}>{seat.status === 'playing' ? 'in the trap' : seat.why}</span>
-                  <span className={cx('font-display animate-pop', compact ? 'text-base' : 'text-3xl', seat.status === 'survived' ? 'text-good' : seat.status === 'dead' ? 'text-bad' : 'text-ink-3')}>
-                    {seat.status === 'survived' ? 'Alive' : seat.status === 'dead' ? 'Dead' : '...'}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-          {s.phase === 'trap' && !compact && <p className="text-xl text-ink-3">Everyone else: stay quiet. Or don't.</p>}
-          {s.phase === 'trapResult' && <HostLine line={s.line} lines={s.lines} compact={compact} delay={300} since={since} />}
+    const room13 = ROOMS[run.kind]
+    const before = t < run.startAt
+    const tl = timeLeft(run.endsAt, run.endsAt - run.startAt, t)
+    const playing = s.phase === 'trap'
+    main = (
+      <div className="grid min-h-0 content-start gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <Sign className="whitespace-nowrap text-[20px]">{playing ? 'Housekeeping' : 'Checkout'} · Q{s.qNum}</Sign>
+          {playing && (before
+            ? <span className="text-[28px]" style={{ fontFamily: DISPLAY, color: HOTEL.candle }}>Doors open in {Math.max(1, Math.ceil((run.startAt - t) / 1000))}</span>
+            : <CandleTimer frac={tl.frac} secs={tl.secs} className="w-[320px]" />)}
         </div>
-      )
-    }
+        <TrapScene run={run} room={room} className={cx('mx-auto w-full max-w-[600px]', since < 900 && playing && 'sv-drop-in')} />
+        {playing
+          ? <SpeechCard>{before ? room13.intro : room13.rule}</SpeechCard>
+          : since > 1400 && <SpeechCard extra={s.lines}>{s.line}</SpeechCard>}
+      </div>
+    )
   }
 
-  if ((s.phase === 'finaleIntro' || s.phase === 'finaleQ' || s.phase === 'finaleReveal') && s.finale) {
-    const f = s.finale
-    const sort = f.sort
-    const revealing = s.phase === 'finaleReveal'
-    const order = revealing && f.last ? room.gamePlayers.filter((id) => (f.last!.moves[id] ?? 0) > 0) : []
-    const hideSort = compact && inGame && s.phase === 'finaleQ' && !f.answers[me!]
-    body = (
-      <div className={cx('grid min-h-0 content-start', compact ? 'gap-2' : 'gap-5')}>
-        <div className="flex items-center justify-between gap-3">
-          <span className={cx('font-display', compact ? 'text-base' : 'text-2xl')}>The finale</span>
-          <Label>{f.round ? `Sort ${f.round}` : 'Race to the exit'}</Label>
+  return (
+    <HotelWall className="h-full">
+      {flashKey && <Lightning k={flashKey} strong={s.phase !== 'reveal'} />}
+      <div className="grid h-full min-h-0 grid-cols-[200px_minmax(0,1fr)_230px] gap-5 p-5">
+        <div className="relative min-h-0">
+          <StormWindow className="absolute left-4 top-2 w-[150px] opacity-90" />
+          <div className="absolute -left-3 bottom-0">
+            <NightManager mood={man.mood} pose={man.pose} size={380} />
+          </div>
         </div>
-        {s.phase === 'finaleIntro' && <HostLine line={s.line} compact={compact} />}
-        {s.phase === 'finaleQ' && !hideSort && timer}
-        {sort && s.phase !== 'finaleIntro' && !hideSort && <SortBoard sort={sort} reveal={revealing} compact={compact} room={room} picks={f.last?.picks ?? null} />}
-        {s.phase === 'finaleQ' && !hideSort && <LockedRow room={room} done={(id) => !!f.answers[id]} ghosts={ghosts} compact={compact} />}
-        <Track room={room} pos={f.pos} exit={f.exit} alive={s.alive} moves={revealing ? f.last?.moves : null} order={order} baseDelay={revealing ? SORT_STAGGER_MS * 3 : 0} compact={compact} me={me} />
-        {revealing && (s.line || s.lines.length > 0) && <HostLine line={s.line} lines={s.lines} compact={compact} delay={SORT_STAGGER_MS * 3 + order.length * TRACK_STEP_MS + 200} since={since} />}
+        <div className="min-h-0 overflow-hidden">{main}</div>
+        <aside className="min-h-0 overflow-hidden"><Register s={s} room={room} /></aside>
       </div>
-    )
-  }
+    </HotelWall>
+  )
+}
 
-  if (s.phase === 'done') {
-    const w = s.winner ? who(s.winner) : null
-    body = (
-      <div className="grid h-full content-center justify-items-center gap-3 text-center">
-        <Label>Out the door</Label>
-        <div className={cx('font-display riso', compact ? 'text-3xl' : 'text-7xl')}>{w?.name ?? 'Nobody'}</div>
-        <HostLine line={s.line} compact={compact} center />
-      </div>
-    )
-  }
-
-  if (compact) return <div className="grid gap-2">{body}</div>
-
+function IntroStep({ n, title, body, children }: { n: number; title: string; body: string; children: ReactNode }) {
   return (
-    <div className="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(220px,280px)] gap-6 p-6">
-      <div className="min-h-0 overflow-hidden">{body}</div>
-      <aside className="flex min-h-0 flex-col gap-4">
-        <Roster s={s} room={room} />
-      </aside>
+    <div className="sv-rise grid justify-items-center gap-2 text-center" style={{ animationDelay: `${300 + n * 350}ms` }}>
+      <div className="grid h-[132px] place-items-end">{children}</div>
+      <Title className="text-[34px]" color={n === 3 ? HOTEL.ghost : HOTEL.candle}>{title}</Title>
+      <span className="text-[20px] leading-snug" style={{ color: HOTEL.ink2 }}>{body}</span>
     </div>
   )
 }
 
-/** The host's voice. `delay` holds it back (ms into the phase) until the reveal above has played. */
-function HostLine({ line, lines = [], compact, delay = 0, since = Infinity, center = false }: { line: string; lines?: string[]; compact: boolean; delay?: number; since?: number; center?: boolean }) {
-  if (!line && !lines.length) return null
-  if (since < delay) return null
-  return (
-    <div className={cx('grid gap-1 animate-rise', center ? 'max-w-3xl justify-items-center text-center' : 'border-l-4 border-hot pl-4')}>
-      {line && <p className={cx('leading-snug text-ink', compact ? 'text-base' : 'text-3xl')}>{line}</p>}
-      {lines.map((l, i) => <p key={i} className={cx('leading-snug text-ink-2', compact ? 'text-sm' : 'text-2xl')}>{l}</p>)}
-    </div>
-  )
-}
-
-function SortBoard({ sort, reveal, compact, room, picks }: { sort: NonNullable<NonNullable<SurviveState['finale']>['sort']>; reveal: boolean; compact: boolean; room: Room; picks: Record<string, number[] | null> | null }) {
+function Finale({ s, room, now, since, ghosts }: { s: SurviveState; room: StageProps<SurviveState>['room']; now: () => number; since: number; ghosts: string[] }) {
   const who = whoIn(room)
-  return (
-    <div className={cx('grid', compact ? 'gap-2' : 'gap-4')}>
-      <h2 className={cx('font-bold leading-tight', compact ? 'text-lg' : 'text-4xl')}>{sort.prompt}</h2>
-      <div className={cx('grid grid-cols-3', compact ? 'gap-1.5' : 'gap-4')}>
-        {sort.items.map((item, i) => {
-          const side = sort.key[i]
-          const gotIt = reveal && picks ? room.gamePlayers.filter((id) => picks[id]?.[i] === side) : []
-          return (
-            <div key={item} className={cx('grid content-start justify-items-center rounded-2xl bg-tile text-center', compact ? 'gap-1 p-2' : 'gap-3 p-4')}>
-              <span className={cx('font-bold leading-tight', compact ? 'text-sm' : 'text-3xl')}>{item}</span>
-              {reveal ? (
-                <span
-                  className={cx('rounded-lg bg-good/15 font-display text-good animate-pop', compact ? 'px-2 py-0.5 text-xs' : 'px-3 py-1 text-xl')}
-                  style={{ animationDelay: `${i * SORT_STAGGER_MS}ms`, animationFillMode: 'backwards' }}
-                >
-                  {side === 0 ? sort.left : sort.right}
-                </span>
-              ) : (
-                <span className={cx('font-mono text-ink-3', compact ? 'text-[0.7rem]' : 'text-base')}>{sort.left} or {sort.right}</span>
-              )}
-              {reveal && !compact && (
-                <span className="flex min-h-7 -space-x-2">
-                  {gotIt.map((id) => <Avatar key={id} name={who(id).name} color={who(id).color} size={28} dim={false} />)}
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </div>
+  const f = s.finale!
+  const sort = f.sort
+  const revealing = s.phase === 'finaleReveal'
+  const order = revealing && f.last ? room.gamePlayers.filter((id) => (f.last!.moves[id] ?? 0) > 0) : []
+  const tl = timeLeft(s.endsAt, s.phaseTotal, now())
+  const lineAt = escapeAt(order.length)
+  // Somebody reached the door: it swings open once the steps have played.
+  const out = s.phase === 'done' || (revealing && !!s.winner && since > lineAt)
+  const winner = s.winner ? who(s.winner) : null
+  const bust = (mood: ManagerMood, size: number) => (
+    <div className="shrink-0 rounded-full" style={{ background: HOTEL.wall3, boxShadow: `0 0 0 3px ${HOTEL.brass}` }}>
+      <ManagerBust mood={mood} size={size} />
     </div>
   )
-}
-
-function Roster({ s, room }: { s: SurviveState; room: Room }) {
-  const who = whoIn(room)
-  const ranked = [...room.gamePlayers].sort((a, b) => (s.scores[b] ?? 0) - (s.scores[a] ?? 0))
-  const alive = ranked.filter((id) => s.alive[id])
-  const dead = ranked.filter((id) => !s.alive[id])
-  const pos = s.finale?.pos
-  const row = (id: string, ghost: boolean) => {
-    const p = who(id)
-    const g = s.phase === 'reveal' ? s.last?.gained[id] : undefined
-    return (
-      <div key={id} className="flex items-center justify-between gap-3 rounded-xl bg-tile px-3 py-2">
-        <span className="flex min-w-0 items-center gap-2">
-          <Avatar name={p.name} color={p.color} size={30} dim={ghost} />
-          <span className="grid min-w-0">
-            <span className={cx('truncate text-lg font-bold', ghost && 'text-ink-2')}>{p.name}</span>
-            <span className="truncate text-xs text-ink-3">
-              {pos ? `space ${Math.min(pos[id] ?? 0, s.finale!.exit)}` : ghost ? `ghost since Q${s.diedOn[id] ?? '?'}` : 'alive'}
-            </span>
-          </span>
-        </span>
-        <span className="flex items-baseline gap-2">
-          {g ? <span className="font-mono text-base font-bold text-good tabular animate-pop">+{g}</span> : null}
-          <span className="font-mono text-xl tabular">{s.scores[id] ?? 0}</span>
-        </span>
-      </div>
-    )
-  }
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-2">
-        <Label>Alive · {alive.length}</Label>
-        {alive.map((id) => row(id, false))}
-        {!alive.length && <p className="text-ink-3">Nobody. Bleak.</p>}
-      </div>
-      {dead.length > 0 && (
-        <div className="grid gap-2">
-          <Label>Ghosts · {dead.length}</Label>
-          {dead.map((id) => row(id, true))}
+    <div className="flex min-h-0 flex-col gap-3">
+      {s.phase === 'finaleIntro' && (
+        <div className="grid gap-3">
+          <div className="sv-rise flex items-baseline gap-5">
+            <Title className="text-[76px]">The Escape</Title>
+            <Sign className="text-[20px]">The finale · first out the door wins</Sign>
+          </div>
+          <div className="flex items-center gap-4">
+            {bust('grin', 84)}
+            <SpeechCard className="flex-1">{s.line}</SpeechCard>
+          </div>
         </div>
       )}
+      {out && (
+        <div className="grid gap-3">
+          <div className="sv-rise flex items-baseline gap-5">
+            <Title className="text-[72px]" color={winner?.color ?? HOTEL.lime}>{winner?.name ?? 'Nobody'} got out</Title>
+            <Sign className="text-[20px]">Checked out · Sort {f.round}</Sign>
+          </div>
+          <div className="flex items-center gap-4">
+            {bust('polite', 84)}
+            <SpeechCard extra={s.lines} className="flex-1">{s.line}</SpeechCard>
+          </div>
+        </div>
+      )}
+      {!out && (s.phase === 'finaleQ' || revealing) && sort && (
+        <div className="grid gap-2.5">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-baseline gap-4">
+              <Title className="text-[40px]">The Escape</Title>
+              <Sign className="text-[18px]">Sort {f.round} · every right one is a step</Sign>
+            </div>
+            {s.phase === 'finaleQ' && <CandleTimer frac={tl.frac} secs={tl.secs} className="w-[300px]" />}
+          </div>
+          <h2 className="text-[32px] font-bold leading-tight" style={{ textShadow: '0 2px 0 #000' }}>{sort.prompt}</h2>
+          <SortCards sort={sort} reveal={revealing} picks={f.last?.picks ?? null} room={room} stagger={SORT_STAGGER_MS} />
+          {s.phase === 'finaleQ' && <CheckedIn room={room} done={(id) => !!f.answers[id]} ghosts={ghosts} />}
+          {revealing && since > lineAt && (s.line || s.lines.length > 0) && (
+            <div className="flex items-center gap-3">
+              {bust(f.last?.revived.length ? 'shock' : 'grin', 64)}
+              <SpeechCard extra={s.lines} className="flex-1">{s.line}</SpeechCard>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[14px]" style={{ boxShadow: `inset 0 0 0 3px ${HOTEL.brassDark}` }}>
+        <div className="absolute inset-0 grid place-items-center">
+          <Corridor
+            room={room}
+            pos={f.pos}
+            exit={f.exit}
+            alive={s.alive}
+            moves={revealing && !out ? f.last?.moves : null}
+            order={order}
+            baseDelay={revealing ? SORT_STAGGER_MS * 3 : 0}
+            open={out}
+            winner={out ? s.winner : null}
+            fill
+          />
+        </div>
+      </div>
     </div>
   )
+}
+
+/** When the steps of a finale reveal have played and the Night Manager speaks (ms into the phase). */
+export function escapeAt(movers: number) {
+  return SORT_STAGGER_MS * 3 + movers * STEP_MS + 200
 }
