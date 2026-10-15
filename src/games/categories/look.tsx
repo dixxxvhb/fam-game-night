@@ -116,7 +116,7 @@ export function Knob({ tone = 'orange', big = false, className, style, children,
       className={cx(
         'no-select inline-flex items-center justify-center gap-2 rounded-full border-[3px] cat-display leading-none transition-transform duration-75',
         'active:translate-y-[5px] disabled:opacity-40 disabled:active:translate-y-0',
-        big ? 'min-h-16 px-7 text-[26px]' : 'min-h-14 px-5 text-[21px]',
+        big ? 'min-h-16 px-7 text-[26px]' : 'min-h-14 whitespace-nowrap px-4 text-[20px]',
         className,
       )}
       style={{ borderColor: C.ink, background: t.bg, color: t.fg, boxShadow: up, ...style }}

@@ -54,7 +54,7 @@ export default async function ({ tv, phones, shot, wait }) {
     // The machine: lever, spin, landing.
     if (await until(async () => (await watcher.locator('[data-cat-roll="spin"], [data-cat-roll="lever"]').count()) > 0, 25000, 60)) {
       await shot(`r${round + 1}-roll-spin`)
-      if (await until(async () => (await watcher.locator('[data-cat-roll="landed"]').count()) > 0, 6000, 50)) await shot(`r${round + 1}-roll-landed`)
+      if (await until(async () => (await watcher.locator('[data-cat-roll="landed"]').count()) > 0, 6000, 50)) { await shot(`r${round + 1}-roll-landed`); if (round === 0) { await wait(1500); await shot('r1-roll-settled') } }
     } else console.log(`round ${round + 1}: never saw the machine spin`)
     const ok = await until(async () => (await Promise.all(phones.map((p) => visible(p, '#cat-answer')))).every(Boolean), 30000)
     if (!ok) { console.log(`round ${round + 1}: write screen never showed`); break }

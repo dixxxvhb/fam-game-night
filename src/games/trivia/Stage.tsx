@@ -68,7 +68,7 @@ function TvStage({ state: s, room, now }: StageProps<TriviaState>) {
         />
         <div className="grid min-w-0 content-center gap-5">
           <span className="tn-lit" style={{ fontFamily: DISPLAY, fontSize: 22, letterSpacing: '0.1em' }}>
-            {final ? 'The final round' : `Round ${s.round} · Question ${Math.min(s.q + 1, s.perRound)} of ${s.perRound}`}
+            {final ? 'For all the marbles' : `Round ${s.round} · Question ${Math.min(s.q + 1, s.perRound)} of ${s.perRound}`}
           </span>
           {s.phase === 'pick' && picker && (
             <>

@@ -143,7 +143,12 @@ export default async function ({ tv, phones, shot, wait }) {
         const ok = good[p.playerId] ?? 2
         for (let k = 0; k < n; k++) await rows.nth(k * 2 + (k < ok ? key[k] : 1 - key[k])).click()
         if (i === 0) await snap(`${step}-sort-picked`)
-        await p.getByRole('button', { name: 'Lock it in' }).click()
+        await p.getByRole('button', { name: 'Lock it in' }).click({ timeout: 12000 }).catch(async (e) => {
+          const info = await p.evaluate(() => ({ phase: document.querySelector('[data-phase]')?.getAttribute('data-phase'), step: document.querySelector('[data-phase]')?.getAttribute('data-step'), sides: [...document.querySelectorAll('[data-side]')].map((b) => b.textContent + (b.getAttribute('style')?.includes('F4D98A') ? '*' : '')) }))
+          console.log('STUCK', p.playerId, n, JSON.stringify(info), JSON.stringify(key))
+          await shot('stuck')
+          throw e
+        })
         await wait(300)
         if (i === Math.min(1, phones.length - 1)) await snap(`${step}-sort`)
       }

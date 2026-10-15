@@ -415,7 +415,7 @@ function ForeheadScreen({ s, now, send, input }: { s: ForeheadState; now: () => 
             </div>
           )}
           {flash && (
-            <div key={flash.key} className="absolute inset-0 z-10 grid place-items-center rounded-[28px]" style={{ background: flash.got ? CLUB.green : CLUB.orange }}>
+            <div key={flash.key} data-fh-flash={flash.got ? 'got' : 'pass'} className="absolute inset-0 z-10 grid place-items-center rounded-[28px]" style={{ background: flash.got ? CLUB.green : CLUB.orange }}>
               {flash.got && <Confetti count={20} spread={0.5} />}
               <div className="fh-slam flex items-center gap-4">
                 {flash.got ? (

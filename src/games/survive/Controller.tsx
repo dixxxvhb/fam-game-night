@@ -222,9 +222,14 @@ function Inner({ state: s, room, me, now, send }: ControllerProps<SurviveState>)
   return <div className="grid gap-2 p-6 text-center text-lg" style={{ color: HOTEL.ink2 }}>{s.phase === 'done' ? 'Settling the bill.' : 'Hold on.'}</div>
 }
 
+const drafts = new Map<string, (number | null)[]>()
+
 function SortPad({ s, now, send, top }: { s: SurviveState; now: () => number; send: ControllerProps<SurviveState>['send']; top: ReactNode }) {
   const sort = s.finale!.sort!
-  const [picks, setPicks] = useState<(number | null)[]>(sort.items.map(() => null))
+  // Kept outside the component too, so a remount (a late or repeated broadcast) never loses taps.
+  const draftKey = `${sort.id}-${s.finale!.round}`
+  const [picks, setPicksState] = useState<(number | null)[]>(() => drafts.get(draftKey) ?? sort.items.map(() => null))
+  const setPicks = (next: (number | null)[]) => { drafts.set(draftKey, next); setPicksState(next) }
   const ready = picks.every((p) => p !== null)
   const tl = timeLeft(s.endsAt, s.phaseTotal, now())
   return (

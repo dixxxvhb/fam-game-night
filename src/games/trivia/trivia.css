@@ -155,7 +155,7 @@
 }
 
 /* Banner (STEAL, FINAL ROUND) sweeping across. */
-.tn-banner { animation: tn-banner 2.6s cubic-bezier(0.2, 1, 0.3, 1) both; }
+.tn-banner { animation: tn-banner 3.6s cubic-bezier(0.2, 1, 0.3, 1) both; }
 @keyframes tn-banner {
   0% { transform: translateX(-120%) skewX(-10deg); }
   18% { transform: translateX(0) skewX(-10deg); }

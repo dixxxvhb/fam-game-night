@@ -186,13 +186,14 @@ function AnswerSheet({ j, list, s, room, size, i }: { j: Judged; list: Judged[];
   const verdict = s.stage === 'verdict'
   const stamp = stampFor(j)
   const big = size === 'xl'
+  const stampSize = stamp ? (big ? (stamp.text.length > 6 ? 36 : 50) : size === 'lg' ? (stamp.text.length > 6 ? 28 : 38) : (stamp.text.length > 6 ? 18 : 26)) : 0
   const pawn = big ? 58 : size === 'lg' ? 48 : 38
   const L = j.text.length
   const textSize = big ? (L > 22 ? 40 : L > 14 ? 50 : 66) : size === 'lg' ? (L > 18 ? 34 : 46) : (L > 14 ? 22 : 30)
   return (
     <div className="cat-sheet-in relative" style={{ '--r': `${TILTS[i % TILTS.length]}deg`, animationDelay: `${i * 90}ms`, paddingTop: pawn * 0.72 } as CSSProperties}>
       <Sheet lh={big ? 46 : 38} margin={big ? 40 : 30} className="h-full" style={{ minHeight: big ? 280 : size === 'lg' ? 200 : 170 }}>
-        <div className={cx('grid content-start', big ? 'gap-2 pb-5 pr-5 pt-8' : 'gap-1 pb-3 pr-3 pt-7')}>
+        <div className={cx('grid content-start', big ? 'gap-2 pr-5 pt-8' : 'gap-1 pr-3 pt-7')} style={{ paddingBottom: stamp ? stampSize * 1.9 : big ? 20 : 12 }}>
           <div className="cat-slab truncate uppercase tracking-[0.08em]" style={{ fontSize: big ? 20 : 15, color: shade(p?.color ?? '#888888', -0.45), marginLeft: pawn * 0.55 }}>{p?.name ?? j.playerId}</div>
           <div
             className={cx('cat-marker min-h-[1.15em] break-words', !verdict && j.text && 'cat-ink')}
@@ -222,8 +223,8 @@ function AnswerSheet({ j, list, s, room, size, i }: { j: Judged; list: Judged[];
       </Sheet>
       <Pawn color={p?.color ?? '#888'} size={pawn} mood={moodOf(j, verdict)} className={cx('absolute left-3 top-0', verdict && j.points ? 'cat-hop' : dead && j.status !== 'blank' ? 'cat-slump' : 'cat-bob')} />
       {stamp && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-[14%] grid place-items-center">
-          <Stamp key={stamp.text} text={stamp.text} tone={stamp.tone} size={big ? 58 : size === 'lg' ? 44 : 30} r={i % 2 ? 9 : -11} delay={stamp.text === 'Tossed' ? 0 : 250 + i * 160} />
+        <div className="pointer-events-none absolute" style={{ right: big ? 22 : 12, bottom: big ? 20 : 12 }}>
+          <Stamp key={stamp.text} text={stamp.text} tone={stamp.tone} size={stampSize} r={i % 2 ? 6 : -7} delay={stamp.text === 'Tossed' ? 0 : 250 + i * 160} />
         </div>
       )}
       {verdict && (

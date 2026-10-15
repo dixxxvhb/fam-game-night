@@ -36,7 +36,7 @@ for (let guard = 0; guard < 500; guard++) {
       const pick = answerPlan === 'right' ? right : answerPlan === 'wrong' ? (right + 1) % 4 : i % 2 === 0 ? right : (right + 1 + i) % 4
       s = reduce(s, { playerId: p.id, type: 'answer', payload: { pick } }, ctx(at + i * 400))
     })
-    if (s.phase === target) { now = s.phaseAt; break }
+    if (s.phase === target && s.round >= wantRound) { now = s.phaseAt; break }
   }
   if (s.phase === 'wager' && target !== 'wager') {
     players.forEach((p, i) => { s = reduce(s, { playerId: p.id, type: 'wager', payload: { amount: [99999, 400, 0][i % 3] } }, ctx(s.phaseAt + 2000)) })

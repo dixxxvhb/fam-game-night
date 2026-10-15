@@ -34,14 +34,14 @@ export default async function ({ tv, phones, shot, wait }) {
     if (full) await shot(`turn${turn}-flip`)
     await g.getByRole('button', { name: 'Got it' }).click()
     // FH_GUESSER_SHOTS=<dir>: grab the Guesser's own flash right away (a full shot() is too slow to catch it).
-    if (full && process.env.FH_GUESSER_SHOTS) await g.screenshot({ path: `${process.env.FH_GUESSER_SHOTS}/guesser-got.png` })
+    if (full && process.env.FH_GUESSER_SHOTS) { console.log(`guesser flash: ${await g.locator('[data-fh-flash]').first().getAttribute('data-fh-flash').catch(() => 'none')}`); await g.screenshot({ path: `${process.env.FH_GUESSER_SHOTS}/guesser-got.png`, scale: 'css', timeout: 3000 }).catch(() => {}) }
     await wait(300)
     if (full) await shot(`turn${turn}-flash`)
     await wait(700)
     await g.getByRole('button', { name: 'Got it' }).click()
     await wait(900)
     await g.getByRole('button', { name: 'Pass' }).click()
-    if (full && process.env.FH_GUESSER_SHOTS) await g.screenshot({ path: `${process.env.FH_GUESSER_SHOTS}/guesser-pass.png` })
+    if (full && process.env.FH_GUESSER_SHOTS) { console.log(`guesser flash: ${await g.locator('[data-fh-flash]').first().getAttribute('data-fh-flash').catch(() => 'none')}`); await g.screenshot({ path: `${process.env.FH_GUESSER_SHOTS}/guesser-pass.png`, scale: 'css', timeout: 3000 }).catch(() => {}) }
     await wait(260)
     if (full) await shot(`turn${turn}-pass`)
     await wait(700)

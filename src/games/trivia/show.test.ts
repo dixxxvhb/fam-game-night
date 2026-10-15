@@ -60,7 +60,7 @@ describe('Chip lines', () => {
   it('never uses em dashes or names that do not belong', () => {
     for (const pool of Object.values(LINES)) {
       for (const line of pool) {
-        expect(line).not.toMatch(/—/)
+        expect(line).not.toMatch(/\u2014/)
         expect(line.toLowerCase()).not.toContain('malik')
       }
     }

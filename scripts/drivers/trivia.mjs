@@ -24,7 +24,10 @@ export default async function ({ tv, phones, shot, wait }) {
   const phaseOf = async (p) => {
     const el = p.locator('[data-phase]').first()
     if (!(await el.count())) return null
-    return { phase: await el.getAttribute('data-phase'), step: await el.getAttribute('data-step') }
+    // The game can end between the count and the read (results replace the controller).
+    try {
+      return { phase: await el.getAttribute('data-phase', { timeout: 2000 }), step: await el.getAttribute('data-step', { timeout: 2000 }) }
+    } catch { return null }
   }
   const done = async () => (await phones[0].getByRole('button', { name: 'Next game' }).count()) > 0
 
