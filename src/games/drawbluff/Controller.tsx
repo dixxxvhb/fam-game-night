@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Heart } from 'lucide-react'
 import type { ControllerProps } from '../../engine/types'
 import { useTicker } from '../../engine/context'
-import { Btn, cx, Label } from '../../ui/kit'
-import { Countdown } from '../../ui/Countdown'
+import { cx } from '../../ui/kit'
 import { StrokeThumb } from '../sketch/Canvas'
 import { DrawPad } from '../_draw/Pad'
+import { clock, Confetti, Frame, Page, Pencil, ST, Stamp, Sticky, StudioBtn, Taped, tilt, Title } from '../_draw/studio'
 import { entryNow, guessersOf, MAX_TITLE, myEntry, tooReal, type BEntry, type DrawBluffState } from './logic'
 import { names, pickersOf, type Who } from './verdict'
 
@@ -14,43 +14,59 @@ type Send = ControllerProps<DrawBluffState>['send']
 export function DrawBluffController({ state: s, room, me, now, send }: ControllerProps<DrawBluffState>) {
   useTicker(250)
   const who: Who = (id) => room.players.find((p) => p.id === id)
+  const t = now()
+  let body: ReactNode
   if (!room.gamePlayers.includes(me) || !s.order.includes(me)) {
-    return <div className="p-6 text-center text-ink-2">You're in the next game. Watch the screen.</div>
-  }
-  if (s.phase === 'draw') return <DrawView s={s} me={me} now={now} send={send} />
-  const e = entryNow(s)
-  if (s.phase === 'done' || !e) return <div className="p-6 text-center text-ink-2">Adding it up.</div>
-  const artist = e.artist === me
-
-  if (s.phase === 'title') {
-    return (
-      <div className="grid gap-4 p-4">
-        <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />
-        {artist ? <YoursView e={e} line="Everyone is writing fake titles for it." /> : <TitleView key={s.cur} s={s} e={e} me={me} now={now} send={send} />}
+    body = <div className="st-hand p-6 text-center text-3xl">You're in the next game. Watch the screen.</div>
+  } else if (s.phase === 'draw') {
+    body = <DrawView s={s} me={me} now={now} send={send} />
+  } else if (s.phase === 'finale') {
+    body = (
+      <div className="grid justify-items-center gap-3 p-6 text-center">
+        <Title className="text-4xl">The exhibition</Title>
+        <div className="st-hand text-2xl text-[#575168]">{room.mode === 'apart' ? 'Every painting from tonight, up top.' : 'Every painting from tonight is on the TV.'}</div>
+        <StudioBtn color="#FFFFFF" onClick={() => send('next')}>See the scores</StudioBtn>
       </div>
     )
+  } else {
+    const e = entryNow(s)
+    if (s.phase === 'done' || !e) body = <div className="st-hand p-6 text-center text-3xl">Adding it up.</div>
+    else {
+      const artist = e.artist === me
+      const { frac, seconds } = clock(s.endsAt, s.stageTotal, t)
+      if (s.phase === 'title') {
+        body = (
+          <div className="grid gap-4 p-4">
+            <Pencil frac={frac} seconds={seconds} />
+            {artist ? <YoursView e={e} line="Everyone is writing fake titles for it." /> : <TitleView key={s.cur} s={s} e={e} me={me} now={now} send={send} />}
+          </div>
+        )
+      } else if (s.phase === 'pick') {
+        body = (
+          <div className="grid gap-4 p-4">
+            <Pencil frac={frac} seconds={seconds} />
+            {artist ? <YoursView e={e} line="They're picking. Don't make a face." /> : <PickView s={s} e={e} me={me} send={send} />}
+          </div>
+        )
+      } else {
+        body = <RevealView s={s} e={e} me={me} who={who} send={send} />
+      }
+    }
   }
-  if (s.phase === 'pick') {
-    return (
-      <div className="grid gap-4 p-4">
-        <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />
-        {artist ? <YoursView e={e} line="They're picking. Don't make a face." /> : <PickView s={s} e={e} me={me} send={send} />}
-      </div>
-    )
-  }
-  return <RevealView s={s} e={e} me={me} who={who} send={send} />
+  return <Page plain className="pb-6 text-[#1F1B2E]">{body}</Page>
 }
 
 function YoursView({ e, line }: { e: BEntry; line: string }) {
   return (
-    <div className="grid gap-3 rounded-2xl bg-tile p-5 text-center animate-pop">
-      <div className="font-display text-3xl text-hot">That's yours</div>
-      <div className="text-ink-2">{line}</div>
-      <div className="grid gap-1">
-        <Label>You drew</Label>
-        <div data-qa="prompt" className="text-lg font-bold first-letter:uppercase">{e.prompt}</div>
-      </div>
-      <div className="text-ink-3">Look innocent.</div>
+    <div className="grid justify-items-center gap-3 text-center">
+      <Stamp color={ST.red} className="text-4xl">That's yours</Stamp>
+      <div className="st-hand text-2xl text-[#575168]">{line}</div>
+      <Frame style={{ padding: 8 }}><StrokeThumb strokes={e.strokes} size={150} className="block" /></Frame>
+      <Sticky color="#FFE36E" rot={-2} className="max-w-[300px]">
+        <div className="st-hand text-lg leading-none text-[#575168]">you drew</div>
+        <div data-qa="prompt" className="st-hand text-3xl leading-tight first-letter:uppercase">{e.prompt}</div>
+      </Sticky>
+      <div className="st-marker text-xl text-[#575168]">Look innocent.</div>
     </div>
   )
 }
@@ -62,26 +78,27 @@ function DrawView({ s, me, now, send }: { s: DrawBluffState; me: string; now: ()
   if (!mine) return null
   const timeUp = now() >= s.endsAt
   const left = s.entries.filter((e) => !e.done).length
+  const { frac, seconds } = clock(s.endsAt, s.stageTotal, now())
   if (mine.done) {
     return (
       <div className="grid gap-4 p-4">
-        <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />
-        <div className="grid justify-items-center gap-3 animate-pop">
-          <Label>Sent</Label>
-          <StrokeThumb strokes={mine.strokes} size={200} />
-          <div className="text-ink-2">{left ? `Waiting on ${left} more.` : 'Everyone is in.'}</div>
-          {!timeUp && <Btn variant="ghost" onClick={() => send('edit')}>Keep drawing</Btn>}
+        <Pencil frac={frac} seconds={seconds} />
+        <div className="grid justify-items-center gap-4">
+          <Frame className="st-drop"><StrokeThumb strokes={mine.strokes} size={200} className="block" /></Frame>
+          <Stamp color={ST.green} className="text-3xl">Hung</Stamp>
+          <div className="st-hand text-2xl text-[#575168]">{left ? `Waiting on ${left} more.` : 'Everyone is in.'}</div>
+          {!timeUp && <button onClick={() => send('edit')} className="st-marker rounded-lg border-2 border-[#1F1B2E] bg-white px-4 py-2 text-base">Keep drawing</button>}
         </div>
       </div>
     )
   }
   return (
     <div className="grid gap-3 p-4">
-      <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />
-      <div className="grid gap-1">
-        <Label>Draw this. Keep it secret.</Label>
-        <div data-qa="prompt" className="text-2xl font-bold leading-tight text-hot-ink first-letter:uppercase">{mine.prompt}</div>
-      </div>
+      <Pencil frac={frac} seconds={seconds} />
+      <Sticky color="#FFB3D1" rot={-1.5} className="mx-1">
+        <div className="st-hand text-xl leading-none text-[#575168]">draw this. keep it secret.</div>
+        <div data-qa="prompt" className="st-hand text-3xl leading-tight first-letter:uppercase">{mine.prompt}</div>
+      </Sticky>
       <DrawPad
         strokes={mine.strokes}
         cap={s.cap}
@@ -90,7 +107,7 @@ function DrawView({ s, me, now, send }: { s: DrawBluffState; me: string; now: ()
         onUndo={() => send('undo')}
         onClear={() => send('clear')}
       />
-      <Btn size="lg" variant="primary" disabled={!mine.strokes.length || timeUp} onClick={() => send('done')}>Done</Btn>
+      <StudioBtn color={ST.yellow} disabled={!mine.strokes.length || timeUp} onClick={() => send('done')}>Done</StudioBtn>
     </div>
   )
 }
@@ -131,24 +148,22 @@ function TitleView({ s, e, me, now, send }: { s: DrawBluffState; e: BEntry; me: 
 
   if (sent && !editing) {
     return (
-      <div className="grid gap-4 animate-pop">
-        <div className="grid gap-2 rounded-2xl bg-tile p-5 text-center">
-          <Label>Your lie</Label>
-          <div className="text-xl font-bold leading-snug">{sent}</div>
-        </div>
-        <div className="text-center text-ink-2">{waiting ? `Waiting on ${waiting} more.` : 'Everyone is in.'}</div>
-        {!timeUp && <Btn variant="ghost" onClick={() => setEditing(true)}>Change it</Btn>}
+      <div className="grid justify-items-center gap-4 text-center">
+        <Sticky color="#FFE36E" rot={-2} className="st-drop w-full max-w-[320px]">
+          <div className="st-hand text-xl leading-none text-[#575168]">your lie</div>
+          <div className="st-hand text-3xl leading-tight">{sent}</div>
+        </Sticky>
+        <div className="st-hand text-2xl text-[#575168]">{waiting ? `Waiting on ${waiting} more.` : 'Everyone is in.'}</div>
+        {!timeUp && <button onClick={() => setEditing(true)} className="st-marker rounded-lg border-2 border-[#1F1B2E] bg-white px-4 py-2 text-base">Change it</button>}
       </div>
     )
   }
 
   return (
     <form onSubmit={submit} className="grid gap-3">
-      <div className="grid gap-1">
-        <Label>Write a fake title</Label>
-        <div className="text-2xl font-bold leading-tight">What does it look like it is?</div>
-        <div className="text-ink-2">Make it sound like the real one. Fool them.</div>
-      </div>
+      <Title className="justify-self-start text-4xl">Name this painting</Title>
+      <div className="st-hand pt-1 text-2xl leading-tight text-[#575168]">Make it sound like the real title. Fool them.</div>
+      <div className="justify-self-center"><Frame style={{ padding: 8 }}><StrokeThumb strokes={e.strokes} size={170} className="block" /></Frame></div>
       <input
         ref={input}
         value={draft}
@@ -159,10 +174,10 @@ function TitleView({ s, e, me, now, send }: { s: DrawBluffState; e: BEntry; me: 
         placeholder="Your best lie"
         aria-label="Your fake title"
         aria-invalid={Boolean(error)}
-        className={cx('min-h-14 w-full rounded-xl border-2 bg-tile px-4 text-lg outline-none focus:border-hot', error ? 'border-bad' : 'border-line')}
+        className={cx('st-input st-hand text-3xl', error && 'st-shake border-[#E5484D]')}
       />
-      {error && <div role="alert" className="font-bold text-bad">{error}</div>}
-      <Btn size="lg" variant="primary" type="submit" disabled={!draft.trim() || timeUp}>Send</Btn>
+      {error && <div role="alert" className="st-marker text-lg text-[#E5484D]">{error}</div>}
+      <StudioBtn type="submit" color={ST.yellow} disabled={!draft.trim() || timeUp}>Send</StudioBtn>
     </form>
   )
 }
@@ -174,11 +189,9 @@ function PickView({ s, e, me, send }: { s: DrawBluffState; e: BEntry; me: string
   const waiting = guessersOf(s, e).filter((g) => !e.picks[g]).length
   return (
     <div className="grid gap-3">
-      <div className="grid gap-1">
-        <Label>Which one is real?</Label>
-        <div className="text-ink-2">{mine ? `Locked in. You can still switch. ${waiting ? `Waiting on ${waiting}.` : ''}` : 'Find the truth. Dodge the House.'}</div>
-      </div>
-      {e.options.map((o) => {
+      <Title className="justify-self-start text-4xl">Which one is real?</Title>
+      <div className="st-hand pt-1 text-2xl leading-tight text-[#575168]">{mine ? `Locked in. You can still switch. ${waiting ? `Waiting on ${waiting}.` : ''}` : 'Find the truth. Dodge the House.'}</div>
+      {e.options.map((o, i) => {
         const own = o.by.includes(me)
         const on = mine === o.id
         return (
@@ -188,13 +201,14 @@ function PickView({ s, e, me, send }: { s: DrawBluffState; e: BEntry; me: string
             aria-pressed={on}
             onClick={() => send('pick', { id: o.id })}
             className={cx(
-              'flex min-h-14 items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left text-lg font-bold leading-snug transition-transform active:scale-[0.98]',
-              on ? 'border-hot bg-hot text-paper' : 'border-line bg-tile text-ink',
-              own && 'opacity-50 active:scale-100',
+              'st-slide flex min-h-16 items-center justify-between gap-3 rounded-[6px] border-[3px] border-[#1F1B2E] px-4 py-3 text-left text-xl font-bold leading-snug transition-transform active:translate-y-0.5',
+              on ? 'bg-[#1F1B2E] text-white shadow-[4px_4px_0_#FFD23F]' : 'bg-[#FFFBF1] text-[#1F1B2E] shadow-[4px_4px_0_#1F1B2E]',
+              own && 'opacity-45',
             )}
+            style={{ animationDelay: `${i * 70}ms`, ['--st-from' as string]: '40px' }}
           >
             <span className="min-w-0">{o.text}</span>
-            {own && <span className="shrink-0 font-mono text-xs uppercase tracking-[0.14em]">Yours</span>}
+            {own && <span className="st-marker shrink-0 text-sm uppercase">Yours</span>}
           </button>
         )
       })}
@@ -225,27 +239,35 @@ function RevealView({ s, e, me, who, send }: { s: DrawBluffState; e: BEntry; me:
   return (
     <div className="grid gap-4 p-4">
       {artist ? (
-        <div className="grid min-h-16 place-items-center rounded-xl bg-tile text-lg">
-          <span className="inline-flex items-center gap-2 font-bold text-ink-2">
-            <Heart size={20} className="text-hot" fill="currentColor" />
+        <div className="grid min-h-16 place-items-center rounded-xl border-2 border-dashed border-[#8B8698]">
+          <span className="st-marker inline-flex items-center gap-2 text-xl text-[#575168]">
+            <Heart size={22} className="text-[#E5484D]" fill="currentColor" />
             {e.likes.length} {e.likes.length === 1 ? 'like' : 'likes'} on your drawing
           </span>
         </div>
       ) : (
-        <Btn size="xl" variant={liked ? 'primary' : 'secondary'} aria-pressed={liked} onClick={() => send('like')}>
-          <Heart size={22} fill={liked ? 'currentColor' : 'none'} />{liked ? 'Liked' : 'Like this drawing'}
-        </Btn>
+        <button
+          aria-pressed={liked}
+          onClick={() => send('like')}
+          className={cx('st-btn min-h-20 w-full text-3xl', liked && 'st-pop')}
+          style={{ background: liked ? '#FFB3D1' : '#FFFFFF' }}
+        >
+          <Heart size={28} fill={liked ? ST.red : 'none'} color={liked ? ST.red : ST.ink} />{liked ? 'Liked' : 'Like this drawing'}
+        </button>
       )}
       {truthOut ? (
-        <div className="grid gap-2 rounded-2xl bg-tile p-5 text-center animate-pop">
-          <div className="text-xl font-bold leading-snug">{result}</div>
-          {fooled.length > 0 && <div className="text-hot-ink">Your lie fooled {names(fooled, who)}.</div>}
-          <div className={cx('font-display text-4xl tabular', delta > 0 ? 'text-good' : delta < 0 ? 'text-bad' : 'text-ink-3')}>
+        <div className="st-card relative grid justify-items-center gap-2 overflow-hidden p-5 text-center" style={{ transform: `rotate(${tilt(s.cur, 1.2)}deg)` }}>
+          {delta > 0 && <Confetti n={18} spread={180} />}
+          <div className="st-hand text-3xl leading-tight">{result}</div>
+          {fooled.length > 0 && <div className="st-marker text-lg text-[#FF6B3D]">Your lie fooled {names(fooled, who)}.</div>}
+          <div className={cx('st-marker st-pop text-5xl tabular', delta > 0 ? 'text-[#2FA65A]' : delta < 0 ? 'text-[#E5484D]' : 'text-[#8B8698]')} style={{ animationDelay: '300ms' }}>
             {delta > 0 ? `+${delta}` : delta}
           </div>
         </div>
       ) : (
-        <div className="text-center text-ink-2">Watch the screen. The truth comes last.</div>
+        <Taped tape={false} className="text-center">
+          <div className="st-hand py-2 text-2xl text-[#575168]">Watch the screen. The truth comes last.</div>
+        </Taped>
       )}
     </div>
   )
