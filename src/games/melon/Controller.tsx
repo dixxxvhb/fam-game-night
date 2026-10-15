@@ -241,7 +241,7 @@ function JarPlay({ s, me, now, send, room }: { s: MelonState; me: string; now: (
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.clearRect(0, 0, pw, ph)
       const map = fitWorld(ctx, pw, ph)
-      drawJarBack(ctx)
+      drawJarBack(ctx, t)
       const list = jar.list()
       for (const f of list) {
         const age = jar.time - f.born

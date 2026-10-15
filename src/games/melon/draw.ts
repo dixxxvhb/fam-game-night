@@ -47,8 +47,14 @@ function bodyPath(ctx: CanvasRenderingContext2D, inset = 0) {
   ctx.lineTo(r, t)
 }
 
-/** Glass interior: a pale tint so the jar reads against the stand. */
-export function drawJarBack(ctx: CanvasRenderingContext2D) {
+/** Where the water starts: a little under the claw, so fruit drops in with a plop. */
+export const WATER_Y = 104
+
+/**
+ * Glass interior, filled with water (the jar is a fish-tank: fruit sinks and drifts instead of
+ * falling). `t` (ms) moves the surface ripple, the light bands and the rising bubbles.
+ */
+export function drawJarBack(ctx: CanvasRenderingContext2D, t = 0) {
   bodyPath(ctx)
   ctx.closePath()
   const g = ctx.createLinearGradient(0, 0, WORLD_W, 0)
@@ -57,14 +63,59 @@ export function drawJarBack(ctx: CanvasRenderingContext2D) {
   g.addColorStop(1, 'rgba(196, 232, 248, 0.8)')
   ctx.fillStyle = g
   ctx.fill()
-  // floor shadow inside the glass
   ctx.save()
   bodyPath(ctx)
   ctx.closePath()
   ctx.clip()
+  // the water: a rippling surface, deeper toward the floor
+  const w = ctx.createLinearGradient(0, WATER_Y, 0, WORLD_H)
+  w.addColorStop(0, 'rgba(110, 200, 235, 0.42)')
+  w.addColorStop(1, 'rgba(40, 130, 190, 0.55)')
+  ctx.fillStyle = w
+  ctx.beginPath()
+  ctx.moveTo(-WALL, WORLD_H + WALL)
+  for (let x = -WALL; x <= WORLD_W + WALL; x += 20) ctx.lineTo(x, WATER_Y + Math.sin(x / 46 + t / 520) * 5 + Math.sin(x / 19 - t / 380) * 2)
+  ctx.lineTo(WORLD_W + WALL, WORLD_H + WALL)
+  ctx.closePath()
+  ctx.fill()
+  // surface highlight
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  for (let x = -WALL; x <= WORLD_W + WALL; x += 20) {
+    const y = WATER_Y + Math.sin(x / 46 + t / 520) * 5 + Math.sin(x / 19 - t / 380) * 2
+    if (x === -WALL) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+  }
+  ctx.stroke()
+  // slanted light bands drifting through the water
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.07)'
+  for (let i = 0; i < 4; i++) {
+    const x = ((i * 190 + t / 40) % (WORLD_W + 300)) - 150
+    ctx.beginPath()
+    ctx.moveTo(x, WATER_Y)
+    ctx.lineTo(x + 70, WATER_Y)
+    ctx.lineTo(x + 230, WORLD_H)
+    ctx.lineTo(x + 130, WORLD_H)
+    ctx.closePath()
+    ctx.fill()
+  }
+  // a few bubbles always rising
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)'
+  ctx.lineWidth = 2.5
+  for (let i = 0; i < 9; i++) {
+    const speed = 0.05 + (i % 3) * 0.018
+    const span = WORLD_H - WATER_Y
+    const y = WORLD_H - ((t * speed + i * 211) % span)
+    const x = ((i * 137) % (WORLD_W - 60)) + 30 + Math.sin(t / 400 + i) * 8
+    const r = 3 + (i % 4) * 1.6
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.stroke()
+  }
+  // floor shadow inside the glass
   const f = ctx.createLinearGradient(0, WORLD_H - 90, 0, WORLD_H)
-  f.addColorStop(0, 'rgba(120, 170, 200, 0)')
-  f.addColorStop(1, 'rgba(120, 170, 200, 0.35)')
+  f.addColorStop(0, 'rgba(20, 90, 140, 0)')
+  f.addColorStop(1, 'rgba(20, 90, 140, 0.3)')
   ctx.fillStyle = f
   ctx.fillRect(-WALL, WORLD_H - 90, WORLD_W + WALL * 2, 100)
   ctx.restore()

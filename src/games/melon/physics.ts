@@ -26,7 +26,7 @@ const GRACE_MS = 1000
 const SETTLED_SPEED = 0.9
 const JUNK_GAP_MS = 140
 
-/** Everything that decides how the jar feels. Tuned against Suika; see SUIKA below. */
+/** Everything that decides how the jar feels. Tuned against Suika; see UNDERWATER below. */
 export interface Tuning {
   /** Gravity (matter-js units, scale 0.001). */
   gravity: number
@@ -50,12 +50,12 @@ export const ORIGINAL: Tuning = {
 }
 
 /**
- * Suika feel: fruit lands with a small soft bounce, then rolls and keeps rolling down the
- * pile instead of sliding and freezing; merges pop in fast so they shove the neighbours
- * (that shove is what makes chain reactions happen).
+ * Underwater, like the Netflix version: water drag slows every fall to a readable sink, fruit
+ * lands with no bounce and drifts into place, and merges swell in over a fifth of a second so
+ * you can watch them happen. The jar is drawn full of water to match (draw.ts).
  */
-export const SUIKA: Tuning = {
-  gravity: 2.6, bounce: 0.2, friction: 0.4, frictionStatic: 0.5, air: 0.001, wallFriction: 0.05, growFrom: 0.5, growSteps: 4,
+export const UNDERWATER: Tuning = {
+  gravity: 1.6, bounce: 0.08, friction: 0.3, frictionStatic: 0.1, air: 0.05, wallFriction: 0.05, growFrom: 0.4, growSteps: 12,
 }
 
 export interface FruitBody {
@@ -92,7 +92,7 @@ export class Jar {
 
   readonly tune: Tuning
 
-  constructor(startScore = 0, rand: () => number = Math.random, tune: Tuning = SUIKA) {
+  constructor(startScore = 0, rand: () => number = Math.random, tune: Tuning = UNDERWATER) {
     this.score = startScore
     this.rand = rand
     this.tune = tune

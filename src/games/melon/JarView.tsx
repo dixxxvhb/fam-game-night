@@ -206,7 +206,7 @@ export function JarView({
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.clearRect(0, 0, pw, ph)
       const map = fitWorld(ctx, pw, ph)
-      drawJarBack(ctx)
+      drawJarBack(ctx, t)
       const e = 1 - (1 - k) * (1 - k)
       for (const m of moving.current) {
         const f = fruit(m.t)
