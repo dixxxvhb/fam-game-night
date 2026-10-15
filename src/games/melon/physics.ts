@@ -38,6 +38,8 @@ export interface FruitBody {
   /** Steps left to grow in after a merge. */
   grow: number
   junk: boolean
+  /** Made by a merge (the presentation gives it a pop). */
+  merged: boolean
 }
 
 export interface MergeEvent { tier: number; made: number | null; points: number; x: number; y: number }
@@ -112,7 +114,7 @@ export class Jar {
       label: 'fruit',
     })
     if (opts.vx || opts.vy) Body.setVelocity(body, { x: opts.vx ?? 0, y: opts.vy ?? 0 })
-    const fb: FruitBody = { body, tier, born: this.time, over: 0, grow: opts.grow ? GROW_STEPS : 0, junk: Boolean(opts.junk) }
+    const fb: FruitBody = { body, tier, born: this.time, over: 0, grow: opts.grow ? GROW_STEPS : 0, junk: Boolean(opts.junk), merged: Boolean(opts.grow) }
     this.fruits.set(body.id, fb)
     Composite.add(this.engine.world, body)
     return fb
@@ -215,10 +217,13 @@ export class Jar {
   }
 
   /** Every fruit, for drawing and the stream. */
-  list(): { tier: number; x: number; y: number; r: number; angle: number; junk: boolean }[] {
+  list(): { id: number; born: number; merged: boolean; tier: number; x: number; y: number; r: number; angle: number; junk: boolean }[] {
     const out = []
     for (const fb of this.fruits.values()) {
       out.push({
+        id: fb.body.id,
+        born: fb.born,
+        merged: fb.merged,
         tier: fb.tier,
         x: fb.body.position.x,
         y: fb.body.position.y,
