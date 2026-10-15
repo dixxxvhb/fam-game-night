@@ -24,9 +24,39 @@ export const MAX_BODIES = 100
 /** A dropped or merged fruit gets this long before it can count toward topping out. */
 const GRACE_MS = 1000
 const SETTLED_SPEED = 0.9
-const GROW_STEPS = 7
-const GROW_FROM = 0.6
 const JUNK_GAP_MS = 140
+
+/** Everything that decides how the jar feels. Tuned against Suika; see SUIKA below. */
+export interface Tuning {
+  /** Gravity (matter-js units, scale 0.001). */
+  gravity: number
+  /** Bounciness of fruit (0 dead, 1 superball). */
+  bounce: number
+  /** Fruit-on-fruit grip: higher rolls, lower slides. */
+  friction: number
+  frictionStatic: number
+  /** Drag through the air. Also damps spin, so low keeps fruit rolling. */
+  air: number
+  wallFriction: number
+  /** A merged fruit pops in from this fraction of its size... */
+  growFrom: number
+  /** ...over this many 60 Hz steps. Faster pop = bigger shove on the neighbours. */
+  growSteps: number
+}
+
+/** The first version (Oct 14): heavy air drag, slidey, soft merge pop. */
+export const ORIGINAL: Tuning = {
+  gravity: 1.7, bounce: 0.12, friction: 0.12, frictionStatic: 0.4, air: 0.012, wallFriction: 0.25, growFrom: 0.6, growSteps: 7,
+}
+
+/**
+ * Suika feel: fruit lands with a small soft bounce, then rolls and keeps rolling down the
+ * pile instead of sliding and freezing; merges pop in fast so they shove the neighbours
+ * (that shove is what makes chain reactions happen).
+ */
+export const SUIKA: Tuning = {
+  gravity: 2.6, bounce: 0.2, friction: 0.4, frictionStatic: 0.5, air: 0.001, wallFriction: 0.05, growFrom: 0.5, growSteps: 4,
+}
 
 export interface FruitBody {
   body: Matter.Body
@@ -60,17 +90,20 @@ export class Jar {
   private junkQueue: { tier: number; x: number; at: number }[] = []
   private rand: () => number
 
-  constructor(startScore = 0, rand: () => number = Math.random) {
+  readonly tune: Tuning
+
+  constructor(startScore = 0, rand: () => number = Math.random, tune: Tuning = SUIKA) {
     this.score = startScore
     this.rand = rand
+    this.tune = tune
     this.engine = Engine.create({
-      gravity: { x: 0, y: 1.7, scale: 0.001 },
+      gravity: { x: 0, y: tune.gravity, scale: 0.001 },
       positionIterations: 10,
       velocityIterations: 8,
       enableSleeping: false,
     })
     const T = 200
-    const wall = { isStatic: true, friction: 0.25, restitution: 0.1, label: 'wall' }
+    const wall = { isStatic: true, friction: tune.wallFriction, restitution: 0.1, label: 'wall' }
     Composite.add(this.engine.world, [
       Bodies.rectangle(WORLD_W / 2, WORLD_H + T / 2, WORLD_W + T * 2, T, wall),
       Bodies.rectangle(-T / 2, WORLD_H / 2 - WORLD_H, T, WORLD_H * 4, wall),
@@ -103,18 +136,19 @@ export class Jar {
   private add(tier: number, x: number, y: number, opts: { grow?: boolean; junk?: boolean; vx?: number; vy?: number } = {}): FruitBody | null {
     if (this.fruits.size >= MAX_BODIES) return null
     const f = fruit(tier)
-    const r = opts.grow ? f.r * GROW_FROM : f.r
+    const t = this.tune
+    const r = opts.grow ? f.r * t.growFrom : f.r
     const body = Bodies.circle(x, y, r, {
-      restitution: 0.12,
-      friction: 0.12,
-      frictionStatic: 0.4,
-      frictionAir: 0.012,
+      restitution: t.bounce,
+      friction: t.friction,
+      frictionStatic: t.frictionStatic,
+      frictionAir: t.air,
       density: 0.001,
       slop: 0.04,
       label: 'fruit',
     })
     if (opts.vx || opts.vy) Body.setVelocity(body, { x: opts.vx ?? 0, y: opts.vy ?? 0 })
-    const fb: FruitBody = { body, tier, born: this.time, over: 0, grow: opts.grow ? GROW_STEPS : 0, junk: Boolean(opts.junk), merged: Boolean(opts.grow) }
+    const fb: FruitBody = { body, tier, born: this.time, over: 0, grow: opts.grow ? t.growSteps : 0, junk: Boolean(opts.junk), merged: Boolean(opts.grow) }
     this.fruits.set(body.id, fb)
     Composite.add(this.engine.world, body)
     return fb
