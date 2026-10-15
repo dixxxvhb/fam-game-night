@@ -1,0 +1,96 @@
+/* The Letter Machine: Categories' own world. Every class is prefixed cat-. */
+
+.cat-display { font-family: 'Shrikhand', 'Arial Black', Georgia, serif; font-weight: 400; }
+.cat-marker { font-family: 'Permanent Marker', 'Comic Sans MS', 'Marker Felt', cursive; font-weight: 400; }
+.cat-slab { font-family: 'Alfa Slab One', Rockwell, 'Courier New', serif; font-weight: 400; }
+
+/* ---------- the machine ---------- */
+
+@keyframes cat-reel {
+  0%, 8% { transform: translateY(var(--y0)); animation-timing-function: cubic-bezier(0.45, 0, 0.15, 1); }
+  88% { transform: translateY(calc(var(--y1) - var(--over))); animation-timing-function: ease-out; }
+  94% { transform: translateY(calc(var(--y1) + var(--over) * 0.35)); animation-timing-function: ease-in-out; }
+  100% { transform: translateY(var(--y1)); }
+}
+.cat-reel { animation: cat-reel var(--dur) linear both; will-change: transform; }
+
+@keyframes cat-lever {
+  0% { transform: rotate(0deg); }
+  45% { transform: rotate(62deg); animation-timing-function: cubic-bezier(0.3, 1.6, 0.5, 1); }
+  100% { transform: rotate(0deg); }
+}
+.cat-lever { transform-origin: 50% 100%; }
+.cat-lever.cat-pull { animation: cat-lever 450ms ease-in both; }
+
+@keyframes cat-bulb { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.25; } }
+.cat-bulbs .cat-b { animation: cat-bulb 1.2s steps(1) infinite; }
+.cat-bulbs .cat-b.cat-b2 { animation-delay: -0.6s; }
+.cat-bulbs.cat-fast .cat-b { animation-duration: 0.24s; }
+.cat-bulbs.cat-fast .cat-b.cat-b2 { animation-delay: -0.12s; }
+@keyframes cat-flash { 0%, 100% { opacity: 1; } 25%, 75% { opacity: 0.2; } }
+.cat-bulbs.cat-flash .cat-b { animation: cat-flash 0.3s linear 3; }
+
+@keyframes cat-thunk {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.07) rotate(-1.5deg); }
+  60% { transform: scale(0.98) rotate(0.6deg); }
+  100% { transform: scale(1); }
+}
+.cat-thunk { animation: cat-thunk 520ms cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+
+@keyframes cat-shake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-4deg); }
+  75% { transform: rotate(4deg); }
+}
+.cat-shake { animation: cat-shake 0.24s linear infinite; }
+.cat-shake-slow { animation: cat-shake 0.5s linear infinite; }
+
+/* ---------- paper, stamps, pops ---------- */
+
+@keyframes cat-stamp {
+  0% { transform: rotate(var(--r, -10deg)) scale(2.6); opacity: 0; }
+  55% { transform: rotate(var(--r, -10deg)) scale(0.9); opacity: 1; }
+  75% { transform: rotate(var(--r, -10deg)) scale(1.05); }
+  100% { transform: rotate(var(--r, -10deg)) scale(1); opacity: 1; }
+}
+.cat-stamp { animation: cat-stamp 380ms cubic-bezier(0.5, 0, 0.6, 1) both; }
+
+@keyframes cat-pop {
+  0% { transform: scale(0) rotate(-40deg); }
+  60% { transform: scale(1.3) rotate(8deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.cat-pop { animation: cat-pop 480ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both; }
+
+@keyframes cat-slide-in {
+  0% { transform: translateY(60px) rotate(var(--r, 0deg)); opacity: 0; }
+  100% { transform: translateY(0) rotate(var(--r, 0deg)); opacity: 1; }
+}
+.cat-sheet-in { animation: cat-slide-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1.1) both; }
+
+@keyframes cat-rise { 0% { transform: translateY(24px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+.cat-rise { animation: cat-rise 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes cat-hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-14%) scale(1.03, 0.97); } }
+.cat-hop { animation: cat-hop 0.7s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes cat-bob { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.03, 0.97); } }
+.cat-bob { animation: cat-bob 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes cat-slump { 0%, 100% { transform: rotate(-3deg) scale(1, 0.96); } 50% { transform: rotate(3deg) scale(1, 0.94); } }
+.cat-slump { animation: cat-slump 1.6s ease-in-out infinite; transform-origin: 50% 100%; }
+
+@keyframes cat-ink { 0% { clip-path: inset(0 100% 0 0); } 100% { clip-path: inset(0 0 0 0); } }
+.cat-ink { animation: cat-ink 520ms steps(12) both; }
+
+@keyframes cat-blink-caret { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.cat-caret { animation: cat-blink-caret 1s steps(1) infinite; }
+
+@keyframes cat-spin-slow { to { transform: rotate(360deg); } }
+.cat-sunburst { animation: cat-spin-slow 90s linear infinite; transform-origin: 50% 50%; }
+
+.cat-input::placeholder { color: rgba(42, 23, 9, 0.28); }
+.cat-input:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cat-sunburst, .cat-hop, .cat-bob, .cat-slump, .cat-shake, .cat-shake-slow, .cat-bulbs .cat-b { animation: none !important; }
+}

@@ -1,21 +1,36 @@
-// QA driver for Guess the Percent: every round the Spy drags the slider, nudges it +1 and
+// QA driver for Guess the Percent: every round the Spy drags the meter needle, nudges it +1 and
 // locks in; one bettor bets Higher (or Much), the other Lower. Then the final round, where
 // everyone guesses. Screens at the question, the bets and the reveal. Ends the night after.
 export default async function ({ tv, phones, shot, wait }) {
+  // Other games may be mid-edit on the same dev server: keep Vite's error overlay from
+  // covering this game's screens.
+  for (const p of [tv, ...phones].filter(Boolean)) await p.addStyleTag({ content: 'vite-error-overlay { display: none !important; }' }).catch(() => {})
   const spyOf = async () => {
     for (const p of phones) if (await p.getByText("You're the Spy").count()) return p
     return null
   }
   const isFinal = async () => (await phones[0].getByText('Final round. Everyone guesses').count()) > 0
 
-  // Drag across the track to land near `pct`, then nudge with +1.
+  // Drag the meter needle around its arc to land near `pct`, then nudge with +1.
+  // The dial's pivot sits at the bottom middle (data-pivot-y is its height fraction).
   async function setPercent(page, pct) {
-    const track = page.getByRole('slider', { name: 'Percent' })
-    const box = await track.boundingBox()
-    const y = box.y + box.height / 2
-    await page.mouse.move(box.x + box.width * 0.5, y)
+    const dial = page.getByRole('slider', { name: 'Percent' })
+    const box = await dial.boundingBox()
+    const py = Number(await dial.getAttribute('data-pivot-y')) || 0.8
+    const cx = box.x + box.width / 2
+    const cy = box.y + box.height * py
+    const r = box.width * 0.3
+    const at = (v) => {
+      const a = Math.PI * (1 - v / 100)
+      return [cx + Math.cos(a) * r, cy - Math.sin(a) * r]
+    }
+    const [sx, sy] = at(50)
+    await page.mouse.move(sx, sy)
     await page.mouse.down()
-    await page.mouse.move(box.x + box.width * (pct / 100), y, { steps: 6 })
+    for (let i = 1; i <= 6; i++) {
+      const [x, y] = at(50 + ((pct - 50) * i) / 6)
+      await page.mouse.move(x, y)
+    }
     await page.mouse.up()
     await page.getByRole('button', { name: 'Plus one' }).click()
   }
@@ -46,13 +61,16 @@ export default async function ({ tv, phones, shot, wait }) {
     for (const b of bettors.slice(1)) {
       const d = b.getByRole('button', { name: down })
       await (await d.isEnabled() ? d : b.getByRole('button', { name: /^Lower/ })).click()
-      await wait(200)
     }
-    await wait(1100)
+    // The reveal starts on the last bet. Shots can be slow, so aim by the clock: the needle
+    // mid-swing at ~1.1 s, the verdict after the tear at ~3.2 s, then wait out the 9 s reveal.
+    const t0 = Date.now()
+    const until = async (ms) => { const left = t0 + ms - Date.now(); if (left > 0) await wait(left) }
+    await until(1000)
     await shot(`r${round}-sweep`)
-    await wait(2000)
+    await until(3200)
     await shot(`r${round}-reveal`)
-    await wait(6500)
+    await until(9800)
   }
 
   // Final round: everyone guesses at once.
@@ -65,9 +83,11 @@ export default async function ({ tv, phones, shot, wait }) {
     await wait(300)
     if (i === 0) await shot('final-locked')
   }
+  const tf = Date.now()
   await wait(1000)
   await shot('final-sweep')
-  await wait(2200)
+  const left = tf + 3400 - Date.now()
+  if (left > 0) await wait(left)
   await shot('final-reveal')
   for (let i = 0; i < 40 && !(await phones[0].getByText('Next game').count()); i++) await wait(500)
   await wait(800)

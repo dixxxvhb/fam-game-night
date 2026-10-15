@@ -215,3 +215,41 @@ export function bot(s: ForeheadState, id: string, ctx: GameCtx): BotMove | null 
   }
   return null
 }
+
+// ---------------- the show (pure reads for the Stage and phones) ----------------
+
+/** Gots in a row at the end of this turn's calls. A pass resets it. */
+export function streakOf(calls: Call[]): number {
+  let n = 0
+  for (let i = calls.length - 1; i >= 0 && calls[i].got; i--) n++
+  return n
+}
+
+/** Three in a row and the club catches fire. */
+export const ON_FIRE_AT = 3
+
+export interface TurnRecap {
+  got: number
+  passed: number
+  /** Longest run of gots this turn. */
+  best: number
+  /** The quickest got this turn, or null. */
+  fastest: Call | null
+}
+
+/** The numbers for the turn-end recap card. */
+export function recapOf(calls: Call[]): TurnRecap {
+  let got = 0
+  let best = 0
+  let run = 0
+  let fastest: Call | null = null
+  for (const c of calls) {
+    if (c.got) {
+      got++
+      run++
+      best = Math.max(best, run)
+      if (!fastest || c.ms < fastest.ms) fastest = c
+    } else run = 0
+  }
+  return { got, passed: calls.length - got, best, fastest }
+}
