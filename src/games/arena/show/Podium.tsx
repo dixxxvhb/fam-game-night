@@ -6,7 +6,7 @@ import { placements, type ArenaState } from '../logic'
 import { Ink, plural, WinStars, type WhoFn } from './bits'
 
 /** Block heights and land order: 3rd lands first, the winner last. */
-const BLOCK = { 1: { h: 220, at: 1500 }, 2: { h: 160, at: 850 }, 3: { h: 116, at: 300 } } as const
+const BLOCK = { 1: { h: 250, at: 1500 }, 2: { h: 200, at: 850 }, 3: { h: 168, at: 300 } } as const
 const BLOCK_COLOR = { 1: '#FFDA3D', 2: '#DCE3F0', 3: '#F2A65A' } as const
 
 /**
