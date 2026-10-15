@@ -1,7 +1,11 @@
 import type { BotMove, GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
+import { isCritterId, type CritterId } from '../board/park/cast'
 import { applyPower, MAX_BOMBS, MAX_RANGE, MAX_SPEED, START_BOMBS, START_RANGE, type PowerKind } from './sim'
 
 /**
+ * Kaboom (id 'arena') match state. Flow: pick (everyone picks a critter) -> [intro (VS card,
+ * 3-2-1) -> play -> over] per round -> podium -> done.
+ *
  * Arena match state. The real-time arena itself (grid, bombs, positions) is simulated on the
  * host inside the TV Stage (see sim.ts); this state only keeps what the match needs to
  * remember, fed by the Stage through hostAction at a low rate:
@@ -9,6 +13,7 @@ import { applyPower, MAX_BOMBS, MAX_RANGE, MAX_SPEED, START_BOMBS, START_RANGE, 
  *   'power'    { round, who, kind }    so phones can show what you've picked up
  *   'roundEnd' { round, winner }       winner = null when nobody made it
  * Those are only accepted from the host (anyone who isn't a player in this game).
+ * Players send one action of their own: 'pick' { char } during the pick stage.
  */
 
 export interface Powers {
@@ -24,8 +29,18 @@ export interface KillNote {
   at: number
 }
 
+export type ArenaPhase = 'pick' | 'intro' | 'play' | 'over' | 'podium' | 'done'
+
 export interface ArenaState {
-  stage: 'intro' | 'play' | 'over' | 'done'
+  stage: ArenaPhase
+  /** The critter each player is (null until picked). */
+  chars: Record<string, CritterId | null>
+  /** When the current stage began (bots pick a beat after the pick screen opens). */
+  stageAt: number
+  /** pick: when picking closes. podium: when the podium ends. */
+  stageEnds: number
+  /** Which arena round 1 is in; it rotates by one every round (see THEMES in themes.ts). */
+  theme0: number
   round: number
   bestOf: number
   /** Rounds needed to win the match. */
@@ -54,8 +69,17 @@ export interface ArenaState {
   multi: { playerId: string; n: number } | null
 }
 
-export const INTRO_MS = 3500
-export const OVER_MS = 4000
+/** Pick a critter: everyone gets 45 s, then the park picks for you. */
+export const PICK_MS = 45_000
+/** All picked: hold the pick screen this long so the last name tag lands. */
+export const PICK_DONE_MS = 1600
+/** VS card (VS_MS), then 3, 2, 1. */
+export const INTRO_MS = 5000
+export const VS_MS = 2000
+export const OVER_MS = 4500
+/** The podium at the end of the match, before the outcome is reported. */
+export const PODIUM_MS = 8000
+export const THEME_COUNT = 4
 /** 90 s, then about 40 s of walls, plus slack. */
 export const ROUND_CAP_MS = 170_000
 /** Kills by one player within this window count as one blast. */
@@ -77,15 +101,19 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Aren
   const target = Math.ceil(bestOf / 2)
   const order = ctx.players.map((p) => p.id)
   return {
-    stage: 'intro',
+    stage: 'pick',
+    chars: Object.fromEntries(order.map((id) => [id, null])),
+    stageAt: ctx.now,
+    stageEnds: ctx.now + PICK_MS,
+    theme0: Math.floor(ctx.random() * THEME_COUNT) % THEME_COUNT,
     round: 1,
     bestOf,
     target,
     maxRounds: (target - 1) * order.length + 3,
     order,
     seed: newSeed(ctx.random),
-    startsAt: ctx.now + INTRO_MS,
-    endsAt: ctx.now + INTRO_MS + ROUND_CAP_MS,
+    startsAt: 0,
+    endsAt: 0,
     wins: Object.fromEntries(order.map((id) => [id, 0])),
     kills: Object.fromEntries(order.map((id) => [id, 0])),
     out: [],
@@ -109,7 +137,7 @@ function payloadOf(a: PlayerAction): Record<string, unknown> | null {
 
 function endRound(s: ArenaState, winner: string | null, now: number): ArenaState {
   const wins = winner ? { ...s.wins, [winner]: (s.wins[winner] ?? 0) + 1 } : s.wins
-  return { ...s, stage: 'over', wins, rounds: [...s.rounds, { winner, at: now }], endsAt: now + OVER_MS, streak: null }
+  return { ...s, stage: 'over', stageAt: now, wins, rounds: [...s.rounds, { winner, at: now }], endsAt: now + OVER_MS, streak: null }
 }
 
 /** Someone has the rounds, or we've hit the cap. */
@@ -117,7 +145,48 @@ export function decided(s: Pick<ArenaState, 'order' | 'wins' | 'target' | 'round
   return s.order.some((id) => (s.wins[id] ?? 0) >= s.target) || s.rounds.length >= s.maxRounds
 }
 
+export const CRITTERS: CritterId[] = ['chomp', 'mattie', 'pete', 'pickles', 'dillo', 'ibby', 'shelly', 'zippy']
+
+export function charOf(s: Pick<ArenaState, 'chars'>, id: string): CritterId | null {
+  return s.chars?.[id] ?? null
+}
+
+function allPicked(s: ArenaState): boolean {
+  return s.order.every((id) => !!s.chars[id])
+}
+
+/** Everyone without a critter gets a free one at random. */
+function fillChars(s: ArenaState, random: () => number): Record<string, CritterId | null> {
+  const chars = { ...s.chars }
+  for (const id of s.order) {
+    if (chars[id]) continue
+    const free = CRITTERS.filter((c) => !Object.values(chars).includes(c))
+    chars[id] = free.length ? free[Math.floor(random() * free.length) % free.length] : CRITTERS[s.order.indexOf(id) % CRITTERS.length]
+  }
+  return chars
+}
+
+function startRound1(s: ArenaState, ctx: GameCtx): ArenaState {
+  return {
+    ...s,
+    chars: fillChars(s, ctx.random),
+    stage: 'intro',
+    stageAt: ctx.now,
+    stageEnds: 0,
+    startsAt: ctx.now + INTRO_MS,
+    endsAt: ctx.now + INTRO_MS + ROUND_CAP_MS,
+  }
+}
+
 export function reduce(s: ArenaState, a: PlayerAction, ctx: GameCtx): ArenaState {
+  if (a.type === 'pick') {
+    const p = payloadOf(a)
+    if (s.stage !== 'pick' || !p || !s.order.includes(a.playerId) || s.chars[a.playerId]) return s
+    const c = p.char
+    if (!isCritterId(c) || Object.values(s.chars).includes(c)) return s
+    const next = { ...s, chars: { ...s.chars, [a.playerId]: c } }
+    return allPicked(next) ? { ...next, stageEnds: Math.min(next.stageEnds, ctx.now + PICK_DONE_MS) } : next
+  }
   if (!fromHost(a, ctx) || s.stage !== 'play') return s
   const p = payloadOf(a)
   if (!p || p.round !== s.round) return s
@@ -161,6 +230,7 @@ function nextRound(s: ArenaState, ctx: GameCtx): ArenaState {
   return {
     ...s,
     stage: 'intro',
+    stageAt: ctx.now,
     round: s.round + 1,
     seed: newSeed(ctx.random),
     startsAt: ctx.now + INTRO_MS,
@@ -174,10 +244,24 @@ function nextRound(s: ArenaState, ctx: GameCtx): ArenaState {
 }
 
 export function tick(s: ArenaState, ctx: GameCtx): ArenaState {
-  if (s.stage === 'intro') return ctx.now >= s.startsAt ? { ...s, stage: 'play', endsAt: ctx.now + ROUND_CAP_MS } : s
+  if (s.stage === 'pick') return ctx.now >= s.stageEnds ? startRound1(s, ctx) : s
+  if (s.stage === 'intro') return ctx.now >= s.startsAt ? { ...s, stage: 'play', stageAt: ctx.now, endsAt: ctx.now + ROUND_CAP_MS } : s
   if (s.stage === 'play') return ctx.now >= s.endsAt ? endRound(s, null, ctx.now) : s
-  if (s.stage === 'over' && ctx.now >= s.endsAt) return decided(s) ? { ...s, stage: 'done' } : nextRound(s, ctx)
+  if (s.stage === 'over' && ctx.now >= s.endsAt) {
+    return decided(s) ? { ...s, stage: 'podium', stageAt: ctx.now, stageEnds: ctx.now + PODIUM_MS } : nextRound(s, ctx)
+  }
+  if (s.stage === 'podium' && ctx.now >= s.stageEnds) return { ...s, stage: 'done' }
   return s
+}
+
+/** The arena theme a round is played in. */
+export function themeOf(s: Pick<ArenaState, 'theme0' | 'round'>): number {
+  return (((s.theme0 ?? 0) + s.round - 1) % THEME_COUNT + THEME_COUNT) % THEME_COUNT
+}
+
+/** The match leader (most wins, then kills), for the round card and the podium. */
+export function leader(s: ArenaState): string {
+  return placements(s)[0].playerId
 }
 
 /** Most rounds won, then most kills. Equal on both share a place. */
@@ -224,11 +308,15 @@ export function outcome(s: ArenaState, ctx: GameCtx): GameOutcome | null {
 }
 
 /**
- * Arena's bots play inside the host simulation (bots.ts, driven by the TV Stage every step),
- * so there is nothing to send from here. Defined so the platform seats bots in Arena.
+ * Bots pick a free critter a beat after the pick screen opens. In the arena they play inside
+ * the host simulation (bots.ts, driven by the host Stage every step), so there is nothing to
+ * send from here then.
  */
-export function bot(): BotMove | null {
-  return null
+export function bot(s?: ArenaState, id?: string, ctx?: GameCtx): BotMove | null {
+  if (!s || !id || !ctx || s.stage !== 'pick') return null
+  if (s.chars[id] || ctx.now - s.stageAt < 1200 || ctx.random() > 0.25) return null
+  const free = CRITTERS.filter((c) => !Object.values(s.chars).includes(c))
+  return free.length ? { type: 'pick', payload: { char: free[Math.floor(ctx.random() * free.length) % free.length] } } : null
 }
 
 export const CAPS = { bombs: MAX_BOMBS, range: MAX_RANGE, speed: MAX_SPEED }

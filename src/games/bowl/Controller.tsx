@@ -1,15 +1,25 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
 import type { ControllerProps } from '../../engine/types'
 import { useSendStream, useTicker } from '../../engine/context'
-import { Btn, cx, Label } from '../../ui/kit'
-import { Countdown } from '../../ui/Countdown'
-import { nextBowler, type BowlState } from './logic'
+import { cx } from '../../ui/kit'
+import { CAST, CritterArt, INK, critter, type CritterId } from '../board/park/cast'
+import { Portrait } from '../board/park/ui'
+import '../board/park/show/show.css'
+import './bowl.css'
+import { charOf, nextBowler, PICK_MS, type BowlState } from './logic'
 import { position, scoreCard } from './score'
 import { Scoreboard } from './Scoreboard'
 import { AIM_STREAM } from './LaneView'
 import { aimAfterDrag, ballScreen, drawPad, handleScreen, padMap, xAfterDrag, type PadMap } from './pad'
 import { swipeToThrow, throwWords, type SwipePt } from './swipe'
 import { useMotion } from './motion'
+import { backSprite, onSprite } from './sprites'
+import { kindColor, NIGHT, tintOf } from './look'
+import { mingoLine } from './lines'
+import { standings } from './stats'
+import { Neon, ordinal, placeColor } from './show/parts'
+import { moodFor, ResultWord } from './show/Reaction'
+import { Card, NeonButton, NightSky, Plate } from './phone/kit'
 
 type Send = ControllerProps<BowlState>['send']
 type Mode = 'pending' | 'move' | 'aim' | 'swipe'
@@ -17,7 +27,7 @@ type Mode = 'pending' | 'move' | 'aim' | 'swipe'
 const STREAM_MS = 90
 const WARN_MS = 10_000
 
-function AimPad({ s, me, color, send, onThrown }: { s: BowlState; me: string; color: string; send: Send; onThrown: (words: string) => void }) {
+function AimPad({ s, me, color, char, send, onThrown }: { s: BowlState; me: string; color: string; char: CritterId | null; send: Send; onThrown: (words: string) => void }) {
   const sendStream = useSendStream()
   const wrap = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -34,6 +44,8 @@ function AimPad({ s, me, color, send, onThrown }: { s: BowlState; me: string; co
   const live = useRef({ x, aim, s, send, sendStream })
   useLayoutEffect(() => { live.current = { x, aim, s, send, sendStream } })
   const motion = useMotion()
+  const [spriteTick, setSpriteTick] = useState(0)
+  useEffect(() => onSprite(() => setSpriteTick((n) => n + 1)), [])
   const [holding, setHolding] = useState(false)
   const holdingRef = useRef(false)
 
@@ -43,9 +55,9 @@ function AimPad({ s, me, color, send, onThrown }: { s: BowlState; me: string; co
       const el = wrap.current
       if (!el) return
       const top = el.getBoundingClientRect().top + window.scrollY
-      const room = window.innerHeight - top - (motion.available ? 210 : 120)
+      const room = window.innerHeight - top - (motion.available ? 200 : 96)
       const w = el.clientWidth
-      const h = Math.round(Math.max(360, Math.min(560, room, w * 1.5)))
+      const h = Math.round(Math.max(380, Math.min(580, room, w * 1.55)))
       setBox((b) => (b.w === w && b.h === h ? b : { w, h }))
     }
     measure()
@@ -81,8 +93,8 @@ function AimPad({ s, me, color, send, onThrown }: { s: BowlState; me: string; co
     map.current = m
     const g = gesture.current
     const held = g?.mode === 'swipe' && trail.length ? trail[trail.length - 1] : null
-    drawPad(ctx, m, { standing: s.standing, x, aim, color, trail, held, active })
-  }, [box, x, aim, s.standing, color, trail, active])
+    drawPad(ctx, m, { standing: s.standing, x, aim, color, trail, held, active, critter: char ? backSprite(char) : null })
+  }, [box, x, aim, s.standing, color, trail, active, char, spriteTick])
 
   function local(e: PointerEvent) {
     const r = canvas.current!.getBoundingClientRect()
@@ -185,8 +197,8 @@ function AimPad({ s, me, color, send, onThrown }: { s: BowlState; me: string; co
     <div className="grid gap-3">
       <div
         ref={wrap}
-        className="touch-none-all no-select relative overflow-hidden rounded-2xl border-2 border-line"
-        style={{ height: box.h || 420 }}
+        className="touch-none-all no-select relative overflow-hidden rounded-[22px] border-4"
+        style={{ height: box.h || 420, borderColor: INK, boxShadow: `0 5px 0 ${INK}, 0 0 0 2px ${NIGHT.pink}66, 0 0 20px ${NIGHT.pink}44` }}
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
@@ -200,17 +212,18 @@ function AimPad({ s, me, color, send, onThrown }: { s: BowlState; me: string; co
         <canvas ref={canvas} className="block" style={{ width: box.w, height: box.h }} aria-label="Your lane" />
         {hint && (
           <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center animate-rise">
-            <span className="rounded-full bg-paper/90 px-4 py-2 text-base font-bold text-hot-ink">{hint}</span>
+            <span className="rounded-full border-[3px] bg-white px-4 py-1.5 font-party text-[18px] leading-tight" style={{ borderColor: INK, color: INK }}>{hint}</span>
           </div>
         )}
       </div>
       {motion.needsTap && !motion.available && (
-        <Btn size="lg" variant="secondary" onClick={() => { void motion.enable() }}>Tap to enable the swing</Btn>
+        <NeonButton color={NIGHT.violet} edge="#5A2BB0" onClick={() => { void motion.enable() }}>Tap to enable the swing</NeonButton>
       )}
       {motion.available ? (
         <button
           type="button"
-          className={cx('no-select touch-none-all min-h-20 rounded-2xl text-xl font-bold transition-colors', holding ? 'bg-hot-ink text-paper' : 'bg-hot text-paper')}
+          className={cx('no-select touch-none-all min-h-20 rounded-[22px] border-4 font-party text-[24px] leading-none transition-transform duration-75', holding && 'translate-y-[5px]')}
+          style={{ borderColor: INK, background: holding ? NIGHT.yellow : NIGHT.pink, color: holding ? INK : '#FFFFFF', boxShadow: holding ? `0 1px 0 ${NIGHT.pinkDark}, 0 1px 0 4px ${INK}, 0 0 30px ${NIGHT.yellow}` : `0 6px 0 ${NIGHT.pinkDark}, 0 6px 0 4px ${INK}, 0 0 24px ${NIGHT.pink}66` }}
           onPointerDown={holdStart}
           onPointerUp={holdEnd}
           onPointerCancel={() => { holdingRef.current = false; setHolding(false); motion.cancel() }}
@@ -220,7 +233,7 @@ function AimPad({ s, me, color, send, onThrown }: { s: BowlState; me: string; co
           {holding ? 'Swing, let go at the bottom' : 'Hold, swing, let go'}
         </button>
       ) : null}
-      <div className="text-center text-base leading-snug text-ink-2">
+      <div className="text-center text-[16px] font-bold leading-snug" style={{ color: NIGHT.text2 }}>
         {motion.available
           ? 'Drag the ball to move, the arrow to aim. Or just swipe up from the ball.'
           : 'Drag the ball to move, the arrow to aim. Swipe up from the ball to bowl. Drift sideways to hook it.'}
@@ -229,8 +242,87 @@ function AimPad({ s, me, color, send, onThrown }: { s: BowlState; me: string; co
   )
 }
 
-function MyRow({ s, me, players }: { s: BowlState; me: string; players: ControllerProps<BowlState>['room']['players'] }) {
-  return <Scoreboard s={s} players={players} size="phone" only={[me]} />
+function Bar({ endsAt, total, now, color = NIGHT.pink }: { endsAt: number; total: number; now: () => number; color?: string }) {
+  const left = Math.max(0, endsAt - now())
+  const secs = Math.ceil(left / 1000)
+  const urgent = secs <= 5
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-5 flex-1 overflow-hidden rounded-full border-[3px] bg-white" style={{ borderColor: INK }}>
+        <div className="h-full rounded-full transition-[width] duration-200 ease-linear" style={{ width: `${Math.min(1, left / total) * 100}%`, background: urgent ? NIGHT.red : color }} />
+      </div>
+      <span className="w-9 text-right font-party text-2xl leading-none tabular" style={{ color: urgent ? NIGHT.red : NIGHT.text }}>{secs}</span>
+    </div>
+  )
+}
+
+/** Every phone picks a critter. Eight of them, first come first served. */
+function PickScreen({ s, room, me, now, send }: { s: BowlState; room: ControllerProps<BowlState>['room']; me: string; now: () => number; send: Send }) {
+  const mine = charOf(s, me)
+  const takenBy = new Map<string, string>()
+  for (const id of s.order) { const c = charOf(s, id); if (c) takenBy.set(c, id) }
+  const nameOf = (id: string) => room.players.find((x) => x.id === id)?.name ?? id
+  if (mine) {
+    const c = critter(mine)!
+    const waiting = s.order.filter((id) => !charOf(s, id)).length
+    return (
+      <div className="flex flex-1 flex-col items-center gap-3 px-4 pb-6 pt-4 text-center" data-bowl-picked={mine}>
+        <div className="relative grid place-items-center" style={{ width: 250, height: 240 }}>
+          <div className="absolute inset-6 rounded-full" style={{ background: `radial-gradient(closest-side, ${c.color}AA, ${c.color}00)` }} />
+          <div className="ps-pop relative"><CritterArt id={mine} size={180} mood="happy" /></div>
+        </div>
+        <Neon size={44} glowColor={c.color}>You are {c.name}.</Neon>
+        <Card className="text-[18px] font-bold leading-snug">{c.bio}</Card>
+        <div className="flex flex-wrap justify-center gap-2">
+          {s.order.map((id) => (
+            <span key={id} className="inline-flex items-center gap-1.5 rounded-full border-[3px] bg-white py-0.5 pl-0.5 pr-3 font-party text-lg leading-none" style={{ borderColor: INK, color: INK }}>
+              <Portrait char={charOf(s, id)} name={nameOf(id)} size={32} />
+              {id === me ? 'You' : nameOf(id)}
+            </span>
+          ))}
+        </div>
+        <div className="font-party text-[18px]" style={{ color: NIGHT.text2 }}>
+          {waiting > 0 ? `Waiting on ${waiting} more. They are reading the bios.` : 'Everybody has shoes. Lanes are open.'}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-1 flex-col gap-3 px-3 pb-6 pt-3">
+      <div className="flex items-center gap-3 px-1">
+        <Neon size={32} color={NIGHT.pink} glowColor={NIGHT.pink}>Pick a bowler</Neon>
+        <div className="min-w-0 flex-1"><Bar endsAt={s.endsAt} total={PICK_MS} now={now} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+        {CAST.map((c) => {
+          const by = takenBy.get(c.id)
+          return (
+            <button
+              key={c.id}
+              type="button"
+              data-bowl-pick={c.id}
+              data-taken={by ?? ''}
+              aria-label={by ? `${c.name}, taken by ${nameOf(by)}` : `Pick ${c.name}`}
+              disabled={Boolean(by)}
+              onClick={() => send('pick', { char: c.id })}
+              className="no-select relative grid min-h-16 justify-items-center overflow-hidden rounded-[22px] border-4 px-2 pb-2 pt-1 text-center transition-transform duration-75 active:translate-y-[5px]"
+              style={{ borderColor: INK, background: by ? '#2A1D52' : '#1D1048', boxShadow: `0 5px 0 ${by ? '#3B2A7A' : c.color}, 0 5px 0 4px ${INK}`, color: NIGHT.text }}
+            >
+              <div className="absolute inset-x-0 top-0 h-[62%]" style={{ background: `radial-gradient(70% 90% at 50% 100%, ${c.color}${by ? '22' : '66'} 0%, ${c.color}00 75%)` }} />
+              <div className={cx('relative', by && 'opacity-40 grayscale')}><CritterArt id={c.id} size={78} mood="idle" anim={!by} /></div>
+              <div className="relative mt-0.5 font-party text-[23px] leading-none">{c.name}</div>
+              <div className="relative text-[14px] font-bold leading-tight" style={{ color: NIGHT.text2 }}>{c.kind}</div>
+              {by && (
+                <span className="absolute right-1.5 top-1.5 max-w-[80%] truncate rounded-full border-[3px] bg-white px-2 py-0.5 font-party text-[15px] leading-none" style={{ borderColor: INK, color: INK }}>
+                  {by === me ? 'You' : nameOf(by)}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export function BowlController({ state: s, room, me, now, send }: ControllerProps<BowlState>) {
@@ -238,96 +330,151 @@ export function BowlController({ state: s, room, me, now, send }: ControllerProp
   const [thrown, setThrown] = useState<{ n: number; words: string; at: number } | null>(null)
   const apart = room.mode === 'apart'
   const meP = room.players.find((p) => p.id === me)
+  const myTurn = s.bowler === me && s.stage === 'aim'
+  // Buzz once when it becomes your turn.
+  useEffect(() => {
+    if (!myTurn) return
+    try { navigator.vibrate?.(90) } catch { /* no vibration */ }
+  }, [myTurn, s.throwNo])
+  const picking = s.stage === 'pick'
+  useEffect(() => { document.querySelector('main')?.scrollTo(0, 0) }, [picking, myTurn])
+
   if (!room.gamePlayers.includes(me) || !s.rolls[me]) {
-    return <div className="p-6 text-center text-ink-2">You're in the next game. Watch the {apart ? 'lane' : 'TV'}.</div>
+    return <NightSky className="p-5"><Card dark className="text-center font-party text-2xl">You are in the next game. Watch the {apart ? 'lane' : 'TV'}.</Card></NightSky>
   }
-  const who = (id: string) => room.players.find((p) => p.id === id)
-  const myTurn = s.bowler === me
+  const char = charOf(s, me)
+  const tint = tintOf(char, meP?.color)
+  const who = (id: string) => {
+    const p = room.players.find((x) => x.id === id)
+    const c = charOf(s, id)
+    return { name: p?.name ?? 'Someone', char: c, tint: tintOf(c, p?.color) }
+  }
   const pos = position(s.rolls[me], s.frames)
   const total = scoreCard(s.rolls[me], s.frames).live
   const watch = apart ? 'Watch the lane' : 'Watch the TV'
+  const tag = { 'data-bowl-phone': s.stage }
 
-  if (s.stage === 'done') {
+  if (s.stage === 'pick') {
+    return <NightSky {...tag}><PickScreen s={s} room={room} me={me} now={now} send={send} /></NightSky>
+  }
+
+  if (s.stage === 'podium' || s.stage === 'done') {
+    const table = standings(s)
+    const row = table.find((r) => r.id === me)
+    const place = row?.place ?? table.length
     return (
-      <div className="grid gap-4 p-5 text-center">
-        <div className="font-display text-3xl">That's the game</div>
-        <div className="text-ink-2">You bowled {total}. Adding it up.</div>
-      </div>
+      <NightSky {...tag} className="items-center gap-3 px-5 pb-6 pt-6 text-center">
+        <Neon size={40} color={NIGHT.yellow} glowColor={NIGHT.yellow}>That is the game</Neon>
+        <div className="grid place-items-center" style={{ height: 190 }}>
+          {char && <CritterArt id={char} size={150} mood={place === 1 ? 'happy' : place === table.length && table.length > 1 ? 'sad' : 'idle'} />}
+        </div>
+        <Neon size={64} color={placeColor(place)} glowColor={placeColor(place)}>{ordinal(place)}</Neon>
+        <Card className="w-full">
+          <div className="font-party text-[22px] leading-tight">You bowled {row?.score ?? total}{row && row.strikes ? ` with ${row.strikes} strike${row.strikes > 1 ? 's' : ''}` : ''}.</div>
+          <div className="mt-1 text-[16px] font-bold" style={{ color: '#4A4566' }}>{place === 1 ? 'Shoes off. Crown on.' : 'Return your shoes on the way out.'}</div>
+        </Card>
+      </NightSky>
     )
   }
 
-  if (s.stage === 'aim' && myTurn) {
+  if (myTurn) {
     const sent = thrown && thrown.n === s.throwNo + 1 && performance.now() - thrown.at < 4000
     const left = Math.max(0, s.endsAt - now())
+    if (sent) {
+      return (
+        <NightSky {...tag} className="items-center gap-4 px-5 pb-6 pt-8 text-center">
+          <div className="gl-pop"><Neon size={52} color={tint} glowColor={tint}>ROLLING</Neon></div>
+          {char && <CritterArt id={char} size={170} mood="hop" />}
+          <Card dark className="font-party text-[24px]">{thrown.words}</Card>
+          <div className="font-party text-[20px]" style={{ color: NIGHT.text2 }}>{watch}.</div>
+        </NightSky>
+      )
+    }
     return (
-      <div className="grid gap-3 px-4 pb-4 pt-3">
-        <div className="flex items-end justify-between gap-3">
+      <NightSky {...tag} className="gap-3 px-3 pb-4 pt-3" data-bowl-turn="me">
+        <div className="flex items-center justify-between gap-3 px-1">
           <div className="min-w-0">
-            <div className="font-display text-2xl leading-tight text-hot">Your turn</div>
-            <div className="font-mono text-sm text-ink-2">Frame {s.frame + 1} of {s.frames} · Ball {pos.ball + 1}{s.standing.length < 10 ? ` · ${s.standing.length} left` : ''}</div>
+            <div key={s.throwNo} className="gl-slam origin-left"><Neon size={40} color={NIGHT.pink} glowColor={NIGHT.pink}>YOUR TURN</Neon></div>
+            <div className="mt-1.5 font-mono text-[14px] font-semibold" style={{ color: NIGHT.text2 }}>Frame {s.frame + 1} of {s.frames} · Ball {pos.ball + 1}{s.standing.length < 10 ? ` · ${s.standing.length} left` : ''}</div>
           </div>
-          <div className="shrink-0 text-right">
-            <Label>Score</Label>
-            <div className="font-display text-2xl leading-none tabular">{total}</div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Portrait char={char} name={meP?.name ?? me} size={44} />
+            <div className="grid justify-items-end">
+              <span className="font-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: NIGHT.text3 }}>Score</span>
+              <span className="font-party text-[30px] leading-none tabular" style={{ color: NIGHT.yellow }}>{total}</span>
+            </div>
           </div>
         </div>
-        {left <= WARN_MS && <Countdown endsAt={s.endsAt} total={WARN_MS} now={now} />}
-        {sent ? (
-          <div className="grid gap-2 rounded-2xl bg-tile p-6 text-center">
-            <div className="font-display text-3xl">Rolling</div>
-            <div className="text-ink-2">{thrown.words}</div>
-          </div>
-        ) : (
-          <AimPad key={s.throwNo} s={s} me={me} color={meP?.color ?? '#FF6B3D'} send={send} onThrown={(words) => setThrown({ n: s.throwNo + 1, words, at: performance.now() })} />
-        )}
-      </div>
+        {left <= WARN_MS && <Bar endsAt={s.endsAt} total={WARN_MS} now={now} color={NIGHT.orange} />}
+        <AimPad key={s.throwNo} s={s} me={me} color={tint} char={char} send={send} onThrown={(words) => setThrown({ n: s.throwNo + 1, words, at: performance.now() })} />
+      </NightSky>
     )
   }
 
   if ((s.stage === 'roll' || s.stage === 'result') && s.roll?.by === me) {
     const r = s.roll
     const res = s.stage === 'result' ? s.result : null
+    const mood = res ? moodFor(res) : 'idle'
     return (
-      <div className="grid gap-4 p-5">
-        <div className="grid gap-2 rounded-2xl bg-tile p-6 text-center">
-          {res ? (
-            <>
-              <div key={res.n} className={cx('font-display text-5xl leading-none animate-pop', res.kind === 'strike' || res.kind === 'spare' ? 'text-hot' : res.kind === 'gutter' || res.kind === 'miss' ? 'text-bad' : 'text-ink')}>{res.label}</div>
-              <div className="text-lg text-ink-2">{res.line}</div>
-            </>
-          ) : (
-            <>
-              <div className="font-display text-3xl">{watch}</div>
-              <div className="text-lg text-ink-2">{throwWords(r.th.speed, r.th.curve, r.mph)}</div>
-            </>
-          )}
-        </div>
-        {!apart && <MyRow s={s} me={me} players={room.players} />}
-      </div>
+      <NightSky {...tag} className="items-center gap-3 px-5 pb-6 pt-5 text-center" data-bowl-mine={res ? res.kind : 'roll'}>
+        {res ? (
+          <>
+            <div className="grid min-h-[120px] place-items-center"><ResultWord r={res} size={res.kind === 'count' ? 84 : res.label.length > 6 ? 60 : 72} /></div>
+            <div className="relative grid place-items-center" style={{ height: 190 }}>
+              <div className="absolute inset-x-6 bottom-0 h-8 rounded-[50%]" style={{ background: `radial-gradient(closest-side, ${kindColor(res.kind)}AA, transparent)` }} />
+              {char && <CritterArt key={res.n} id={char} size={160} mood={mood} />}
+            </div>
+            <Card className="w-full">
+              <div className="font-party text-[22px] leading-tight">{res.line}</div>
+              <div className="mt-1 text-[16px] font-bold" style={{ color: '#4A4566' }}>{mingoLine(res, !!r.auto)}</div>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Neon size={40} color={tint} glowColor={tint}>{watch}</Neon>
+            <div className="grid place-items-center" style={{ height: 190 }}>{char && <CritterArt id={char} size={160} mood="idle" />}</div>
+            <Card dark className="font-party text-[22px]">{throwWords(r.th.speed, r.th.curve, r.mph)}</Card>
+          </>
+        )}
+        {!apart && <div className="w-full"><Scoreboard s={s} players={room.players} size="phone" only={[me]} /></div>}
+      </NightSky>
     )
   }
 
   const bowler = who(s.bowler)
   const nextUp = nextBowler(s) === me && s.bowler !== me
   if (apart) {
-    // The lane and everyone's scores are right above. Keep it to one line.
+    // The lane and everyone's scores are right above. Keep it to a line and your critter.
     return (
-      <div className="grid gap-2 p-5 text-center">
-        <div className="text-lg text-ink-2">{nextUp ? "You're next. Stretch something." : `${bowler?.name ?? 'Someone'} is bowling.`}</div>
-        {s.stage === 'aim' && s.endsAt - now() <= WARN_MS && <Countdown endsAt={s.endsAt} total={WARN_MS} now={now} />}
-      </div>
+      <NightSky {...tag} className="items-center gap-2 px-5 pb-6 pt-3 text-center" data-bowl-wait={s.bowler}>
+        <div className="flex items-center gap-3">
+          {char && <CritterArt id={char} size={64} mood={nextUp ? 'hop' : 'idle'} />}
+          <div className="font-party text-[20px] leading-tight" style={{ color: nextUp ? NIGHT.yellow : NIGHT.text2 }}>{nextUp ? "You're next. Stretch something." : `${bowler.name} is bowling.`}</div>
+        </div>
+        {s.stage === 'aim' && s.endsAt - now() <= WARN_MS && <div className="w-full"><Bar endsAt={s.endsAt} total={WARN_MS} now={now} color={NIGHT.orange} /></div>}
+      </NightSky>
     )
   }
   return (
-    <div className="grid gap-4 p-5">
-      <div className="grid gap-1 text-center">
-        <div className="text-2xl font-bold" style={{ color: bowler?.color }}>{bowler?.name ?? 'Someone'} is up</div>
-        <div className="text-ink-2">{nextUp ? "You're next. Stretch something." : apart ? 'Watch the lane above.' : watch + '.'}</div>
+    <NightSky {...tag} className="gap-4 pb-6" data-bowl-wait={s.bowler}>
+      <Plate char={char} name={meP?.name ?? me} score={total} tint={tint} />
+      <div className="grid justify-items-center gap-2 px-5 text-center">
+        <div className="font-mono text-[12px] uppercase tracking-[0.16em]" style={{ color: NIGHT.text3 }}>Up now</div>
+        <div className="flex items-center gap-3">
+          <span className="rounded-full" style={{ boxShadow: `0 0 0 4px ${bowler.tint}, 0 0 18px ${bowler.tint}` }}><Portrait char={bowler.char} name={bowler.name} size={64} /></span>
+          <Neon size={38} glowColor={bowler.tint}>{bowler.name}</Neon>
+        </div>
+        <div className="font-party text-[20px]" style={{ color: nextUp ? NIGHT.yellow : NIGHT.text2 }}>{nextUp ? "You're next. Stretch something." : `${watch}.`}</div>
       </div>
-      {s.stage === 'aim' && s.endsAt - now() <= WARN_MS && (
-        <Countdown endsAt={s.endsAt} total={WARN_MS} now={now} />
+      {s.stage === 'aim' && s.endsAt - now() <= WARN_MS && <div className="px-5"><Bar endsAt={s.endsAt} total={WARN_MS} now={now} color={NIGHT.orange} /></div>}
+      <div className="px-3"><Scoreboard s={s} players={room.players} size="phone" only={[me]} /></div>
+      {char && (
+        <div className="relative mt-2 grid place-items-center">
+          <div className="absolute bottom-0 h-8 w-48 rounded-[50%]" style={{ background: `radial-gradient(closest-side, ${tint}88, transparent)` }} />
+          <CritterArt id={char} size={nextUp ? 170 : 150} mood={nextUp ? 'hop' : 'idle'} />
+          <div className="mt-1 font-party text-[16px]" style={{ color: NIGHT.text3 }}>{nextUp ? 'Warming up.' : 'Waiting. Holding a ball. Sweating a little.'}</div>
+        </div>
       )}
-      <MyRow s={s} me={me} players={room.players} />
-    </div>
+    </NightSky>
   )
 }

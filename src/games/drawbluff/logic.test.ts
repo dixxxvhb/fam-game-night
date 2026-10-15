@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, RoomPlayer } from '../../engine/types'
 import {
-  DRAW_MS, GRACE_MS, LIE_BEAT_MS, MAX_TITLE, PICK_MS, POINTS, TITLE_MS, TRUTH_BEAT_MS,
-  bot, entryNow, guessersOf, outcome, reduce, setup, shownScores, tick, tooReal, type DrawBluffState,
+  DRAW_MS, FINALE_MS, GRACE_MS, LIE_BEAT_MS, MAX_TITLE, PICK_MS, POINTS, TITLE_MS, TRUTH_BEAT_MS,
+  awards, bestLie, bot, entryNow, guessersOf, outcome, reduce, setup, shownScores, tick, tooReal, type DrawBluffState,
 } from './logic'
 import { BLUFF_PROMPTS, GENERIC_LIES } from './prompts'
 
@@ -199,6 +199,10 @@ describe('scoring', () => {
       if (d === 1) { s = act(s, g1, 'like'); s = act(s, g2, 'like'); liked = e }
       s = finishReveal(s)
     }
+    expect(s.phase).toBe('finale')
+    expect(outcome(s, ctx(0))).toBeNull()
+    expect(reduce(s, { playerId: '__host', type: 'next', payload: null }, ctx(s.endsAt - FINALE_MS + 100))).toBe(s)
+    s = reduce(s, { playerId: '__host', type: 'next', payload: null }, ctx(s.endsAt - FINALE_MS + 2000))
     expect(s.phase).toBe('done')
     // Everyone found everything: 2 x 1000 + 500 x 2 as artist = 3000 each, +200 likes for one artist.
     const out = outcome(s, ctx(0))!
@@ -303,6 +307,26 @@ describe('prompts', () => {
       }
       for (const h of house) expect(tooReal(h, prompt), `${h} vs ${prompt}`).toBe(false)
     }
+  })
+})
+
+describe('finale', () => {
+  it('names the best lie per drawing and the awards', () => {
+    let s = drawAll(setup(ctx(0), {}))
+    const e = entryNow(s)!
+    const [g1, g2] = guessersOf(s, e)
+    s = act(s, g1, 'title', { text: 'a sad snowman' })
+    s = act(s, g2, 'title', { text: 'a happy snowman' })
+    s = act(s, g1, 'pick', { id: `f:${g2}` })
+    s = act(s, g2, 'pick', { id: 'real' })
+    s = act(s, g1, 'like')
+    const done = s.entries[s.queue[0]]
+    expect(bestLie(done)?.o.text).toBe('a happy snowman')
+    expect(bestLie(done)?.fooled).toBe(1)
+    const a = awards(s)
+    expect(a.forger).toBe(g2)
+    expect(a.eye).toBe(g2)
+    expect(a.loved).toBe(e.artist)
   })
 })
 

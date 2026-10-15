@@ -1,0 +1,129 @@
+/* The Studio: the drawing games' own world (Sketch, Telephone, Draw Bluff).
+   A sketchbook on a desk: ruled cream paper, marker ink, masking tape, hard sticker shadows.
+   Draw Bluff hangs the same paper in a gallery (dark wall, gold frames, spotlights). */
+
+.st-page {
+  background-color: #fff8ea;
+  background-image:
+    linear-gradient(90deg, transparent 0 calc(var(--st-margin, 72px) - 2px), #f4a3a3 calc(var(--st-margin, 72px) - 2px) var(--st-margin, 72px), transparent var(--st-margin, 72px)),
+    repeating-linear-gradient(180deg, transparent 0 31px, #cfdcf3 31px 33px);
+  color: #1f1b2e;
+}
+.st-page-plain { background-color: #fff8ea; color: #1f1b2e; }
+.st-wall {
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 18%, rgba(255, 228, 170, 0.22), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 120px),
+    #3a1f2b;
+  color: #fff3dc;
+}
+.st-marker { font-family: "Permanent Marker", "Bungee", "Arial Black", sans-serif; letter-spacing: 0.01em; }
+.st-hand { font-family: "Caveat", "Atkinson Hyperlegible Next", system-ui, sans-serif; font-weight: 700; }
+
+.st-card { background: #fff; border: 3px solid #1f1b2e; border-radius: 14px; box-shadow: 5px 5px 0 #1f1b2e; }
+.st-card-sm { background: #fff; border: 2.5px solid #1f1b2e; border-radius: 12px; box-shadow: 3px 3px 0 #1f1b2e; }
+.st-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 56px; padding: 0 1.25rem; border-radius: 16px;
+  border: 3px solid #1f1b2e; box-shadow: 0 5px 0 #1f1b2e;
+  font-family: "Permanent Marker", "Bungee", sans-serif; font-size: 1.35rem; color: #1f1b2e;
+  transition: transform 90ms ease, box-shadow 90ms ease;
+}
+.st-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 #1f1b2e; }
+.st-btn:disabled { opacity: 0.45; }
+.st-input {
+  min-height: 60px; width: 100%; min-width: 0; padding: 0 1rem; border-radius: 14px;
+  border: 3px solid #1f1b2e; background: #fff; color: #1f1b2e; font-size: 1.25rem; outline: none;
+  box-shadow: inset 0 3px 0 rgba(31, 27, 46, 0.08);
+}
+.st-input:focus { border-color: #3b6fe0; box-shadow: 0 0 0 4px rgba(59, 111, 224, 0.25); }
+.st-input::placeholder { color: #8b8698; }
+
+.st-tape {
+  position: absolute; width: 74px; height: 24px; background: rgba(240, 222, 170, 0.82);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- motion (one focal motion per moment) ---------- */
+@keyframes st-stamp {
+  0% { transform: scale(2.6) rotate(var(--st-rot, -8deg)); opacity: 0; }
+  55% { transform: scale(0.92) rotate(var(--st-rot, -8deg)); opacity: 1; }
+  72% { transform: scale(1.06) rotate(var(--st-rot, -8deg)); }
+  100% { transform: scale(1) rotate(var(--st-rot, -8deg)); opacity: 1; }
+}
+.st-stamp { animation: st-stamp 520ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both; }
+
+@keyframes st-pop {
+  0% { transform: scale(0.4) rotate(var(--st-rot, 0deg)); opacity: 0; }
+  70% { transform: scale(1.08) rotate(var(--st-rot, 0deg)); opacity: 1; }
+  100% { transform: scale(1) rotate(var(--st-rot, 0deg)); opacity: 1; }
+}
+.st-pop { animation: st-pop 380ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both; }
+
+@keyframes st-drop {
+  0% { transform: translateY(-120%) rotate(calc(var(--st-rot, 0deg) - 10deg)); opacity: 0; }
+  60% { transform: translateY(6%) rotate(var(--st-rot, 0deg)); opacity: 1; }
+  100% { transform: translateY(0) rotate(var(--st-rot, 0deg)); opacity: 1; }
+}
+.st-drop { animation: st-drop 520ms cubic-bezier(0.2, 0.8, 0.3, 1.15) both; }
+
+@keyframes st-slide {
+  0% { transform: translateX(var(--st-from, 60px)); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+.st-slide { animation: st-slide 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+
+@keyframes st-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-9px) rotate(-1deg); }
+  40% { transform: translateX(8px) rotate(1deg); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(4px); }
+}
+.st-shake { animation: st-shake 420ms ease both; }
+
+@keyframes st-wiggle { 0%, 100% { transform: rotate(var(--st-rot, -2deg)); } 50% { transform: rotate(calc(var(--st-rot, -2deg) * -1)); } }
+.st-wiggle { animation: st-wiggle 1.6s ease-in-out infinite; }
+
+@keyframes st-float { 0%, 100% { transform: translateY(0) rotate(var(--st-rot, 0deg)); } 50% { transform: translateY(-6px) rotate(var(--st-rot, 0deg)); } }
+.st-float { animation: st-float 2.8s ease-in-out infinite; }
+
+@keyframes st-flip {
+  0% { transform: perspective(900px) rotateY(90deg); opacity: 0.2; }
+  60% { transform: perspective(900px) rotateY(-12deg); opacity: 1; }
+  100% { transform: perspective(900px) rotateY(0); opacity: 1; }
+}
+.st-flip { animation: st-flip 560ms cubic-bezier(0.2, 0.8, 0.3, 1.1) both; backface-visibility: hidden; }
+
+@keyframes st-draw { from { stroke-dashoffset: var(--st-len, 1200); } to { stroke-dashoffset: 0; } }
+.st-draw-line { stroke-dasharray: var(--st-len, 1200); animation: st-draw 700ms cubic-bezier(0.3, 0.7, 0.3, 1) both; }
+
+@keyframes st-dot { 0%, 60%, 100% { transform: translateY(0); opacity: 0.35; } 30% { transform: translateY(-7px); opacity: 1; } }
+.st-dot { animation: st-dot 1s ease-in-out infinite; }
+
+@keyframes st-confetti {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--dr)); opacity: 0; }
+}
+.st-confetti { position: absolute; animation: st-confetti var(--dur, 1100ms) cubic-bezier(0.15, 0.7, 0.3, 1) both; }
+
+@keyframes st-rise {
+  0% { transform: translateY(14px) scale(0.9); opacity: 0; }
+  20% { transform: translateY(0) scale(1.05); opacity: 1; }
+  80% { transform: translateY(-26px) scale(1); opacity: 1; }
+  100% { transform: translateY(-40px) scale(1); opacity: 0; }
+}
+.st-points { animation: st-rise 1600ms ease-out both; }
+
+@keyframes st-spot { 0%, 100% { opacity: 0.9; } 50% { opacity: 1; } }
+.st-spot { animation: st-spot 3s ease-in-out infinite; }
+
+@keyframes st-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 210, 63, 0.0), 6px 6px 0 #1f1b2e; }
+  50% { box-shadow: 0 0 0 10px rgba(255, 210, 63, 0.35), 6px 6px 0 #1f1b2e; }
+}
+.st-glow { animation: st-glow 1.4s ease-in-out infinite; }
+
+@keyframes st-tick { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+.st-tick { animation: st-tick 0.5s ease-in-out infinite; }
+

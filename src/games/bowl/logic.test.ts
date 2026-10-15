@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, RoomPlayer } from '../../engine/types'
-import { AIM_MS, bot, frameOrder, outcome, readThrow, reduce, setup, tick, totals, type BowlState } from './logic'
+import { AIM_MS, bot, frameOrder, outcome, PICK_DONE_MS, PICK_MS, PODIUM_MS, readThrow, reduce, setup as realSetup, tick, totals, type BowlState } from './logic'
 import { ALL_PINS, scoreCard } from './score'
 
 const players: RoomPlayer[] = [
@@ -11,6 +11,22 @@ const players: RoomPlayer[] = [
 let seed = 1
 const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646 }
 const ctxFor = (now: number, ps: RoomPlayer[] = players): GameCtx => ({ now, players: ps, mode: 'together', random })
+
+/**
+ * Setup, then the pick stage played out (everyone gets a critter at the bell), rebased so the
+ * first ball's clock starts at ctx.now like it did before there was a pick stage.
+ */
+function setup(ctx: GameCtx, opts: Record<string, string | number>): BowlState {
+  const s = realSetup(ctx, opts)
+  const t = tick(s, { ...ctx, now: s.endsAt })
+  return { ...t, stageStartedAt: ctx.now, endsAt: ctx.now + AIM_MS }
+}
+
+/** Past the podium to the end. */
+function toDone(s: BowlState, now: { t: number }, ps: RoomPlayer[] = players): BowlState {
+  expect(s.stage).toBe('podium')
+  return settle(s, now, ps)
+}
 
 /** Run the clock forward through tick until the stage changes (or a cap). */
 function settle(s: BowlState, now: { t: number }, ps: RoomPlayer[] = players): BowlState {
@@ -86,6 +102,7 @@ describe('setup and turns', () => {
     s = bowlExactP(s, [1, 2, 3], now, solo)
     expect(s.standing).toEqual([4, 5, 6, 7, 8, 9, 10])
     s = bowlExactP(s, [4, 5, 6, 7, 8, 9, 10], now, solo)
+    s = toDone(s, now, solo)
     expect(s.stage).toBe('done')
     expect(s.rolls.dixxx.slice(-3)).toEqual([10, 3, 7])
     expect(totals(s).dixxx).toBe(20)
@@ -99,6 +116,7 @@ describe('setup and turns', () => {
     for (let i = 0; i < 9; i++) s = bowlExactP(s, [], now, solo)
     expect(s.frame).toBe(4)
     s = bowlExactP(s, [1, 2, 3, 4], now, solo)
+    s = toDone(s, now, solo)
     expect(s.stage).toBe('done')
     expect(s.rolls.johnnyboy).toHaveLength(10)
   })
@@ -153,7 +171,7 @@ describe('a full game', () => {
     const now = { t: 10_000 }
     let s = setup(ctxFor(now.t), { frames: 5 })
     let throws = 0
-    for (let i = 0; i < 200 && s.stage !== 'done'; i++) {
+    for (let i = 0; i < 200 && s.stage !== 'podium'; i++) {
       expect(s.stage).toBe('aim')
       const th = { x: 0.5 + (i % 3) * 0.05, aim: 0.12, speed: 0.4 + (i % 5) * 0.1, curve: -0.5 + (i % 4) * 0.1 }
       s = reduce(s, { playerId: s.bowler, type: 'throw', payload: th }, ctxFor(now.t))
@@ -161,6 +179,8 @@ describe('a full game', () => {
       s = settle(s, now)
       s = settle(s, now)
     }
+    expect(outcome(s, ctxFor(now.t))).toBeNull()
+    s = toDone(s, now)
     expect(s.stage).toBe('done')
     expect(throws).toBeGreaterThanOrEqual(15)
     expect(throws).toBeLessThanOrEqual(33)
@@ -177,7 +197,8 @@ describe('a full game', () => {
     const now = { t: 1000 }
     const two = players.slice(0, 2)
     let s = setup(ctxFor(now.t, two), { frames: 5 })
-    for (let i = 0; i < 20 && s.stage !== 'done'; i++) s = bowlExactP(s, [], now, two)
+    for (let i = 0; i < 20 && s.stage !== 'podium'; i++) s = bowlExactP(s, [], now, two)
+    s = toDone(s, now, two)
     expect(s.stage).toBe('done')
     const out = outcome(s, ctxFor(now.t, two))!
     expect(out.placements.map((p) => p.place)).toEqual([1, 1])
@@ -190,9 +211,71 @@ describe('a full game', () => {
     let s = setup(ctxFor(now.t, solo), { frames: 5 })
     for (let i = 0; i < 3; i++) s = bowlExactP(s, ALL_PINS, now, solo)
     expect(s.moments.at(-1)?.text).toBe('Torii, turkey')
-    while (s.stage !== 'done') s = bowlExactP(s, [], now, solo)
+    while (s.stage !== 'podium') s = bowlExactP(s, [], now, solo)
+    s = toDone(s, now, solo)
     const out = outcome(s, ctxFor(now.t, solo))!
     expect(out.highlights?.[0]).toMatchObject({ playerId: 'torii', kind: 'moment', content: { text: 'Torii, turkey' } })
+  })
+})
+
+describe('pick', () => {
+  it('starts on the pick screen, critters are unique, and everyone picked shortens the clock', () => {
+    const s0 = realSetup(ctxFor(0), { frames: 5 })
+    expect(s0.stage).toBe('pick')
+    expect(Object.values(s0.chars).every((c) => c === null)).toBe(true)
+    const [a, b, c] = s0.order
+    let s = reduce(s0, { playerId: a, type: 'pick', payload: { char: 'chomp' } }, ctxFor(100))
+    expect(s.chars[a]).toBe('chomp')
+    expect(reduce(s, { playerId: b, type: 'pick', payload: { char: 'chomp' } }, ctxFor(200))).toBe(s)
+    expect(reduce(s, { playerId: a, type: 'pick', payload: { char: 'pete' } }, ctxFor(200))).toBe(s)
+    expect(reduce(s, { playerId: b, type: 'pick', payload: { char: 'malware' } }, ctxFor(200))).toBe(s)
+    expect(reduce(s, { playerId: 'nobody', type: 'pick', payload: { char: 'pete' } }, ctxFor(200))).toBe(s)
+    expect(reduce(s, { playerId: b, type: 'throw', payload: { x: 0, aim: 0, speed: 0.5, curve: 0 } }, ctxFor(200))).toBe(s)
+    s = reduce(s, { playerId: b, type: 'pick', payload: { char: 'pete' } }, ctxFor(300))
+    expect(s.endsAt).toBe(PICK_MS)
+    s = reduce(s, { playerId: c, type: 'pick', payload: { char: 'ibby' } }, ctxFor(400))
+    expect(s.endsAt).toBe(400 + PICK_DONE_MS)
+    s = tick(s, ctxFor(400 + PICK_DONE_MS))
+    expect(s.stage).toBe('aim')
+    expect(s.endsAt).toBe(400 + PICK_DONE_MS + AIM_MS)
+  })
+
+  it('fills in a unique critter for anyone who did not pick', () => {
+    let s = realSetup(ctxFor(0), {})
+    s = reduce(s, { playerId: s.order[0], type: 'pick', payload: { char: 'shelly' } }, ctxFor(10))
+    s = tick(s, ctxFor(PICK_MS))
+    expect(s.stage).toBe('aim')
+    const chars = s.order.map((id) => s.chars[id])
+    expect(chars[0]).toBe('shelly')
+    expect(chars.every(Boolean)).toBe(true)
+    expect(new Set(chars).size).toBe(chars.length)
+  })
+
+  it('bots take a free critter after a beat', () => {
+    const ps: RoomPlayer[] = [players[0], { id: 'bot-gator', name: 'Gator', color: '#2DD4BF', guest: true, connected: true, bot: true }]
+    const c = (now: number) => ({ now, players: ps, mode: 'together' as const, random: () => 0.1 })
+    let s = realSetup(c(0), {})
+    s = reduce(s, { playerId: 'dixxx', type: 'pick', payload: { char: 'chomp' } }, c(100))
+    expect(bot(s, 'bot-gator', c(500))).toBeNull()
+    const m = bot(s, 'bot-gator', c(2000))
+    expect(m?.type).toBe('pick')
+    expect((m?.payload as { char: string }).char).not.toBe('chomp')
+    s = reduce(s, { playerId: 'bot-gator', type: m!.type, payload: m!.payload }, c(2000))
+    expect(s.chars['bot-gator']).toBeTruthy()
+    expect(bot(s, 'bot-gator', c(3000))).toBeNull()
+  })
+
+  it('holds the podium before the game reports', () => {
+    const now = { t: 1000 }
+    const solo = [players[0]]
+    let s = setup(ctxFor(now.t, solo), { frames: 5 })
+    while (s.stage !== 'podium') s = bowlExactP(s, [1], now, solo)
+    expect(outcome(s, ctxFor(now.t, solo))).toBeNull()
+    expect(s.endsAt - now.t).toBeLessThanOrEqual(PODIUM_MS)
+    s = tick(s, ctxFor(s.endsAt, solo))
+    expect(s.stage).toBe('done')
+    const out = outcome(s, ctxFor(now.t, solo))!
+    expect(out.details).toMatchObject({ chars: { dixxx: expect.any(String) } })
   })
 })
 

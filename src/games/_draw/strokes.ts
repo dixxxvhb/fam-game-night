@@ -103,6 +103,8 @@ export function cleanStroke(x: unknown, budget: number): Stroke | null {
   const room = Math.floor(budget) - STROKE_COST
   if (room < 1) return null
   const p = s.p.slice(0, room * 2).map((v) => Math.max(0, Math.min(1000, Math.round(Number(v) || 0))))
+  // A paint-bucket fill is one point.
+  if (s.f) return { c: s.c, w: Math.round(w), p: p.slice(0, 2), f: 1 }
   return { c: s.c, w: Math.round(w), p }
 }
 
