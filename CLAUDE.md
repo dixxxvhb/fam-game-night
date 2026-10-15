@@ -10,7 +10,7 @@ Dixon, Johnnyboy (John) and Torii's game night. The TV (or any browser) is the c
 React 19 + TS + Vite 7 + Tailwind v4 + react-router (HashRouter) on GitHub Pages (`base: '/fam-game-night/'`). Realtime + saving via Supabase, **inside figgg's project** (`swjqlfcqvcrnydpyjyog`) in its own `gamenight` schema, reached only through `public.gn_*` security-definer functions (`supabase/gamenight.sql`). Never add game-night tables to figgg's `public` schema (figgg's export/wipe enumerates it).
 
 ## Games (18, all live)
-Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Party Park (id `board`, Mario Party, 15 minigames), Turnpike (id `kart`, Mario Kart), Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together only), Gator Lanes (id `bowl`, Wii Bowling), Kaboom (id `arena`, Bomberman, together and apart). Every game has a `bot()` policy.
+Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Party Park (id `board`, Mario Party, 15 minigames), Turnpike (id `kart`, Mario Kart), Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together and apart), Gator Lanes (id `bowl`, Wii Bowling), Kaboom (id `arena`, Bomberman, together and apart). Every game has a `bot()` policy.
 
 ## Platform features
 - Bots (Gator, Pigeon, Toaster, Nana, Roomba) can sit in any lobby; any game with a bot is practice and never saved. "Play solo" = one device hosts with two bots.
@@ -65,6 +65,11 @@ Kart rebuilt as a real kart racer in the Party Park universe: the eight critters
 Both joined the Party Park universe: critter pick first, Party Park kit and existing park music, a podium stage before the outcome.
 - Gator Lanes: the park's neon bowling alley. Critter bowler at the foul line, chase cam then pin cam (`timeline.ts` holds the shared roll clock), Mingo lines per result, overhead monitor scoreboard. Dev-only frame freezer: `src/games/bowl/dev/sandbox.html?scene=strike|spare|split|gutter|turkey|pick|podium&view=tv|compact|phone`.
 - Kaboom: four arenas rotate by round (`themes.ts`), firecracker bombs and firework blasts. Apart mode: the host phone runs the sim (`useArenaSim.ts`) and streams `arena:snap` (`snap.ts`, ~15 Hz); a new host after handoff resumes from the last snapshot.
+
+## Quiz games, rebuilt 2026-10-15
+Survive the Quiz, Trivia Night, Guess the Percent, Categories and Forehead each got their own world (brief: `docs/plans/2026-10-15-quiz-games.md`): the Grand Palmetto haunted hotel with the Night Manager (`survive/hotel/`), Trivia Night LIVE with host Chip Doubloon (`trivia/host.tsx`, `look.tsx`, `show.tsx`), Operation Percent spy agency (`percent/look.tsx`, `agents.tsx`, `Meter.tsx`), the Letter Machine (`categories/look.tsx`, `machine.ts`) and Forehead at the Club (`forehead/club.tsx`, apart mode added).
+- Music: `src/games/_quiz/music.ts` is a small synth engine; each game keeps its tracks and stingers as data in its own `music.ts` (`useQuizMusic`, `quizMusic.stinger`). It follows the shared music switch. Extra Google Fonts load per game via `_quiz/fonts.ts` (`useGameFonts`), not index.html.
+- Room QA where Supabase is unreachable (cloud sandboxes): add `NODE_OPTIONS="--import ./scripts/qa-local-realtime.mjs"` to any qa-room/smoke run (an in-process stand-in for Realtime; set `QA_PROXY=1` to fetch web fonts through HTTPS_PROXY). The dev server still needs VITE_SUPABASE_* set (any values).
 
 ## Deploy
 Push to `main` → GitHub Actions → Pages (secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` = figgg's URL + publishable key). Verify with `gh run list --limit 1`.
