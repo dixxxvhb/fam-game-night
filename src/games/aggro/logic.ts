@@ -49,6 +49,15 @@ export interface LastMove {
   at: number
   hit: number
   hitM: number
+  /** What kind of move it was (drives the board's moment: pop, zap, swirl). */
+  kind: MoveKind
+  to: number
+  /** Star hops at the front of the path (kind 'stars'). */
+  hops: number
+  /** This move got the last marble home. */
+  won: boolean
+  /** The roll was a 6: same player goes again. */
+  extra: boolean
 }
 
 export interface LogEvent {
@@ -114,8 +123,12 @@ export const AUTO_MS = 1_400
 export const NOMOVE_MS = 1_800
 export const HOP_MS = 230
 export const SETTLE_MS = 450
-/** Extra time after a capture so the Aggro lands. */
-export const HIT_MS = 1_100
+/** Extra time after a capture so the Aggro lands (knock, banner, flinch). */
+export const HIT_MS = 1_900
+/** The die tumbles this long after a roll; a move never starts hopping before it settles. */
+export const ROLL_SHOW_MS = 1_000
+/** The winning move holds the board this long (the winner scene) before the game ends. */
+export const WIN_MS = 6_500
 const LOG_MAX = 12
 const MOMENTS_MAX = 3
 const NEAR_HOME = 10
@@ -296,7 +309,9 @@ function applyMove(s: AggroState, i: number, ctx: GameCtx): AggroState {
   marbles[seat][mv.m] = mv.to
   const won = marbles[seat].every(isHome)
   const ev: LogEvent = { seq, seat, roll: s.roll, kind: mv.kind, m: mv.m, from: mv.from, to: mv.to, hit: mv.hit, extra: s.extra && !won, won }
-  const dur = mv.path.length * HOP_MS + SETTLE_MS + (mv.hit >= 0 ? HIT_MS : 0)
+  // Hops start once the die has settled, so a quick tap never moves a marble under a tumbling die.
+  const at = Math.max(ctx.now, s.rollAt + ROLL_SHOW_MS)
+  const dur = mv.path.length * HOP_MS + SETTLE_MS + (mv.hit >= 0 ? HIT_MS : 0) + (won ? WIN_MS : 0)
   return {
     ...s,
     marbles,
@@ -307,10 +322,13 @@ function applyMove(s: AggroState, i: number, ctx: GameCtx): AggroState {
     moves: [],
     auto: false,
     winner: won ? seat : -1,
-    last: { seq, seat, m: mv.m, from: mv.from, path: mv.path, at: ctx.now, hit: mv.hit, hitM: mv.hitM },
+    last: {
+      seq, seat, m: mv.m, from: mv.from, path: mv.path, at, hit: mv.hit, hitM: mv.hitM,
+      kind: mv.kind, to: mv.to, hops: mv.hops, won, extra: s.extra && !won,
+    },
     log: [...s.log, ev].slice(-LOG_MAX),
-    endsAt: ctx.now + dur,
-    phaseTotal: dur,
+    endsAt: at + dur,
+    phaseTotal: at + dur - ctx.now,
   }
 }
 

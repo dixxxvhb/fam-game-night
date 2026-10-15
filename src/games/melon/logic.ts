@@ -30,7 +30,8 @@ export interface MelonPlayer {
 
 export interface MelonState {
   mode: MelonMode
-  stage: 'ready' | 'play' | 'done'
+  /** ready (3, 2, 1) -> play -> end (the jars line up, scores count, a winner is crowned) -> done. */
+  stage: 'ready' | 'play' | 'end' | 'done'
   startsAt: number
   endsAt: number
   /** Play length in ms (for the clock bar). */
@@ -42,9 +43,13 @@ export interface MelonState {
   nextId: number
   lastHit: { from: string; to: string; n: number; at: number } | null
   endedBy: 'clock' | 'out' | null
+  /** Host time the end scene finishes and the game is done (set when play stops). */
+  finishAt?: number
 }
 
 export const READY_MS = 3000
+/** The end scene on the TV: time's up, scores count up, the winner's jar gets the crown. */
+export const END_MS = 7500
 export const ATTACK_CAP_MS = 5 * 60_000
 export const RACE_LENGTHS = [2, 3, 5]
 export const MAX_SCORE = 9_999_999
@@ -149,13 +154,18 @@ function aliveCount(s: MelonState): number {
   return s.order.filter((id) => s.players[id]?.alive).length
 }
 
+function finish(s: MelonState, ctx: GameCtx, endedBy: 'clock' | 'out'): MelonState {
+  return { ...s, stage: 'end', endedBy, finishAt: ctx.now + END_MS }
+}
+
 export function tick(s: MelonState, ctx: GameCtx): MelonState {
   if (s.stage === 'done') return s
   if (s.stage === 'ready') return ctx.now >= s.startsAt ? { ...s, stage: 'play' } : s
-  if (ctx.now >= s.endsAt) return { ...s, stage: 'done', endedBy: 'clock' }
+  if (s.stage === 'end') return ctx.now >= (s.finishAt ?? 0) ? { ...s, stage: 'done' } : s
+  if (ctx.now >= s.endsAt) return finish(s, ctx, 'clock')
   const alive = aliveCount(s)
-  if (s.mode === 'race' && alive === 0) return { ...s, stage: 'done', endedBy: 'out' }
-  if (s.mode === 'attack' && (s.order.length > 1 ? alive <= 1 : alive === 0)) return { ...s, stage: 'done', endedBy: 'out' }
+  if (s.mode === 'race' && alive === 0) return finish(s, ctx, 'out')
+  if (s.mode === 'attack' && (s.order.length > 1 ? alive <= 1 : alive === 0)) return finish(s, ctx, 'out')
   return s
 }
 

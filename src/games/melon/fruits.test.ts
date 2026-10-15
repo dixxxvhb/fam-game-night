@@ -78,6 +78,14 @@ describe('jar snapshot', () => {
     expect(snap).toEqual({ s: 42, f: [{ t: 3, x: 100, y: 701 }, { t: 11, x: 300, y: 600 }] })
     expect(decodeSnap(JSON.parse(JSON.stringify(snap)))).toEqual(snap)
   })
+  it('carries danger as 0..100 only when there is some', () => {
+    expect(encodeSnap(0, [], 0)).toEqual({ s: 0, f: [] })
+    const snap = encodeSnap(5, [], 0.426)
+    expect(snap.d).toBe(43)
+    expect(decodeSnap(JSON.parse(JSON.stringify(snap)))).toEqual(snap)
+    expect(decodeSnap({ s: 1, f: [], d: 900 })!.d).toBe(100)
+    expect(decodeSnap({ s: 1, f: [], d: 'x' })).toEqual({ s: 1, f: [] })
+  })
   it('caps the fruit count both ways', () => {
     const many = Array.from({ length: 300 }, (_, i) => ({ tier: 1, x: i, y: 500 }))
     expect(encodeSnap(0, many).f).toHaveLength(MAX_SNAP_FRUIT)

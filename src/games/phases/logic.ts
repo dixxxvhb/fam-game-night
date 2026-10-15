@@ -33,6 +33,32 @@ export interface RoundRow {
 
 export interface RoundSummary { round: number; wentOut: string; rows: RoundRow[]; final: boolean }
 
+export type MoveKind = 'deal' | 'draw' | 'lay' | 'hit' | 'discard' | 'skip' | 'out'
+
+/**
+ * The latest thing that happened at the table, for the screens to animate. `seq` goes up by
+ * one on every move, so a screen can tell a new moment from one it already showed.
+ *  - deal: `who` dealt (round in state.round)
+ *  - draw: `who` drew `from` the deck or discard (`card` only when it came off the discard)
+ *  - lay: `who` laid down `phase` (an index into PHASES) as the groups in `groups`
+ *  - hit: `who` put `card` on group `group`
+ *  - discard / skip: `who` threw `card`; a skip names its `target`
+ *  - out: `who` went out; `via` says how, and the fields of that move stay on it
+ */
+export interface Move {
+  seq: number
+  k: MoveKind
+  who: string
+  at: number
+  card?: number
+  from?: 'deck' | 'discard'
+  target?: string
+  groups?: string[]
+  group?: string
+  phase?: number
+  via?: 'lay' | 'hit' | 'discard' | 'skip'
+}
+
 export interface PhasesState {
   stage: 'play' | 'roundEnd' | 'done'
   length: string
@@ -69,9 +95,13 @@ export interface PhasesState {
   endsAt: number
   moments: { playerId: string; text: string }[]
   groupSeq: number
+  /** The latest move, for the screens' animations (see Move). */
+  last: Move | null
 }
 
 export const ROUND_END_MS = 9_000
+/** The last round's summary holds longer: the tally, then the winner's scene. */
+export const FINAL_END_MS = 15_000
 export const AWAY_MS = 45_000
 const LOG_MAX = 14
 
@@ -79,6 +109,11 @@ const LOG_MAX = 14
 
 function nameOf(ctx: GameCtx, id: string): string {
   return ctx.players.find((p) => p.id === id)?.name ?? id
+}
+
+function mark(s: PhasesState, m: Omit<Move, 'seq' | 'at'>, now: number) {
+  const clean = Object.fromEntries(Object.entries(m).filter(([, v]) => v !== undefined)) as Omit<Move, 'seq' | 'at'>
+  s.last = { ...clean, seq: (s.last?.seq ?? 0) + 1, at: now }
 }
 
 function pushLog(s: PhasesState, t: string, who: string, now: number) {
@@ -235,6 +270,7 @@ function deal(prev: PhasesState, ctx: GameCtx, dealer: number): PhasesState {
   s.stage = 'play'
   s.endsAt = 0
   pushLog(s, `Round ${s.round}. ${nameOf(ctx, s.order[dealer])} deals, ${nameOf(ctx, s.current)} starts.`, s.current, ctx.now)
+  mark(s, { k: 'deal', who: s.order[dealer] }, ctx.now)
   return s
 }
 
@@ -269,6 +305,7 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Phas
     endsAt: 0,
     moments: [],
     groupSeq: 0,
+    last: null,
   }
   return deal(base, ctx, dealer)
 }
@@ -287,6 +324,7 @@ function draw(s: PhasesState, from: unknown, ctx: GameCtx): PhasesState {
     n.drawn = top
     n.turnStage = 'play'
     pushLog(n, `${nameOf(ctx, who)} took ${cardPhrase(top)} from the discard`, who, ctx.now)
+    mark(n, { k: 'draw', who, from: 'discard', card: top }, ctx.now)
     return n
   }
   if (from !== 'deck') return s
@@ -307,6 +345,7 @@ function draw(s: PhasesState, from: unknown, ctx: GameCtx): PhasesState {
   n.hands[who].push(got)
   n.drawn = got
   pushLog(n, `${nameOf(ctx, who)} drew from the deck`, who, ctx.now)
+  mark(n, { k: 'draw', who, from: 'deck' }, ctx.now)
   return n
 }
 
@@ -337,6 +376,7 @@ function lay(s: PhasesState, groups: unknown, ctx: GameCtx): PhasesState {
   n.down[who] = true
   const p = phaseOf(s, who)!
   pushLog(n, `${nameOf(ctx, who)} laid down Phase ${p + 1}`, who, ctx.now)
+  mark(n, { k: 'lay', who, phase: p, groups: made.map((g) => g.id) }, ctx.now)
   if (!n.hands[who].length) return endRound(n, who, ctx)
   return n
 }
@@ -360,6 +400,7 @@ function hit(s: PhasesState, payload: Record<string, unknown>, ctx: GameCtx): Ph
   n.hands[who] = n.hands[who].filter((x) => x !== id)
   const whose = g.owner === who ? 'their own' : `${nameOf(ctx, g.owner)}'s`
   pushLog(n, `${nameOf(ctx, who)} put ${cardPhrase(id)} on ${whose} ${groupLabel(g)}`, who, ctx.now)
+  mark(n, { k: 'hit', who, card: id, group: g.id }, ctx.now)
   if (!n.hands[who].length) return endRound(n, who, ctx)
   return n
 }
@@ -406,11 +447,13 @@ function discard(s: PhasesState, payload: Record<string, unknown>, ctx: GameCtx)
     n.skips[target] = (n.skips[target] ?? 0) + 1
     n.skipped[target] = (n.skipped[target] ?? 0) + 1
     pushLog(n, `${nameOf(ctx, who)} skipped ${nameOf(ctx, target)}`, who, ctx.now)
+    mark(n, { k: 'skip', who, card: id, target }, ctx.now)
     if (n.skipped[target] === 3 && n.moments.length < 5) {
       n.moments = [...n.moments, { playerId: target, text: `${nameOf(ctx, target)} got skipped 3 times in round ${n.round}` }]
     }
   } else {
     pushLog(n, `${nameOf(ctx, who)} discarded ${isSkip(id) || isWild(id) ? cardPhrase(id) : `a ${cardName(id)}`}`, who, ctx.now)
+    mark(n, { k: 'discard', who, card: id }, ctx.now)
   }
   if (!n.hands[who].length) return endRound(n, who, ctx)
   advance(n, ctx)
@@ -429,10 +472,13 @@ function endRound(n: PhasesState, out: string, ctx: GameCtx): PhasesState {
   const final = n.order.some((id) => n.progress[id] >= n.list.length)
   n.summary = { round: n.round, wentOut: out, rows, final }
   n.stage = 'roundEnd'
-  n.endsAt = ctx.now + ROUND_END_MS
+  n.endsAt = ctx.now + (final ? FINAL_END_MS : ROUND_END_MS)
   n.drawn = null
   n.awaySince = null
   pushLog(n, `${nameOf(ctx, out)} went out`, out, ctx.now)
+  const prev = n.last
+  const via = prev && prev.who === out && (prev.k === 'lay' || prev.k === 'hit' || prev.k === 'discard' || prev.k === 'skip') ? prev.k : undefined
+  mark(n, { ...(via && prev ? { card: prev.card, group: prev.group, groups: prev.groups, phase: prev.phase, target: prev.target } : {}), k: 'out', who: out, ...(via ? { via } : {}) }, ctx.now)
   return n
 }
 

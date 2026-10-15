@@ -173,6 +173,13 @@ export function skipTarget(s: PhasesState, me: string): string | null {
   return [...others].sort((a, b) => lead(b) - lead(a))[0]
 }
 
+/** How long the screens spend on a deal: round 1 opens with the rules card first. */
+export const INTRO_MS = 5_500
+export const DEAL_MS = 2_000
+export function dealHold(round: number): number {
+  return round === 1 ? INTRO_MS + DEAL_MS : DEAL_MS
+}
+
 /** True once `min` ms have passed: a small chance per call, certain by `max`. */
 function ready(elapsed: number, min: number, max: number, random: () => number, chance: number): boolean {
   if (elapsed < min) return false
@@ -190,6 +197,8 @@ export function bot(s: PhasesState, id: string, ctx: GameCtx): BotMove | null {
   if (s.stage !== 'play' || s.current !== id) return null
   const hand = s.hands[id]
   if (!hand) return null
+  // Let the table finish dealing (and, in round 1, show the rules card) before the first move.
+  if (s.last?.k === 'deal' && ctx.now < s.last.at + dealHold(s.round)) return null
   const since = ctx.now - (s.log.at(-1)?.at ?? 0)
 
   if (s.turnStage === 'draw') {

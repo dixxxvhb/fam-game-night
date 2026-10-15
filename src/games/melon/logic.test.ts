@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, RoomPlayer } from '../../engine/types'
-import { ATTACK_CAP_MS, MAX_INCOMING, outcome, pickTarget, reduce, READY_MS, setup, tick, type MelonState } from './logic'
+import { ATTACK_CAP_MS, END_MS, MAX_INCOMING, outcome, pickTarget, reduce, READY_MS, setup, tick, type MelonState } from './logic'
 
 const players: RoomPlayer[] = [
   { id: 'dixxx', name: 'Dixxx', color: '#3CCB72', guest: false, connected: true },
@@ -14,6 +14,15 @@ const act = (s: MelonState, playerId: string, type: string, payload: unknown, no
   reduce(s, { playerId, type, payload }, ctx(now, ps))
 
 const T0 = 1_000_000
+
+/** Play stops: the end scene runs END_MS, then the game is done. */
+function ended(s: MelonState, now: number, ps = players): MelonState {
+  const e = tick(s, ctx(now, ps))
+  expect(e.stage).toBe('end')
+  expect(outcome(e, ctx(now, ps))).toBeNull()
+  expect(tick(e, ctx(now + END_MS - 1, ps)).stage).toBe('end')
+  return tick(e, ctx(now + END_MS, ps))
+}
 
 function started(opts: Record<string, string | number>, ps = players): MelonState {
   const s = setup(ctx(T0, ps), opts)
@@ -168,7 +177,7 @@ describe('race to the end', () => {
     s = tick(s, ctx(now))
     expect(s.stage).toBe('play')
     expect(outcome(s, ctx(now))).toBeNull()
-    s = tick(s, ctx(T0 + READY_MS + 120_000))
+    s = ended(s, T0 + READY_MS + 120_000)
     expect(s.stage).toBe('done')
     expect(s.endedBy).toBe('clock')
     const out = outcome(s, ctx(now))!
@@ -186,7 +195,7 @@ describe('race to the end', () => {
   it('ends early when every jar has topped out', () => {
     let s = started({})
     for (const p of players) s = act(s, p.id, 'over', {}, T0 + 10_000)
-    s = tick(s, ctx(T0 + 10_200))
+    s = ended(s, T0 + 10_200)
     expect(s.stage).toBe('done')
     expect(s.endedBy).toBe('out')
     const out = outcome(s, ctx(T0 + 10_200))!
@@ -199,7 +208,7 @@ describe('race to the end', () => {
     s = act(s, 'dixxx', 'score', { score: 40 }, T0 + 5000, solo)
     expect(tick(s, ctx(T0 + 6000, solo)).stage).toBe('play')
     s = act(s, 'dixxx', 'over', {}, T0 + 7000, solo)
-    s = tick(s, ctx(T0 + 7200, solo))
+    s = ended(s, T0 + 7200, solo)
     expect(outcome(s, ctx(T0 + 7200, solo))!.placements).toEqual([{ playerId: 'dixxx', place: 1, score: 40 }])
   })
 })
@@ -214,7 +223,7 @@ describe('attack to the end', () => {
     s = tick(s, ctx(T0 + 20_100))
     expect(s.stage).toBe('play')
     s = act(s, 'torii', 'over', {}, T0 + 30_000)
-    s = tick(s, ctx(T0 + 30_100))
+    s = ended(s, T0 + 30_100)
     expect(s.stage).toBe('done')
     const out = outcome(s, ctx(T0 + 30_100))!
     expect(out.placements).toEqual([
@@ -233,7 +242,7 @@ describe('attack to the end', () => {
     s = act(s, 'johnnyboy', 'score', { score: 800 }, T0 + 10_000)
     s = act(s, 'torii', 'score', { score: 2000 }, T0 + 10_000)
     s = act(s, 'torii', 'over', {}, T0 + 60_000)
-    s = tick(s, ctx(T0 + READY_MS + ATTACK_CAP_MS))
+    s = ended(s, T0 + READY_MS + ATTACK_CAP_MS)
     expect(s.stage).toBe('done')
     expect(s.endedBy).toBe('clock')
     const out = outcome(s, ctx(T0 + READY_MS + ATTACK_CAP_MS))!
@@ -245,7 +254,7 @@ describe('attack to the end', () => {
     s = act(s, 'dixxx', 'score', { score: 100 }, T0 + 10_000)
     s = act(s, 'torii', 'score', { score: 100 }, T0 + 10_000)
     s = act(s, 'johnnyboy', 'over', {}, T0 + 20_000)
-    s = tick(s, ctx(T0 + READY_MS + ATTACK_CAP_MS))
+    s = ended(s, T0 + READY_MS + ATTACK_CAP_MS)
     const out = outcome(s, ctx(T0 + READY_MS + ATTACK_CAP_MS))!
     expect(out.placements.map((p) => [p.playerId, p.place])).toEqual([['dixxx', 1], ['torii', 1], ['johnnyboy', 3]])
   })
@@ -254,6 +263,6 @@ describe('attack to the end', () => {
     let s = started({ mode: 'attack' }, solo)
     expect(tick(s, ctx(T0 + 10_000, solo)).stage).toBe('play')
     s = act(s, 'torii', 'over', {}, T0 + 11_000, solo)
-    expect(tick(s, ctx(T0 + 11_200, solo)).stage).toBe('done')
+    expect(ended(s, T0 + 11_200, solo).stage).toBe('done')
   })
 })
