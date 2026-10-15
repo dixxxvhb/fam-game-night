@@ -246,7 +246,7 @@ function TopBar({ s, now, t }: { s: LieState; now: () => number; t: LieTheme }) 
 
 // ---------------- the players ----------------
 
-function Contestants({ s, room, t, now }: { s: LieState; room: RoomView; t: LieTheme; now: number }) {
+function Contestants({ s, room, now }: { s: LieState; room: RoomView; t: LieTheme; now: number }) {
   const ids = room.gamePlayers
   const many = ids.length > 4
   const shown = liveScores(s, now)

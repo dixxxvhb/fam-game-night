@@ -62,3 +62,31 @@ export function promptFont(len: number, compactGrid: boolean): string {
   const base = len <= 40 ? 3 : len <= 62 ? 2.6 : 2.25
   return `${compactGrid ? base * 0.85 : base}rem`
 }
+
+/** Scores as they stood when this round's first reveal started (for the climbing leaderboard). */
+export function roundStart(s: QuipState): { scores: Record<string, number>; house: number } {
+  const first = roundIdx(s, s.round).map((i) => s.prompts[i].result).find((r) => r)
+  return first ? { scores: first.before, house: first.houseBefore } : { scores: s.scores, house: s.houseScore }
+}
+
+export interface Best { by: string; text: string; votes: number; prompt: string }
+
+/** The best real answer of the night: most votes, no safety quips, no House. */
+export function bestAnswer(s: QuipState): Best | null {
+  let best: (Best & { delta: number }) | null = null
+  for (const p of s.prompts) {
+    for (const row of p.result?.rows ?? []) {
+      if (row.by === HOUSE || row.text === null || row.safety || row.votes < 1) continue
+      if (!best || row.votes > best.votes || (row.votes === best.votes && row.delta > best.delta)) {
+        best = { by: row.by, text: row.text, votes: row.votes, prompt: p.text, delta: row.delta }
+      }
+    }
+  }
+  return best ? { by: best.by, text: best.text, votes: best.votes, prompt: best.prompt } : null
+}
+
+/** Players (and the House) by score, highest first; the House sorts below a tie. */
+export function standings(scores: Record<string, number>, house: number, players: string[]): { id: string; score: number }[] {
+  return [...players.map((id) => ({ id, score: scores[id] ?? 0 })), { id: HOUSE, score: house }]
+    .sort((a, b) => b.score - a.score || (a.id === HOUSE ? 1 : b.id === HOUSE ? -1 : 0))
+}

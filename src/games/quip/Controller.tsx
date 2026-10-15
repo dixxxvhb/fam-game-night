@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import type { ControllerProps, RoomView } from '../../engine/types'
 import { useTicker } from '../../engine/context'
-import { Btn, cx, Label } from '../../ui/kit'
-import { Countdown } from '../../ui/Countdown'
-import { HOUSE, LETTERS, MAX_ANSWER, revealClock, roundIdx, votesPer, type QuipState } from './logic'
-import { listNames, nameOf, roundBlurb, roundTitle, stillAnswering, stillVoting } from './shared'
+import { cx } from '../../ui/kit'
+import { BRICK_BG, CLUB, ClubButton, Neon, NeonClock, NeonHouse, Stamp, useClubFonts } from './club'
+import { HOUSE, LETTERS, MAX_ANSWER, headlinerUp, revealClock, roundIdx, votesPer, type QuipState } from './logic'
+import { listNames, nameOf, roundBlurb, roundTitle, standings, stillAnswering, stillVoting } from './shared'
 
 type Send = ControllerProps<QuipState>['send']
 
@@ -16,6 +16,24 @@ function ordinal(n: number): string {
 function waitingLine(room: RoomView, ids: string[], me: string, done: string): string {
   const others = ids.filter((id) => id !== me)
   return others.length ? `Waiting on ${listNames(others.map((id) => nameOf(room, id)))}.` : done
+}
+
+const fmt = (n: number) => n.toLocaleString('en-US')
+/** In apart mode the controller sits under the compact stage: paint the room on down past the content. */
+const ROOM_FILL = Array.from({ length: 8 }, (_, i) => `0 ${(i + 1) * 150}px 0 0 #0D0503`).join(', ')
+
+/** Small amber label in the marquee face. */
+function Tag({ children, className, style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
+  return <span className={cx('club-board text-lg leading-none tracking-[0.18em] text-[#FFC46B]', className)} style={style}>{children}</span>
+}
+
+/** The prompt on a little dark letterboard. */
+function Board({ text, size = 'text-2xl' }: { text: string; size?: string }) {
+  return (
+    <div className={cx('rounded-xl px-4 py-3 font-bold leading-snug text-[#F7F1E6] [overflow-wrap:anywhere]', size)} style={{ background: '#0E0806', boxShadow: 'inset 0 0 0 2px #3A2216, 0 0 0 2px rgba(255,196,107,0.35), 0 8px 18px rgba(0,0,0,0.5)' }}>
+      {text}
+    </div>
+  )
 }
 
 function AnswerPad({
@@ -43,13 +61,13 @@ function AnswerPad({
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4 p-4" data-quip-stage="answer">
-      {!apart && <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />}
+    <form onSubmit={submit} className="club-rise grid gap-4 p-4" data-quip-stage="answer">
+      {!apart && <NeonClock endsAt={s.endsAt} total={s.stageTotal} now={now} small />}
       <div className="flex items-center justify-between gap-3">
-        <Label>{s.round === 3 ? 'Last Quip' : `Prompt ${k} of ${total}`}</Label>
-        {p.about === me && <span className="text-sm font-bold text-hot">This one is about you</span>}
+        <Tag>{s.round === 3 ? 'Last Quip' : `Prompt ${k} of ${total}`}</Tag>
+        {p.about === me && <Neon glow={CLUB.pink} small className="club-board text-xl leading-none">This one is about you</Neon>}
       </div>
-      <div className="text-2xl font-bold leading-snug [overflow-wrap:anywhere]">{p.text}</div>
+      <Board text={p.text} />
       <div className="grid gap-1">
         <textarea
           ref={box}
@@ -62,16 +80,17 @@ function AnswerPad({
           placeholder="Be funnier than the House"
           enterKeyHint={last ? 'send' : 'next'}
           autoComplete="off"
-          className="w-full resize-none rounded-xl border-2 border-line bg-tile p-4 text-xl leading-snug outline-none placeholder:text-ink-3 focus:border-hot"
+          className="club-card w-full resize-none border-0 py-3 pl-12 pr-4 text-xl font-bold leading-[31.5px] outline-none placeholder:font-normal placeholder:text-[#8A7262] focus:shadow-[0_0_0_3px_#FFC46B,0_0_20px_rgba(255,196,107,0.5)]"
+          style={{ color: CLUB.ink }}
         />
-        <div className={cx('text-right font-mono text-sm tabular', text.length >= MAX_ANSWER ? 'text-hot-ink' : 'text-ink-3')}>
+        <div className={cx('club-board text-right text-lg leading-none tabular', text.length >= MAX_ANSWER ? 'text-[#FF5A6B]' : 'text-[#F6ECD6]/60')}>
           {text.length}/{MAX_ANSWER}
         </div>
       </div>
-      <Btn type="submit" variant="primary" size="xl" disabled={!clean}>{last ? 'Send it' : 'Next prompt'}</Btn>
-      <div className="grid gap-1.5 pt-2">
-        <Btn size="lg" onClick={safety}>Safety quip</Btn>
-        <div className="text-center text-sm text-ink-3">Sends a House answer for you. Its votes count half.</div>
+      <ClubButton type="submit" tone="amber" disabled={!clean} className="min-h-[64px] w-full text-3xl">{last ? 'Send it' : 'Next prompt'}</ClubButton>
+      <div className="grid gap-1.5 pt-1">
+        <ClubButton tone="cyan" onClick={safety} className="w-full">Safety quip</ClubButton>
+        <div className="text-center text-sm text-[#F6ECD6]/70">Sends a House answer for you. Its votes count half.</div>
       </div>
     </form>
   )
@@ -79,17 +98,18 @@ function AnswerPad({
 
 function AnsweredList({ s, me, sent }: { s: QuipState; me: string; sent: number[] }) {
   return (
-    <div className="grid gap-2">
-      {roundIdx(s, s.round).map((i) => {
+    <div className="grid gap-3">
+      {roundIdx(s, s.round).map((i, k) => {
         const p = s.prompts[i]
         const a = p.answers[me]
         return (
-          <div key={i} className="grid gap-1 rounded-2xl bg-tile p-3.5">
-            <div className="text-sm leading-snug text-ink-3 [overflow-wrap:anywhere]">{p.text}</div>
-            <div className={cx('text-lg leading-snug [overflow-wrap:anywhere]', a ? 'font-bold' : 'italic text-ink-3')}>
+          <div key={i} className="club-card club-rise grid gap-1 py-3 pl-12 pr-4" style={{ rotate: `${k % 2 ? 0.8 : -0.8}deg`, animationDelay: `${k * 90}ms` }}>
+            <span className="club-pin" />
+            <div className="text-sm leading-snug text-[#6B5244] [overflow-wrap:anywhere]">{p.text}</div>
+            <div className={cx('text-lg leading-snug [overflow-wrap:anywhere]', a ? 'font-bold' : 'italic text-[#6B5244]')}>
               {a ? a.text : sent.includes(i) ? 'Sending' : 'No answer'}
             </div>
-            {a?.safety && <div className="font-mono text-[0.7rem] uppercase tracking-[0.14em] text-ink-3">Safety quip</div>}
+            {a?.safety && <div className="club-board text-sm leading-none tracking-[0.16em] text-[#6B5244]">Safety quip</div>}
           </div>
         )
       })}
@@ -122,14 +142,14 @@ function VotePad({ s, room, me, now, send, apart }: { s: QuipState; room: RoomVi
 
   return (
     <div className="grid gap-3 p-4" data-quip-stage="vote">
-      {!apart && <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />}
-      <div className="flex min-h-9 items-center justify-between gap-3">
-        <Label>{heading}</Label>
-        {per > 1 && mine.length > 0 && <Btn size="sm" variant="ghost" onClick={clear}>Start over</Btn>}
+      {!apart && <NeonClock endsAt={s.endsAt} total={s.stageTotal} now={now} small />}
+      <div className="flex min-h-11 items-center justify-between gap-3">
+        <Neon glow={done ? CLUB.cyan : CLUB.amber} small className="club-board text-2xl leading-none tracking-[0.1em]">{heading}</Neon>
+        {per > 1 && mine.length > 0 && <ClubButton tone="ghost" onClick={clear} className="min-h-[44px] px-4 text-xl">Start over</ClubButton>}
       </div>
-      {!apart && <div className="text-xl font-bold leading-snug [overflow-wrap:anywhere]">{p.text}</div>}
-      {per > 1 && !done && <div className="-mt-1 text-sm text-ink-3">Stack them on one if you love it. Not on your own.</div>}
-      <div className="grid gap-2.5">
+      {!apart && <Board text={p.text} size="text-xl" />}
+      {per > 1 && !done && <div className="-mt-1 text-sm text-[#F6ECD6]/75">Stack them on one if you love it. Not on your own.</div>}
+      <div className="grid gap-3 pt-1">
         {p.order.map((id, k) => {
           const text = id === HOUSE ? p.house : p.answers[id]?.text ?? null
           const own = id === me
@@ -144,39 +164,64 @@ function VotePad({ s, room, me, now, send, apart }: { s: QuipState; room: RoomVi
               onClick={() => vote(id)}
               aria-label={off ? undefined : `Vote for answer ${LETTERS[k]}`}
               className={cx(
-                'flex min-h-16 w-full items-start gap-3 rounded-2xl border-2 p-3.5 text-left transition-[transform,opacity,border-color] duration-100 active:scale-[0.98] no-select',
-                count ? 'border-hot bg-hot/10' : text === null ? 'border-dashed border-line' : 'border-line bg-tile',
-                (off || (done && !count)) && 'opacity-50',
+                'club-card relative flex min-h-16 w-full items-start gap-3 p-3 text-left transition-[transform,opacity] duration-100 active:scale-[0.97] no-select',
+                text === null && 'blank',
+                (off || (done && !count)) && 'opacity-45',
               )}
+              style={{
+                rotate: `${k % 2 ? 0.6 : -0.6}deg`,
+                ...(count ? { boxShadow: `0 0 0 3px ${CLUB.amber}, 0 0 22px rgba(255,196,107,0.6), 0 10px 18px rgba(0,0,0,0.45)` } : {}),
+              }}
             >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-tile-2 font-display text-lg text-ink-2">{LETTERS[k]}</span>
-              <span className={cx('min-w-0 flex-1 pt-1 text-lg leading-snug [overflow-wrap:anywhere]', text === null ? 'italic text-ink-3' : 'font-bold')}>
+              <span className="club-letter h-10 w-10 text-3xl">{LETTERS[k]}</span>
+              <span className={cx('min-w-0 flex-1 pl-1 pt-1 text-lg leading-snug [overflow-wrap:anywhere]', text === null ? 'italic' : 'font-bold')}>
                 {text ?? 'No answer'}
               </span>
-              {own && <span className="shrink-0 pt-2 font-mono text-xs uppercase tracking-[0.14em] text-ink-3">yours</span>}
+              {own && <span className="club-board shrink-0 pt-1.5 text-base leading-none tracking-[0.16em] text-[#6B5244]">yours</span>}
               {count > 0 && per > 1 && (
-                <span key={count} className="shrink-0 pt-1 font-display text-xl text-hot animate-pop">x{count}</span>
+                <span key={count} className="shrink-0 pt-0.5"><Stamp text={`x${count}`} color="#C21F3A" size="1.8rem" /></span>
               )}
               {count > 0 && per === 1 && (
-                <span className="shrink-0 pt-2 font-mono text-xs font-bold uppercase tracking-[0.14em] text-hot animate-pop">your vote</span>
+                <span className="shrink-0 pt-0.5"><Stamp text="Your vote" color="#C21F3A" size="1.25rem" /></span>
               )}
             </button>
           )
         })}
       </div>
-      {done && <div className="pt-1 text-center text-ink-2">{waitingLine(room, stillVoting(s), me, 'Counting.')}</div>}
+      {done && <div className="pt-1 text-center text-[#F6ECD6]/85">{waitingLine(room, stillVoting(s), me, 'Counting.')}</div>}
     </div>
   )
 }
 
-function MyResult({ s, me, now, apart }: { s: QuipState; me: string; now: () => number; apart: boolean }) {
+function Headline({ s, room, me }: { s: QuipState; room: RoomView; me: string }) {
+  const rows = standings(s.scores, s.houseScore, s.players).filter((r) => r.id !== HOUSE)
+  const top = rows[0]?.score ?? 0
+  const heads = rows.filter((r) => r.score === top)
+  const mine = s.scores[me] ?? 0
+  const place = rows.filter((r) => r.score > mine).length + 1
+  const iWon = heads.some((h) => h.id === me)
+  return (
+    <div className="club-in grid justify-items-center gap-1 rounded-2xl px-4 py-4 text-center" style={{ background: 'linear-gradient(180deg, #F8EDD3, #E8D3A8)', color: CLUB.ink, boxShadow: 'inset 0 0 0 4px #9C2A1E, 0 12px 26px rgba(0,0,0,0.5)' }}>
+      <span className="club-script text-3xl leading-none text-[#C21F3A]">Tonight's {heads.length > 1 ? 'co-headliners' : 'headliner'}</span>
+      <span className="club-board text-5xl leading-none">{iWon ? 'You' : listNames(heads.map((h) => nameOf(room, h.id)))}</span>
+      <span className="text-base font-bold">{iWon ? `${fmt(mine)} points. Take a bow.` : `You finished ${ordinal(place)} with ${fmt(mine)}.`}</span>
+    </div>
+  )
+}
+
+function MyResult({ s, room, me, now, apart }: { s: QuipState; room: RoomView; me: string; now: () => number; apart: boolean }) {
   const p = s.prompts[s.current]
-  const clock = revealClock(s, now())
+  const t = now()
+  const clock = revealClock(s, t)
+  const final = headlinerUp(s, t)
   if (!p?.result || !clock.verdict) {
     return (
-      <div className="grid gap-2 p-6 text-center" data-quip-stage="reveal">
-        <div className="font-display text-3xl">{apart ? 'Counting' : 'Eyes on the TV'}</div>
-        <div className="text-ink-2">Who wrote what, coming up.</div>
+      <div className="relative grid min-h-[320px] place-items-center p-6 text-center" data-quip-stage="reveal">
+        <div className="club-cone" style={{ width: '100%' }} />
+        <div className="relative grid gap-2">
+          <Neon glow={CLUB.amber} className="club-board club-flicker text-5xl leading-none">{apart ? 'Counting' : 'Eyes on the TV'}</Neon>
+          <div className="text-lg text-[#F6ECD6]/85">Who wrote what, coming up.</div>
+        </div>
       </div>
     )
   }
@@ -184,31 +229,45 @@ function MyResult({ s, me, now, apart }: { s: QuipState; me: string; now: () => 
   const row = r.rows.find((x) => x.by === me)
   if (!row || row.text === null) {
     return (
-      <div className="grid gap-2 p-6 text-center animate-pop" data-quip-stage="reveal">
-        <div className="font-display text-3xl text-ink-2">No answer</div>
-        <div className="text-ink-2">{r.houseWins ? 'The House won this one. You dodged the penalty, at least.' : 'Bold strategy. Zero points.'}</div>
+      <div className="grid gap-4 p-5" data-quip-stage="reveal">
+        {final && !apart && <Headline s={s} room={room} me={me} />}
+        <div className="club-in grid gap-2 text-center">
+          <Neon glow={CLUB.cyan} className="club-board text-5xl leading-none">No answer</Neon>
+          <div className="text-[#F6ECD6]/85">{r.houseWins ? 'The House won this one. You dodged the penalty, at least.' : 'Bold strategy. Zero points.'}</div>
+        </div>
       </div>
     )
   }
   const lines: { label: string; value: string; tone: string }[] = []
-  lines.push({ label: row.safety ? `${row.votes} ${row.votes === 1 ? 'vote' : 'votes'}, counted half` : `${row.votes} ${row.votes === 1 ? 'vote' : 'votes'}`, value: `+${row.points}`, tone: 'text-ink' })
-  if (row.beatHouse) lines.push({ label: 'Beat the House', value: `+${row.bonusBeat}`, tone: 'text-good' })
-  if (row.sweep) lines.push({ label: 'Clean sweep', value: `+${row.bonusSweep}`, tone: 'text-hot-ink' })
-  if (row.penalty) lines.push({ label: 'The House wins', value: `-${row.penalty}`, tone: 'text-bad' })
+  lines.push({ label: row.safety ? `${row.votes} ${row.votes === 1 ? 'vote' : 'votes'}, counted half` : `${row.votes} ${row.votes === 1 ? 'vote' : 'votes'}`, value: `+${fmt(row.points)}`, tone: CLUB.ink })
+  if (row.beatHouse) lines.push({ label: 'Beat the House', value: `+${row.bonusBeat}`, tone: '#17633A' })
+  if (row.sweep) lines.push({ label: 'Clean sweep', value: `+${row.bonusSweep}`, tone: '#8A3B00' })
+  if (row.penalty) lines.push({ label: 'The House wins', value: `-${row.penalty}`, tone: '#A3102A' })
   return (
-    <div className="grid gap-3 p-5 animate-pop" data-quip-stage="reveal">
-      <Label>Your answer{row.safety ? ' (safety quip)' : ''}</Label>
-      <div className="text-xl font-bold leading-snug [overflow-wrap:anywhere]">{row.text}</div>
-      <div className="grid gap-1.5 rounded-2xl bg-tile p-4">
+    <div className="grid gap-4 p-5" data-quip-stage="reveal">
+      {final && !apart && <Headline s={s} room={room} me={me} />}
+      <div className="flex min-h-10 items-end justify-between gap-2">
+        <Tag>Your answer{row.safety ? ' (safety quip)' : ''}</Tag>
+        {row.sweep && <Stamp text="Mic drop" color="#FF4F6B" size="1.6rem" onDark />}
+        {!row.sweep && row.beatHouse && <Stamp text="Beat the House" color="#7CFFB2" size="1.3rem" onDark />}
+        {!row.sweep && !row.beatHouse && r.houseWins && <Stamp text="House wins" color="#FF4F6B" size="1.4rem" onDark />}
+      </div>
+      <div className="club-card club-slide relative py-3 pl-12 pr-4 text-xl font-bold leading-snug [overflow-wrap:anywhere]" style={{ rotate: '-1deg' }}>
+        <span className="club-tape" />
+        {row.text}
+      </div>
+      <div className="club-rise relative grid gap-2 rounded-md px-4 pb-3 pt-4" style={{ color: CLUB.ink, background: '#FBF5E8', boxShadow: '0 10px 22px rgba(0,0,0,0.5)', animationDelay: '200ms' }}>
+        <div className="club-board text-center text-xl leading-none tracking-[0.3em] text-[#6B5244]">Your tab</div>
+        <div className="border-t-2 border-dashed border-[#CDB99A]" />
         {lines.map((l) => (
           <div key={l.label} className="flex items-baseline justify-between gap-3">
-            <span className={cx('font-bold', l.tone)}>{l.label}</span>
-            <span className={cx('font-mono text-lg tabular', l.tone)}>{l.value}</span>
+            <span className="font-bold" style={{ color: l.tone }}>{l.label}</span>
+            <span className="club-board text-2xl leading-none tabular" style={{ color: l.tone }}>{l.value}</span>
           </div>
         ))}
-        <div className="mt-1 flex items-baseline justify-between gap-3 border-t border-line pt-2">
-          <span className="text-ink-2">This prompt</span>
-          <span className={cx('font-display text-2xl tabular', row.delta < 0 ? 'text-bad' : 'text-ink')}>{row.delta > 0 ? `+${row.delta}` : row.delta}</span>
+        <div className="flex items-baseline justify-between gap-3 border-t-2 border-dashed border-[#CDB99A] pt-2">
+          <span className="text-[#6B5244]">This prompt</span>
+          <span className="club-board text-4xl leading-none tabular" style={{ color: row.delta < 0 ? '#A3102A' : CLUB.ink }}>{row.delta > 0 ? `+${fmt(row.delta)}` : fmt(row.delta)}</span>
         </div>
       </div>
     </div>
@@ -222,24 +281,26 @@ function Between({ s, me }: { s: QuipState; me: string }) {
   const place = `${tied ? 'Tied for' : "You're in"} ${ordinal(ahead + 1)}.`
   const next = s.round + 1
   return (
-    <div className="grid gap-3 p-6 text-center animate-pop" data-quip-stage="scores">
-      <Label>Round {s.round} done</Label>
-      <div className="font-display text-6xl tabular">{mine}</div>
-      <div className="text-xl text-ink">{place}{s.houseScore > mine ? ' The House is ahead of you.' : ''}</div>
-      <div className="mt-2 rounded-2xl bg-tile p-4 text-ink-2">
-        <div className="font-display text-2xl text-hot">Next: {roundTitle(next)}</div>
-        <div className="mt-1">{roundBlurb(next, s.perRound)}</div>
+    <div className="club-in grid gap-3 p-6 text-center" data-quip-stage="scores">
+      <Tag>Round {s.round} done</Tag>
+      <Neon glow={CLUB.amber} className="club-board text-8xl leading-none tabular">{fmt(mine)}</Neon>
+      <div className="text-xl font-bold text-[#F6ECD6]">{place}</div>
+      {s.houseScore > mine && (
+        <div className="flex items-center justify-center gap-2 text-[#FFD9E0]">
+          <NeonHouse size={36} flicker={false} />
+          <span className="font-bold">The House is ahead of you.</span>
+        </div>
+      )}
+      <div className="mt-2 grid gap-1 rounded-xl px-4 py-3" style={{ background: '#0E0806', boxShadow: 'inset 0 0 0 2px #3A2216, 0 0 0 2px rgba(255,79,176,0.4)' }}>
+        <Neon glow={CLUB.pink} small className="club-board text-3xl leading-none">Next: {roundTitle(next)}</Neon>
+        <div className="text-[#F6ECD6]/85">{roundBlurb(next, s.perRound)}</div>
       </div>
     </div>
   )
 }
 
-export function QuipController({ state: s, room, me, now, send }: ControllerProps<QuipState>) {
-  useTicker(250)
-  const [sent, setSent] = useState<number[]>([])
-  const apart = room.mode === 'apart'
-
-  if (!s.players.includes(me)) return <div className="p-6 text-center text-ink-2">You're in the next game. Watch the screen.</div>
+function Body({ state: s, room, me, now, send, sent, setSent, apart }: ControllerProps<QuipState> & { sent: number[]; setSent: (f: (v: number[]) => number[]) => void; apart: boolean }) {
+  if (!s.players.includes(me)) return <div className="p-6 text-center text-[#F6ECD6]/85">You're in the next game. Watch the screen.</div>
 
   if (s.stage === 'answer') {
     const ids = roundIdx(s, s.round)
@@ -263,10 +324,10 @@ export function QuipController({ state: s, room, me, now, send }: ControllerProp
     }
     return (
       <div className="grid gap-4 p-5" data-quip-stage="answer-wait">
-        {!apart && <Countdown endsAt={s.endsAt} total={s.stageTotal} now={now} />}
-        <div className="grid gap-1">
-          <div className="font-display text-3xl">All in</div>
-          <div className="text-lg text-ink-2">{waitingLine(room, stillAnswering(s), me, 'Everyone is in.')}</div>
+        {!apart && <NeonClock endsAt={s.endsAt} total={s.stageTotal} now={now} small />}
+        <div className="club-in grid gap-1">
+          <Neon glow={CLUB.cyan} className="club-board text-6xl leading-none">All in</Neon>
+          <div className="text-lg text-[#F6ECD6]/85">{waitingLine(room, stillAnswering(s), me, 'Everyone is in.')}</div>
         </div>
         <AnsweredList s={s} me={me} sent={sent} />
       </div>
@@ -274,7 +335,31 @@ export function QuipController({ state: s, room, me, now, send }: ControllerProp
   }
 
   if (s.stage === 'vote') return <VotePad key={s.current} s={s} room={room} me={me} now={now} send={send} apart={apart} />
-  if (s.stage === 'reveal') return <MyResult s={s} me={me} now={now} apart={apart} />
+  if (s.stage === 'reveal') return <MyResult s={s} room={room} me={me} now={now} apart={apart} />
   if (s.stage === 'scores') return <Between s={s} me={me} />
-  return <div className="p-6 text-center text-ink-2" data-quip-stage="done">Adding it up.</div>
+  return (
+    <div className="grid gap-4 p-5" data-quip-stage="done">
+      {!apart && <Headline s={s} room={room} me={me} />}
+      <div className="text-center text-[#F6ECD6]/85">Adding it up.</div>
+    </div>
+  )
+}
+
+export function QuipController(props: ControllerProps<QuipState>) {
+  useTicker(250)
+  useClubFonts()
+  const [sent, setSent] = useState<number[]>([])
+  const apart = props.room.mode === 'apart'
+  return (
+    <div
+      className={cx('club', !apart && 'min-h-full')}
+      style={{
+        backgroundColor: CLUB.night,
+        backgroundImage: `linear-gradient(180deg, rgba(14,5,3,0.78), rgba(14,5,3,0.9) 40%, rgba(13,5,3,0.97)), ${BRICK_BG}`,
+        boxShadow: apart ? ROOM_FILL : undefined,
+      }}
+    >
+      <Body {...props} sent={sent} setSent={setSent} apart={apart} />
+    </div>
+  )
 }
