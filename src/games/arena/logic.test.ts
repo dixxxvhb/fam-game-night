@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, PlayerAction, RoomPlayer } from '../../engine/types'
-import { bot, decided, INTRO_MS, outcome, OVER_MS, reduce, ROUND_CAP_MS, setup, tick, type ArenaState } from './logic'
+import { bot, decided, INTRO_MS, outcome, OVER_MS, PICK_DONE_MS, PICK_MS, PODIUM_MS, reduce, ROUND_CAP_MS, setup, themeOf, tick, type ArenaState } from './logic'
 import { newSim, step, type SimEvent } from './sim'
 import { botInput, newMind } from './bots'
 
@@ -13,29 +13,82 @@ const HOST = 'tv-client-1'
 let seed = 7
 const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646 }
 const ctx = (now: number, ps: RoomPlayer[] = players): GameCtx => ({ now, players: ps, mode: 'together', random })
-const T0 = 1_000_000
+const T_SETUP = 1_000_000
+/** Picking closes (the park fills in critters) at T0; round 1's intro starts then. */
+const T0 = T_SETUP + PICK_MS
 
 const host = (type: string, payload: unknown, from = HOST): PlayerAction => ({ playerId: from, type, payload })
 
-function playing(opts: Record<string, string | number> = {}): ArenaState {
-  const s = setup(ctx(T0), opts)
-  return tick(s, ctx(T0 + INTRO_MS))
+/** Round 1's intro (pick timed out at T0, so the park picked for everyone). */
+function intro(opts: Record<string, string | number> = {}): ArenaState {
+  return tick(setup(ctx(T_SETUP), opts), ctx(T0))
 }
+
+function playing(opts: Record<string, string | number> = {}): ArenaState {
+  return tick(intro(opts), ctx(T0 + INTRO_MS))
+}
+
+const pick = (id: string, char: unknown): PlayerAction => ({ playerId: id, type: 'pick', payload: { char } })
 
 describe('setup', () => {
   it('best of 3 by default, best of 5 on request', () => {
-    const s = setup(ctx(T0), {})
-    expect(s).toMatchObject({ stage: 'intro', round: 1, bestOf: 3, target: 2, startsAt: T0 + INTRO_MS })
+    const s = setup(ctx(T_SETUP), {})
+    expect(s).toMatchObject({ stage: 'pick', round: 1, bestOf: 3, target: 2, stageEnds: T0 })
+    expect(s.chars).toEqual({ dixxx: null, johnnyboy: null, torii: null })
     expect(s.wins).toEqual({ dixxx: 0, johnnyboy: 0, torii: 0 })
-    expect(setup(ctx(T0), { rounds: 5 }).target).toBe(3)
-    expect(setup(ctx(T0), { rounds: 99 }).bestOf).toBe(3)
-    expect(setup(ctx(T0), { rounds: 'lots' }).bestOf).toBe(3)
+    expect(setup(ctx(T_SETUP), { rounds: 5 }).target).toBe(3)
+    expect(setup(ctx(T_SETUP), { rounds: 99 }).bestOf).toBe(3)
+    expect(setup(ctx(T_SETUP), { rounds: 'lots' }).bestOf).toBe(3)
   })
 
   it('starts play when the intro ends', () => {
-    const s = setup(ctx(T0), {})
+    const s = intro()
+    expect(s).toMatchObject({ stage: 'intro', startsAt: T0 + INTRO_MS })
     expect(tick(s, ctx(T0 + 1000))).toBe(s)
     expect(tick(s, ctx(T0 + INTRO_MS)).stage).toBe('play')
+  })
+
+  it('rotates the arena every round', () => {
+    const s = intro()
+    expect(themeOf({ ...s, round: 2 })).toBe((themeOf(s) + 1) % 4)
+    expect(themeOf({ ...s, round: 5 })).toBe(themeOf(s))
+  })
+})
+
+describe('pick', () => {
+  it('unique critters, first come first served; all picked closes it early', () => {
+    let s = setup(ctx(T_SETUP), {})
+    s = reduce(s, pick('dixxx', 'chomp'), ctx(T_SETUP + 100))
+    expect(s.chars.dixxx).toBe('chomp')
+    expect(reduce(s, pick('torii', 'chomp'), ctx(T_SETUP + 200))).toBe(s)
+    expect(reduce(s, pick('dixxx', 'pete'), ctx(T_SETUP + 200))).toBe(s)
+    expect(reduce(s, pick('torii', 'malibu'), ctx(T_SETUP + 200))).toBe(s)
+    expect(reduce(s, pick('stranger', 'pete'), ctx(T_SETUP + 200))).toBe(s)
+    s = reduce(s, pick('torii', 'pete'), ctx(T_SETUP + 300))
+    s = reduce(s, pick('johnnyboy', 'ibby'), ctx(T_SETUP + 400))
+    expect(s.stageEnds).toBe(T_SETUP + 400 + PICK_DONE_MS)
+    expect(tick(s, ctx(T_SETUP + 400 + PICK_DONE_MS - 1)).stage).toBe('pick')
+    const go = tick(s, ctx(T_SETUP + 400 + PICK_DONE_MS))
+    expect(go).toMatchObject({ stage: 'intro', chars: { dixxx: 'chomp', torii: 'pete', johnnyboy: 'ibby' } })
+  })
+
+  it('the park picks for anyone who did not, all different', () => {
+    let s = setup(ctx(T_SETUP), {})
+    s = reduce(s, pick('torii', 'zippy'), ctx(T_SETUP + 100))
+    s = tick(s, ctx(T0))
+    const chars = Object.values(s.chars)
+    expect(chars.every(Boolean)).toBe(true)
+    expect(new Set(chars).size).toBe(3)
+    expect(s.chars.torii).toBe('zippy')
+  })
+
+  it('bots pick a free critter after a beat', () => {
+    const s = setup(ctx(T_SETUP), {})
+    expect(bot(s, 'torii', ctx(T_SETUP + 100))).toBeNull()
+    let move = null
+    for (let i = 0; i < 50 && !move; i++) move = bot(s, 'torii', ctx(T_SETUP + 2000))
+    expect(move).toMatchObject({ type: 'pick' })
+    expect(bot(playing(), 'torii', ctx(T0 + 9000))).toBeNull()
   })
 })
 
@@ -92,8 +145,10 @@ describe('host actions', () => {
       host('dance', { round: 1 }),
     ]
     for (const a of bad) expect(reduce(s, a, ctx(T0 + 9000))).toBe(s)
-    const intro = setup(ctx(T0), {})
-    expect(reduce(intro, host('kill', { round: 1, by: 'dixxx', victim: 'torii' }), ctx(T0))).toBe(intro)
+    const pre = intro()
+    expect(reduce(pre, host('kill', { round: 1, by: 'dixxx', victim: 'torii' }), ctx(T0))).toBe(pre)
+    // nobody picks once the round is on
+    expect(reduce(s, pick('dixxx', 'shelly'), ctx(T0 + 9000))).toBe(s)
     // a knocked-out player can't be knocked out again, or win
     const out = reduce(s, host('kill', { round: 1, by: 'dixxx', victim: 'torii' }), ctx(T0 + 9000))
     expect(reduce(out, host('kill', { round: 1, by: 'dixxx', victim: 'torii' }), ctx(T0 + 9100))).toBe(out)
@@ -155,6 +210,9 @@ describe('rounds and the match', () => {
     expect(outcome(s, ctx(now))).toBeNull()
     win('johnnyboy', [['johnnyboy', 'dixxx'], ['johnnyboy', 'torii']])
     win('torii', [['dixxx', 'johnnyboy'], ['torii', 'dixxx']])
+    expect(s.stage).toBe('podium')
+    expect(outcome(s, ctx(now))).toBeNull()
+    s = tick(s, ctx((now += PODIUM_MS)))
     expect(s.stage).toBe('done')
     const out = outcome(s, ctx(now))!
     expect(out.placements).toEqual([
@@ -169,12 +227,14 @@ describe('rounds and the match', () => {
   it('stops at the round cap when draws drag on, and ties share a place', () => {
     let now = T0 + INTRO_MS
     let s = playing()
-    for (let i = 0; i < 20 && s.stage !== 'done'; i++) {
+    for (let i = 0; i < 20 && s.stage !== 'podium'; i++) {
       s = reduce(s, host('roundEnd', { round: s.round, winner: null }), ctx((now += 100)))
       now += OVER_MS
       s = tick(s, ctx(now))
       if (s.stage === 'intro') { now += INTRO_MS; s = tick(s, ctx(now)) }
     }
+    expect(s.stage).toBe('podium')
+    s = tick(s, ctx((now += PODIUM_MS)))
     expect(s.stage).toBe('done')
     expect(s.rounds.length).toBe(s.maxRounds)
     expect(decided(s)).toBe(true)
@@ -185,10 +245,11 @@ describe('rounds and the match', () => {
 
   it('bot() leaves the playing to the arena sim', () => {
     expect(bot()).toBeNull()
+    expect(bot(playing(), 'dixxx', ctx(T0 + 9000))).toBeNull()
   })
 
   it('driven only by tick (no arena at all), the match still ends', () => {
-    let now = T0
+    let now = T_SETUP
     let s = setup(ctx(now), {})
     for (let i = 0; i < 100_000 && !outcome(s, ctx(now)); i++) {
       now += 200
@@ -212,7 +273,7 @@ describe('a whole match with bots', () => {
       { id: 'bot-pigeon', name: 'Pigeon', color: '#94A3B8', guest: true, connected: true, bot: true },
     ]
     const c = (now: number) => ctx(now, roster)
-    let now = T0
+    let now = T_SETUP
     let s = setup(c(now), {})
     let sim: ReturnType<typeof newSim> | null = null
     let simRound = 0
