@@ -94,16 +94,18 @@ export const SNAP_KIND = 'melon:jar'
 export const MAX_SNAP_FRUIT = 120
 
 export interface SnapFruit { t: number; x: number; y: number }
-/** s = score, f = every fruit in world units (rounded ints). */
-export interface JarSnap { s: number; f: SnapFruit[] }
+/** s = score, f = every fruit in world units (rounded ints), d = danger 0..100 (phones send it; bots don't). */
+export interface JarSnap { s: number; f: SnapFruit[]; d?: number }
 
-export function encodeSnap(score: number, fruits: { tier: number; x: number; y: number }[]): JarSnap {
+export function encodeSnap(score: number, fruits: { tier: number; x: number; y: number }[], danger?: number): JarSnap {
   const f: SnapFruit[] = []
   for (const b of fruits) {
     if (f.length >= MAX_SNAP_FRUIT) break
     f.push({ t: b.tier, x: Math.round(b.x), y: Math.round(b.y) })
   }
-  return { s: Math.max(0, Math.round(score)), f }
+  const snap: JarSnap = { s: Math.max(0, Math.round(score)), f }
+  if (danger !== undefined && danger > 0) snap.d = Math.max(0, Math.min(100, Math.round(danger * 100)))
+  return snap
 }
 
 function clampInt(v: unknown, lo: number, hi: number): number | null {
@@ -114,7 +116,7 @@ function clampInt(v: unknown, lo: number, hi: number): number | null {
 /** Read a snapshot off the wire. Junk is dropped, numbers are clamped. Null if unusable. */
 export function decodeSnap(raw: unknown): JarSnap | null {
   if (!raw || typeof raw !== 'object') return null
-  const r = raw as { s?: unknown; f?: unknown }
+  const r = raw as { s?: unknown; f?: unknown; d?: unknown }
   const s = clampInt(r.s, 0, 99_999_999)
   if (s === null || !Array.isArray(r.f)) return null
   const f: SnapFruit[] = []
@@ -127,5 +129,6 @@ export function decodeSnap(raw: unknown): JarSnap | null {
     if (x === null || y === null) continue
     f.push({ t: it.t, x, y })
   }
-  return { s, f }
+  const d = clampInt(r.d, 0, 100)
+  return d ? { s, f, d } : { s, f }
 }
