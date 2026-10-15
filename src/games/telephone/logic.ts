@@ -60,8 +60,8 @@ export interface TelephoneState {
 export const WRITE_MS = 40_000
 export const DRAW_MS = 75_000
 export const GRACE_MS = 1_500
-export const BEAT_TEXT_MS = 5_000
-export const BEAT_DRAW_MS = 7_000
+export const BEAT_TEXT_MS = 5_500
+export const BEAT_DRAW_MS = 7_500
 export const BEAT_RECAP_MS = 10_000
 export const BEAT_TALLY_MS = 9_000
 export const MIN_BEAT_MS = 1_200

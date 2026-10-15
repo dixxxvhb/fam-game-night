@@ -44,7 +44,8 @@ export interface BEntry {
 
 export interface DrawBluffState {
   order: string[]
-  phase: 'draw' | 'title' | 'pick' | 'reveal' | 'done'
+  /** finale: the whole exhibition on the wall, then done. */
+  phase: 'draw' | 'title' | 'pick' | 'reveal' | 'finale' | 'done'
   entries: BEntry[]
   /** Entry indices to play, in play order (blank drawings are skipped). */
   queue: number[]
@@ -66,6 +67,7 @@ export const PICK_MS = 25_000
 export const GRACE_MS = 1_500
 export const LIE_BEAT_MS = 4_000
 export const TRUTH_BEAT_MS = 6_000
+export const FINALE_MS = 15_000
 export const MAX_TITLE = 60
 export const INK_CAP = 2500
 /** Ink per drawing: full for up to six players, a little less for seven or eight so the state stays small. */
@@ -73,7 +75,7 @@ export const inkCapFor = (players: number) => Math.max(1500, Math.min(INK_CAP, M
 export const POINTS = { found: 1000, fooled: 500, artist: 500, house: 250, like: 100 }
 
 export function entryNow(s: DrawBluffState): BEntry | null {
-  if (s.phase === 'draw' || s.phase === 'done') return null
+  if (s.phase === 'draw' || s.phase === 'finale' || s.phase === 'done') return null
   return s.entries[s.queue[s.cur]] ?? null
 }
 
@@ -206,10 +208,17 @@ function nextBeat(s: DrawBluffState, now: number): DrawBluffState {
     return { ...s, shown: s.shown + 1, endsAt: now + d, stageTotal: d }
   }
   if (s.cur + 1 < s.queue.length) return startTitle(s, s.cur + 1, now)
-  return { ...s, phase: 'done' }
+  return { ...s, phase: 'finale', endsAt: now + FINALE_MS, stageTotal: FINALE_MS }
 }
 
 export function reduce(s: DrawBluffState, a: PlayerAction, ctx: GameCtx): DrawBluffState {
+  if (a.type === 'next') {
+    // The TV's skip button (or anyone) moves the exhibition along.
+    if (s.phase !== 'finale') return s
+    if (a.playerId !== '__host' && !s.order.includes(a.playerId)) return s
+    if (ctx.now < s.endsAt - s.stageTotal + 1500) return s
+    return { ...s, phase: 'done' }
+  }
   const me = s.order.indexOf(a.playerId)
   if (me < 0) return s
   const p = a.payload && typeof a.payload === 'object' ? (a.payload as Record<string, unknown>) : {}
@@ -278,6 +287,7 @@ export function reduce(s: DrawBluffState, a: PlayerAction, ctx: GameCtx): DrawBl
 export function tick(s: DrawBluffState, ctx: GameCtx): DrawBluffState {
   if (s.phase === 'done') return s
   if (s.phase === 'reveal') return ctx.now >= s.endsAt ? nextBeat(s, ctx.now) : s
+  if (s.phase === 'finale') return ctx.now >= s.endsAt ? { ...s, phase: 'done' } : s
   if (ctx.now < s.endsAt + GRACE_MS) return s
   if (s.phase === 'draw') return finishDraw(s, ctx)
   if (s.phase === 'title') return startPick(s, ctx)
@@ -292,6 +302,33 @@ export function shownScores(s: DrawBluffState): Record<string, number> {
   const out = { ...s.scores }
   for (const [id, d] of Object.entries(e.deltas)) out[id] = (out[id] ?? 0) - d
   return out
+}
+
+/** The lie that fooled the most people on this drawing (the House counts), or null. */
+export function bestLie(e: BEntry): { o: BOption; fooled: number } | null {
+  let best: { o: BOption; fooled: number } | null = null
+  for (const o of e.options) {
+    if (o.kind === 'real') continue
+    const n = Object.values(e.picks).filter((id) => id === o.id).length
+    if (n && (!best || n > best.fooled)) best = { o, fooled: n }
+  }
+  return best
+}
+
+/** Whole-game awards for the finale: most people fooled, most truths found, most likes. Ties: none. */
+export function awards(s: DrawBluffState): { forger: string | null; eye: string | null; loved: string | null } {
+  const found: Record<string, number> = {}
+  const likes: Record<string, number> = {}
+  for (const i of s.queue) {
+    const e = s.entries[i]
+    for (const [p, id] of Object.entries(e.picks)) if (id === 'real') found[p] = (found[p] ?? 0) + 1
+    likes[e.artist] = (likes[e.artist] ?? 0) + e.likes.length
+  }
+  const top = (m: Record<string, number>) => {
+    const rows = Object.entries(m).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1])
+    return rows.length && (rows.length === 1 || rows[0][1] > rows[1][1]) ? rows[0][0] : null
+  }
+  return { forger: top(s.fooled), eye: top(found), loved: top(likes) }
 }
 
 export function mostLiked(s: DrawBluffState): BEntry | null {
