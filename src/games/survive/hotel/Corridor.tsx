@@ -173,8 +173,8 @@ export function Corridor({
                 >
                   +{moved}
                 </text>
-              ) : (
-                <text y="-6" textAnchor="middle" fontFamily="'Atkinson Hyperlegible Next', sans-serif" fontWeight="700" fontSize={compact ? 30 : 22} fill={ghost ? p.color : HOTEL.ink} stroke={HOTEL.night} strokeWidth="5" paintOrder="stroke">
+              ) : (compact ? isMe : !open || isWinner) && (
+                <text y="-6" textAnchor="middle" fontFamily="'Atkinson Hyperlegible Next', sans-serif" fontWeight="700" fontSize={(compact ? 30 : 22) * Math.min(1, 0.5 + at.s)} fill={ghost ? p.color : HOTEL.ink} stroke={HOTEL.night} strokeWidth="5" paintOrder="stroke">
                   {isMe && compact ? 'You' : p.name.length > 10 ? `${p.name.slice(0, 9)}.` : p.name}
                 </text>
               )}

@@ -33,12 +33,12 @@ function useClubSound(s: ForeheadState, now: () => number) {
       } else sfx.play(got ? 'good' : 'whoosh')
     }
     if (s.stage !== p.stage) {
-      if (s.stage === 'play') band ? quizMusic.stinger(ST_GO) : sfx.play('start')
-      if (s.stage === 'turnEnd') band ? quizMusic.stinger(ST_TIME) : sfx.play('reveal')
+      if (s.stage === 'play') { if (band) quizMusic.stinger(ST_GO); else sfx.play('start') }
+      if (s.stage === 'turnEnd') { if (band) quizMusic.stinger(ST_TIME); else sfx.play('reveal') }
     }
     if (secsLeft !== p.secs && secsLeft > 0) {
-      if (s.stage === 'set') band ? quizMusic.stinger(ST_COUNT) : sfx.play('tick')
-      if (s.stage === 'play' && secsLeft <= 5) band ? quizMusic.stinger(ST_TICK) : sfx.play('tick')
+      if (s.stage === 'set') { if (band) quizMusic.stinger(ST_COUNT); else sfx.play('tick') }
+      if (s.stage === 'play' && secsLeft <= 5) { if (band) quizMusic.stinger(ST_TICK); else sfx.play('tick') }
     }
     prev.current = { calls: s.calls.length, stage: s.stage, secs: secsLeft }
   }, [s.calls, s.stage, secsLeft])

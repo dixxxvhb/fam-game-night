@@ -12,7 +12,7 @@ describe('agency copy', () => {
   })
   it('never uses an em dash', () => {
     for (const [g, a, l] of [[1, 1, true], [1, 3, true], [1, 9, true], [1, 20, true], [1, 90, true], [50, 2, false]] as const) {
-      expect(spyVerdict(g, a, l).line).not.toMatch(/—/)
+      expect(spyVerdict(g, a, l).line).not.toMatch(/\u2014/)
     }
   })
   it('numbers files', () => {

@@ -166,8 +166,8 @@ function Inner({ state: s, room, me, now, send }: ControllerProps<SurviveState>)
           </>
         ) : (
           <>
-            <RoomCard kind={s.lastTrap.kind} size="phone" className="w-full" />
-            <p className="text-[18px]" style={{ color: HOTEL.ink2 }}>Housekeeping is done. Count the bodies on the TV.</p>
+            {!apart && <RoomCard kind={s.lastTrap.kind} size="phone" className="w-full" />}
+            <p className="text-[18px]" style={{ color: HOTEL.ink2 }}>Housekeeping is done. Count the bodies {apart ? 'up top' : 'on the TV'}.</p>
           </>
         )}
       </Moment>

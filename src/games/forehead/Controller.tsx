@@ -343,6 +343,7 @@ function ForeheadScreen({ s, now, send, input }: { s: ForeheadState; now: () => 
   // The host ignores calls in the first moments of a turn; so does the phone.
   useEffect(() => { if (playing) lastPress.current = performance.now() }, [playing])
 
+  const [flash, setFlash] = useState<{ got: boolean; key: number } | null>(null)
   const fire = useCallback((c: TiltCall) => {
     if (s.stage !== 'play') return
     const t = performance.now()
@@ -356,7 +357,6 @@ function ForeheadScreen({ s, now, send, input }: { s: ForeheadState; now: () => 
     // Color right away, before the host answers: the Guesser can't wait on the network.
     setFlash({ got: c === 'got', key: t })
   }, [s.stage, s.word, send])
-  const [flash, setFlash] = useState<{ got: boolean; key: number } | null>(null)
   useEffect(() => {
     if (!flash) return
     const id = setTimeout(() => setFlash(null), 1000)
