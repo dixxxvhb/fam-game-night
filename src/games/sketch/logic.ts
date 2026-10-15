@@ -1,20 +1,30 @@
 import type { GameCtx, GameOutcome, PlayerAction } from '../../engine/types'
 import { placeByScore } from '../../engine/points'
-import { shuffle } from '../../lib/shuffle'
+import { freshFirst, shuffle } from '../../lib/shuffle'
+import { cleanStroke, densify, inkUsed, MAX_STROKES, simplify } from '../_draw/strokes'
+import { doodle } from '../_draw/doodles'
 import { PACKS } from './words'
 
-/** A finished stroke. p is a flat [x, y, x, y, ...] list in 0..1000 canvas units. */
-export interface Stroke { c: string; w: number; p: number[] }
+/**
+ * A finished stroke. p is a flat [x, y, x, y, ...] list in 0..1000 canvas units.
+ * f = 1 makes it a paint-bucket fill at its one point (p = [x, y]) instead of a line.
+ */
+export interface Stroke { c: string; w: number; p: number[]; f?: 1 }
 
 export interface Guess { playerId: string; text: string; correct: boolean; close: boolean; at: number }
+
+/** A finished drawing, kept (thinned) for the end-of-game wall. */
+export interface GalleryItem { drawer: string; word: string; tier: number; strokes: Stroke[]; solvers: string[]; ms: number | null }
 
 export interface SketchState {
   order: string[]
   turn: number
   drawer: string
-  stage: 'choose' | 'draw' | 'reveal' | 'done'
+  stage: 'choose' | 'draw' | 'reveal' | 'gallery' | 'done'
   choices: string[]
   word: string
+  /** 1 easy, 2 medium, 3 hard: hard words pay more (see TIER_BONUS). */
+  tier: number
   endsAt: number
   stageStartedAt: number
   stageTotal: number
@@ -25,16 +35,33 @@ export interface SketchState {
   scores: Record<string, number>
   used: string[]
   pack: string
+  /** This pack in the order to offer it: words this group hasn't seen first. */
+  deck: string[]
+  /** Every finished drawing, for the wall at the end. */
+  gallery: GalleryItem[]
   /** Fastest-solved drawing so far, saved to the Hall of Fame at the end. */
   best: { drawer: string; word: string; ms: number; strokes: Stroke[] } | null
   /** Last finished turn, for the reveal screen. */
-  last: { drawer: string; word: string; solvers: string[] } | null
+  last: { drawer: string; word: string; solvers: string[]; points: Record<string, number> } | null
 }
 
 export const CHOOSE_MS = 12_000
-export const REVEAL_MS = 5_000
-const MAX_STROKES = 400
-const MAX_POINTS = 1600
+export const REVEAL_MS = 6_000
+export const GALLERY_MS = 14_000
+/** Ink for one drawing (points plus STROKE_COST per stroke; about 8 bytes a unit). */
+export const INK_CAP = 3000
+/** Ink a drawing keeps on the wall. */
+const WALL_INK = 700
+/** Points multiplier by word tier. */
+export const TIER_BONUS = [1, 1, 1.25, 1.5]
+
+/** How hard a word is to draw, roughly: two words or long ones are hard. */
+export function tierOf(word: string): number {
+  const letters = word.replace(/[^a-z]/gi, '').length
+  if (word.trim().includes(' ') || letters >= 9) return 3
+  if (letters >= 6) return 2
+  return 1
+}
 
 export function normalize(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
@@ -67,21 +94,49 @@ export function judge(guess: string, word: string): 'correct' | 'close' | 'wrong
   return 'wrong'
 }
 
-/** Word hint like "_ _ _ _   _ _ _", revealing letters as time runs down. */
-export function hintFor(word: string, frac: number): string {
+/** Which letters of the word the hint shows: none, then one at half time, two at three quarters (long words). */
+export function hintMask(word: string, frac: number): boolean[] {
   const letters = [...word]
   const idx = letters.map((ch, i) => (/[a-z0-9]/i.test(ch) ? i : -1)).filter((i) => i >= 0)
   let reveal = 0
   if (frac >= 0.5) reveal = 1
   if (frac >= 0.75 && idx.length >= 6) reveal = 2
   const shown = new Set(idx.filter((_, k) => k % Math.max(1, Math.floor(idx.length / 2)) === 0).slice(0, reveal))
-  return letters.map((ch, i) => (ch === ' ' ? '  ' : /[a-z0-9]/i.test(ch) ? (shown.has(i) ? ch.toUpperCase() : '_') : ch)).join(' ')
+  return letters.map((_, i) => shown.has(i))
 }
 
-function drawChoices(state: Pick<SketchState, 'pack' | 'used'>, random: () => number): string[] {
-  const pool = PACKS[state.pack]?.words ?? PACKS.classic.words
+/** Word hint like "_ _ _ _   _ _ _", revealing letters as time runs down. */
+export function hintFor(word: string, frac: number): string {
+  const mask = hintMask(word, frac)
+  return [...word].map((ch, i) => (ch === ' ' ? '  ' : /[a-z0-9]/i.test(ch) ? (mask[i] ? ch.toUpperCase() : '_') : ch)).join(' ')
+}
+
+/** Three words: one of each tier when the deck has them (easy, medium, hard), freshest first. */
+function drawChoices(state: Pick<SketchState, 'pack' | 'used' | 'deck'>, random: () => number): string[] {
+  const pool = state.deck?.length ? state.deck : (PACKS[state.pack]?.words ?? PACKS.classic.words)
   const fresh = pool.filter((w) => !state.used.includes(w))
-  return shuffle(fresh.length >= 3 ? fresh : pool, random).slice(0, 3)
+  const from = fresh.length >= 3 ? fresh : shuffle(pool, random)
+  const out: string[] = []
+  for (const t of [1, 2, 3]) {
+    const w = from.find((x) => tierOf(x) === t && !out.includes(x))
+    if (w) out.push(w)
+  }
+  for (const w of from) if (out.length < 3 && !out.includes(w)) out.push(w)
+  return out.sort((a, b) => tierOf(a) - tierOf(b))
+}
+
+/** A drawing thinned for the wall: coarser points, capped ink. */
+export function thin(strokes: Stroke[], budget = WALL_INK): Stroke[] {
+  const out: Stroke[] = []
+  let left = budget
+  for (const st of strokes) {
+    const p = st.f ? st.p.slice(0, 2) : densify(simplify(st.p, 7), 90)
+    const cost = p.length / 2 + 4
+    if (cost > left) break
+    left -= cost
+    out.push({ ...st, p })
+  }
+  return out
 }
 
 export function setup(ctx: GameCtx, opts: Record<string, string | number>): SketchState {
@@ -91,7 +146,9 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Sket
   for (let r = 0; r < rounds; r++) order.push(...shuffle(ids, ctx.random))
   const pack = String(opts.pack ?? 'classic')
   const drawTime = Number(opts.drawTime ?? 80) * 1000
-  const base = { pack, used: [] as string[] }
+  const words = PACKS[pack]?.words ?? PACKS.classic.words
+  const deck = freshFirst(words, (w) => w, ctx.used, ctx.random)
+  const base = { pack, used: [] as string[], deck }
   const choices = drawChoices(base, ctx.random)
   return {
     order,
@@ -100,6 +157,7 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Sket
     stage: 'choose',
     choices,
     word: '',
+    tier: 1,
     endsAt: ctx.now + CHOOSE_MS,
     stageStartedAt: ctx.now,
     stageTotal: CHOOSE_MS,
@@ -110,6 +168,8 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Sket
     scores: Object.fromEntries(ids.map((id) => [id, 0])),
     used: [],
     pack,
+    deck,
+    gallery: [],
     best: null,
     last: null,
   }
@@ -120,6 +180,7 @@ function startDraw(s: SketchState, word: string, now: number): SketchState {
     ...s,
     stage: 'draw',
     word,
+    tier: tierOf(word),
     choices: [],
     used: [...s.used, word],
     strokes: [],
@@ -137,6 +198,13 @@ function toReveal(s: SketchState, now: number): SketchState {
   if (fastest !== null && s.strokes.length && (!best || fastest < best.ms)) {
     best = { drawer: s.drawer, word: s.word, ms: fastest, strokes: s.strokes }
   }
+  const solvers = s.solved.map((x) => x.playerId)
+  const points: Record<string, number> = {}
+  for (const x of s.solved) points[x.playerId] = x.points
+  if (s.solved.length) points[s.drawer] = drawerBonus(s.solved.length, s.tier)
+  const gallery = s.strokes.length
+    ? [...s.gallery, { drawer: s.drawer, word: s.word, tier: s.tier, strokes: thin(s.strokes), solvers, ms: fastest }]
+    : s.gallery
   return {
     ...s,
     stage: 'reveal',
@@ -144,13 +212,24 @@ function toReveal(s: SketchState, now: number): SketchState {
     stageStartedAt: now,
     stageTotal: REVEAL_MS,
     best,
-    last: { drawer: s.drawer, word: s.word, solvers: s.solved.map((x) => x.playerId) },
+    gallery,
+    last: { drawer: s.drawer, word: s.word, solvers, points },
   }
+}
+
+/** What the drawer earns in all: 40 for the first solve, 20 for each after, times the tier. */
+function drawerBonus(solves: number, tier: number): number {
+  return solves ? Math.round((40 + 20 * (solves - 1)) * (TIER_BONUS[tier] ?? 1)) : 0
+}
+
+function toGallery(s: SketchState, now: number): SketchState {
+  if (!s.gallery.length) return { ...s, stage: 'done' }
+  return { ...s, stage: 'gallery', endsAt: now + GALLERY_MS, stageStartedAt: now, stageTotal: GALLERY_MS }
 }
 
 function nextTurn(s: SketchState, ctx: GameCtx): SketchState {
   const turn = s.turn + 1
-  if (turn >= s.order.length) return { ...s, stage: 'done', turn }
+  if (turn >= s.order.length) return toGallery({ ...s, turn }, ctx.now)
   return {
     ...s,
     turn,
@@ -158,6 +237,7 @@ function nextTurn(s: SketchState, ctx: GameCtx): SketchState {
     stage: 'choose',
     choices: drawChoices(s, ctx.random),
     word: '',
+    tier: 1,
     strokes: [],
     guesses: [],
     solved: [],
@@ -165,17 +245,6 @@ function nextTurn(s: SketchState, ctx: GameCtx): SketchState {
     stageStartedAt: ctx.now,
     stageTotal: CHOOSE_MS,
   }
-}
-
-function validStroke(x: unknown): Stroke | null {
-  if (!x || typeof x !== 'object') return null
-  const s = x as Partial<Stroke>
-  if (typeof s.c !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(s.c)) return null
-  const w = Number(s.w)
-  if (!Number.isFinite(w) || w < 1 || w > 80) return null
-  if (!Array.isArray(s.p) || s.p.length < 2 || s.p.length % 2 !== 0) return null
-  const p = s.p.slice(0, MAX_POINTS * 2).map((v) => Math.max(0, Math.min(1000, Math.round(Number(v) || 0))))
-  return { c: s.c, w: Math.round(w), p }
 }
 
 export function reduce(s: SketchState, a: PlayerAction, ctx: GameCtx): SketchState {
@@ -189,7 +258,7 @@ export function reduce(s: SketchState, a: PlayerAction, ctx: GameCtx): SketchSta
     }
     case 'stroke': {
       if (!isDrawer || s.stage !== 'draw' || s.strokes.length >= MAX_STROKES) return s
-      const st = validStroke((a.payload as { s?: unknown })?.s)
+      const st = cleanStroke((a.payload as { s?: unknown })?.s, INK_CAP - inkUsed(s.strokes))
       if (!st) return s
       return { ...s, strokes: [...s.strokes, st] }
     }
@@ -200,6 +269,13 @@ export function reduce(s: SketchState, a: PlayerAction, ctx: GameCtx): SketchSta
     case 'clear': {
       if (!isDrawer || s.stage !== 'draw' || !s.strokes.length) return s
       return { ...s, strokes: [] }
+    }
+    case 'next': {
+      // The TV's skip button (or any player) moves the wall along.
+      if (s.stage !== 'gallery') return s
+      if (a.playerId !== '__host' && !ctx.players.some((p) => p.id === a.playerId)) return s
+      if (ctx.now - s.stageStartedAt < 1500) return s
+      return { ...s, stage: 'done' }
     }
     case 'pass': {
       if (!isDrawer || s.stage !== 'draw') return s
@@ -214,10 +290,11 @@ export function reduce(s: SketchState, a: PlayerAction, ctx: GameCtx): SketchSta
       const verdict = judge(text, s.word)
       if (verdict === 'correct') {
         const elapsed = ctx.now - s.stageStartedAt
-        const points = Math.round(50 + 50 * Math.max(0, 1 - elapsed / s.drawTime))
-        const drawerBonus = s.solved.length === 0 ? 40 : 20
+        const bonus = TIER_BONUS[s.tier] ?? 1
+        const points = Math.round((50 + 50 * Math.max(0, 1 - elapsed / s.drawTime)) * bonus)
+        const drawerGets = Math.round((s.solved.length === 0 ? 40 : 20) * bonus)
         const solved = [...s.solved, { playerId: a.playerId, at: ctx.now, points }]
-        const scores = { ...s.scores, [a.playerId]: (s.scores[a.playerId] ?? 0) + points, [s.drawer]: (s.scores[s.drawer] ?? 0) + drawerBonus }
+        const scores = { ...s.scores, [a.playerId]: (s.scores[a.playerId] ?? 0) + points, [s.drawer]: (s.scores[s.drawer] ?? 0) + drawerGets }
         const guesses = [...s.guesses, { playerId: a.playerId, text: '', correct: true, close: false, at: ctx.now }].slice(-30)
         const next = { ...s, solved, scores, guesses }
         const guessers = ctx.players.filter((p) => p.id !== s.drawer)
@@ -236,6 +313,7 @@ export function tick(s: SketchState, ctx: GameCtx): SketchState {
   if (s.stage === 'choose') return startDraw(s, s.choices[0] ?? 'pizza', ctx.now)
   if (s.stage === 'draw') return toReveal(s, ctx.now)
   if (s.stage === 'reveal') return nextTurn(s, ctx)
+  if (s.stage === 'gallery') return { ...s, stage: 'done' }
   return s
 }
 
@@ -251,24 +329,11 @@ export function outcome(s: SketchState, ctx: GameCtx): GameOutcome | null {
       ? [{ playerId: s.best.drawer, kind: 'drawing', label: s.best.word, content: { strokes: s.best.strokes } }]
       : [],
     details: { turns: s.order.length, pack: s.pack },
+    used: s.used,
   }
 }
 
 // ---------------- bots ----------------
-
-/** A doodle a bot "draws": a few random wobbly strokes in 0..1000 space. */
-function doodle(random: () => number): Stroke {
-  const p: number[] = []
-  let x = 200 + random() * 600
-  let y = 200 + random() * 600
-  const steps = 6 + Math.floor(random() * 10)
-  for (let i = 0; i < steps; i++) {
-    p.push(Math.round(x), Math.round(y))
-    x = Math.max(60, Math.min(940, x + (random() - 0.5) * 260))
-    y = Math.max(60, Math.min(940, y + (random() - 0.5) * 260))
-  }
-  return { c: '#0C1130', w: 8, p }
-}
 
 /**
  * Bots: they pick words, draw nonsense and give up halfway (they can't really draw),
