@@ -1,14 +1,21 @@
-import type { CSSProperties } from 'react'
+import { memo, type CSSProperties } from 'react'
 import { cx } from '../../ui/kit'
 import { card, cardName, type Color } from './cards'
+import { LOUNGE, SUIT } from './lounge/look'
 
-/** Card fills. Every one carries dark ink at 5:1 or better, and each color has its own shape for colorblind players. */
-const FILL: Record<Color, string> = { red: '#F25C5C', blue: '#4C8DFF', green: '#35C27A', yellow: '#F5C842' }
-const INK = '#0C1130'
-const WHITE = '#E8ECFF'
+/**
+ * The Phase Lounge playing card: cream stock, rounded corners, a printed face. One component
+ * at every size (px width; height is 1.4x). Number cards: a color panel, a tilted cream oval
+ * with the number printed in the color's deep ink, corner indexes with the color's shape
+ * (red circle, blue square, green triangle, yellow diamond) so colorblind players can read it.
+ */
+
+const H = 1.4
+const DISPLAY = 'var(--font-party)'
+const BUNGEE = 'var(--font-display)'
 
 /** Red circle, blue square, green triangle, yellow diamond. */
-export function Shape({ color, style, fill = INK }: { color: Color; style?: CSSProperties; fill?: string }) {
+export function Shape({ color, style, fill = LOUNGE.ink }: { color: Color; style?: CSSProperties; fill?: string }) {
   return (
     <svg viewBox="0 0 12 12" style={style} aria-hidden className="block shrink-0">
       {color === 'red' && <circle cx="6" cy="6" r="5.2" fill={fill} />}
@@ -19,96 +26,212 @@ export function Shape({ color, style, fill = INK }: { color: Color; style?: CSSP
   )
 }
 
-/**
- * One card. `w` in px, or 'fluid' to fill its grid cell (sizes scale with the card through cqw units).
- */
-export function CardFace({ id, w = 'fluid', className }: { id: number; w?: number | 'fluid'; className?: string }) {
-  const c = card(id)
-  const fluid = w === 'fluid'
-  const u = (k: number) => (fluid ? `${k * 100}cqw` : `${Math.round(w * k * 10) / 10}px`)
-  const tiny = !fluid && w < 40
-  const root: CSSProperties = {
-    width: fluid ? '100%' : w,
-    aspectRatio: '5 / 7',
-    borderRadius: fluid ? '14% / 10%' : w * 0.14,
-    containerType: 'inline-size',
+function NoEntry({ size, color, bar = color }: { size: number; color: string; bar?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden className="block shrink-0">
+      <circle cx="12" cy="12" r="9.4" fill="none" stroke={color} strokeWidth="3.4" />
+      <path d="M5.6 18.4 L18.4 5.6" stroke={bar} strokeWidth="3.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function shell(w: number, lift = false): CSSProperties {
+  return {
+    position: 'relative',
+    width: w,
+    height: Math.round(w * H),
+    borderRadius: Math.max(3, w * 0.1),
+    background: `linear-gradient(170deg, #FBF5E6 0%, ${LOUNGE.cream} 55%, #EADFC4 100%)`,
+    boxShadow: lift
+      ? '0 1px 0 rgba(255,255,255,0.5) inset, 0 10px 18px rgba(0,0,0,0.45), 0 2px 3px rgba(0,0,0,0.35)'
+      : `0 1px 0 rgba(255,255,255,0.5) inset, 0 0 0 1px ${LOUNGE.creamEdge}, 0 ${Math.max(1, w * 0.03)}px ${Math.max(2, w * 0.06)}px rgba(0,0,0,0.42)`,
+    overflow: 'hidden',
+    flexShrink: 0,
   }
+}
+
+function panel(w: number): CSSProperties {
+  const pad = Math.max(2, Math.round(w * 0.065))
+  return { position: 'absolute', inset: pad, borderRadius: Math.max(2, w * 0.065), overflow: 'hidden' }
+}
+
+function oval(w: number, bg: string, extra?: CSSProperties): CSSProperties {
+  return {
+    position: 'absolute', left: '50%', top: '50%', width: w * 0.64, height: w * 0.98, borderRadius: '50%',
+    background: bg, transform: 'translate(-50%, -50%) rotate(28deg)', ...extra,
+  }
+}
+
+export const CardFace = memo(function CardFace({ id, w, className, lift, style }: {
+  id: number; w: number; className?: string; lift?: boolean; style?: CSSProperties
+}) {
+  const c = card(id)
+  const small = w < 44
+  const corner = Math.max(9, w * 0.22)
 
   if (c.kind === 'wild') {
     return (
-      <div
-        role="img"
-        aria-label="Wild"
-        className={cx('relative grid shrink-0 place-items-center font-display leading-none no-select', className)}
-        style={{
-          ...root,
-          background: WHITE,
-          color: INK,
-          borderStyle: 'solid',
-          borderWidth: fluid ? 5 : Math.max(2, Math.round(w * 0.08)),
-          borderColor: `${FILL.red} ${FILL.blue} ${FILL.green} ${FILL.yellow}`,
-        }}
-      >
-        <span style={{ fontSize: u(0.5) }}>W</span>
+      <div role="img" aria-label="Wild" className={cx('no-select', className)} style={{ ...shell(w, lift), ...style }}>
+        <div style={{ ...panel(w), background: `conic-gradient(from 45deg, ${SUIT.red.fill} 0 25%, ${SUIT.blue.fill} 0 50%, ${SUIT.green.fill} 0 75%, ${SUIT.yellow.fill} 0)` }}>
+          <div style={oval(w, LOUNGE.ink, { boxShadow: `0 0 0 ${Math.max(1.5, w * 0.03)}px ${LOUNGE.brass}` })} />
+          <div className="absolute inset-0 grid place-items-center">
+            <span style={{ fontFamily: BUNGEE, fontSize: small ? w * 0.34 : w * 0.2, color: LOUNGE.cream, transform: 'rotate(-14deg)', letterSpacing: small ? 0 : '0.02em', lineHeight: 1 }}>
+              {small ? 'W' : 'WILD'}
+            </span>
+          </div>
+          {!small && (
+            <>
+              <CornerBadge w={w} pos="tl"><span style={{ fontFamily: BUNGEE, fontSize: corner * 0.72, color: LOUNGE.ink, lineHeight: 1 }}>W</span></CornerBadge>
+              <CornerBadge w={w} pos="br"><span style={{ fontFamily: BUNGEE, fontSize: corner * 0.72, color: LOUNGE.ink, lineHeight: 1 }}>W</span></CornerBadge>
+            </>
+          )}
+        </div>
       </div>
     )
   }
 
   if (c.kind === 'skip') {
+    const stripe = Math.max(3, w * 0.09)
     return (
-      <div
-        role="img"
-        aria-label="Skip"
-        className={cx('relative grid shrink-0 place-items-center leading-none no-select', className)}
-        style={{ ...root, background: INK, color: WHITE, border: `${tiny ? 1.5 : 2}px solid ${WHITE}` }}
-      >
-        <div className="grid justify-items-center" style={{ gap: u(0.06) }}>
-          <svg viewBox="0 0 24 24" style={{ width: u(0.38), height: u(0.38) }} aria-hidden>
-            <circle cx="12" cy="12" r="9.5" fill="none" stroke={WHITE} strokeWidth="3" />
-            <path d="M5.5 18.5 L18.5 5.5" stroke={WHITE} strokeWidth="3" />
-          </svg>
-          {!tiny && <span className="font-display" style={{ fontSize: u(0.2) }}>SKIP</span>}
+      <div role="img" aria-label="Skip" className={cx('no-select', className)} style={{ ...shell(w, lift), ...style }}>
+        <div style={{ ...panel(w), background: `repeating-linear-gradient(-45deg, ${LOUNGE.ink} 0 ${stripe}px, ${LOUNGE.oxblood} ${stripe}px ${stripe * 2}px)` }}>
+          <div style={oval(w, LOUNGE.cream, { boxShadow: `0 0 0 ${Math.max(1.5, w * 0.03)}px ${LOUNGE.ink}` })} />
+          <div className="absolute inset-0 grid place-content-center justify-items-center" style={{ gap: w * 0.02 }}>
+            <NoEntry size={w * (small ? 0.5 : 0.4)} color={LOUNGE.bad} />
+            {!small && <span style={{ fontFamily: BUNGEE, fontSize: w * 0.13, color: LOUNGE.ink, lineHeight: 1 }}>SKIP</span>}
+          </div>
+          {!small && (
+            <>
+              <div className="absolute" style={{ left: w * 0.03, top: w * 0.03 }}><NoEntry size={corner * 0.8} color={LOUNGE.cream} /></div>
+              <div className="absolute" style={{ right: w * 0.03, bottom: w * 0.03 }}><NoEntry size={corner * 0.8} color={LOUNGE.cream} /></div>
+            </>
+          )}
         </div>
       </div>
     )
   }
 
   const color = c.color!
+  const suit = SUIT[color]
+  const two = c.n >= 10
+  return (
+    <div role="img" aria-label={cardName(id)} className={cx('no-select', className)} style={{ ...shell(w, lift), ...style }}>
+      <div style={{ ...panel(w), background: `linear-gradient(160deg, ${suit.fill} 0%, ${suit.fill} 45%, ${suit.deep} 100%)` }}>
+        <div style={oval(w, LOUNGE.cream, { boxShadow: `inset 0 0 0 ${Math.max(1, w * 0.018)}px ${suit.deep}` })} />
+        <div className="absolute inset-0 grid place-items-center">
+          <span
+            style={{
+              fontFamily: DISPLAY, fontSize: w * (two ? 0.44 : 0.56), lineHeight: 1, color: suit.print,
+              letterSpacing: two ? '-0.04em' : 0, marginTop: small ? w * 0.08 : 0,
+              textShadow: `0 ${Math.max(1, w * 0.02)}px 0 rgba(0,0,0,0.12)`,
+            }}
+          >
+            {c.n}
+          </span>
+        </div>
+        {small ? (
+          <Shape color={color} style={{ position: 'absolute', left: w * 0.04, top: w * 0.04, width: w * 0.2, height: w * 0.2 }} />
+        ) : (
+          <>
+            <Index w={w} n={c.n} color={color} pos="tl" />
+            <Index w={w} n={c.n} color={color} pos="br" />
+          </>
+        )}
+      </div>
+    </div>
+  )
+})
+
+function Index({ w, n, color, pos }: { w: number; n: number; color: Color; pos: 'tl' | 'br' }) {
+  const size = Math.max(9, w * 0.22)
   return (
     <div
-      role="img"
-      aria-label={cardName(id)}
-      className={cx('relative grid shrink-0 place-items-center font-display leading-none no-select', className)}
-      style={{ ...root, background: FILL[color], color: INK }}
+      className="absolute grid justify-items-center"
+      style={{
+        ...(pos === 'tl' ? { left: w * 0.025, top: w * 0.02 } : { right: w * 0.025, bottom: w * 0.02, transform: 'rotate(180deg)' }),
+        width: size * 1.15, gap: w * 0.01,
+      }}
     >
-      <Shape color={color} style={{ position: 'absolute', left: u(0.1), top: u(0.1), width: u(tiny ? 0.26 : 0.2), height: u(tiny ? 0.26 : 0.2) }} />
-      {!tiny && (
-        <Shape color={color} style={{ position: 'absolute', right: u(0.1), bottom: u(0.1), width: u(0.2), height: u(0.2), transform: 'rotate(180deg)' }} />
-      )}
-      <span style={{ fontSize: u(c.n >= 10 ? 0.44 : 0.56), marginTop: tiny ? u(0.12) : 0 }}>{c.n}</span>
+      <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: LOUNGE.ink, letterSpacing: n >= 10 ? '-0.06em' : 0 }}>{n}</span>
+      <Shape color={color} style={{ width: size * 0.55, height: size * 0.55 }} />
     </div>
   )
 }
 
-export function CardBack({ w, className }: { w: number; className?: string }) {
+function CornerBadge({ w, pos, children }: { w: number; pos: 'tl' | 'br'; children: React.ReactNode }) {
+  const d = Math.max(10, w * 0.2)
   return (
     <div
-      aria-hidden
-      className={cx('grid shrink-0 place-items-center border-2 bg-tile-2', w < 40 ? 'border-ink-3/70' : 'border-line', className)}
-      style={{ width: w, aspectRatio: '5 / 7', borderRadius: w * 0.14 }}
+      className="absolute grid place-items-center rounded-full"
+      style={{
+        ...(pos === 'tl' ? { left: w * 0.03, top: w * 0.03 } : { right: w * 0.03, bottom: w * 0.03 }),
+        width: d, height: d, background: LOUNGE.cream, boxShadow: `0 0 0 1px ${LOUNGE.ink}`,
+      }}
     >
-      {w >= 40 && <div className="h-[70%] w-[64%] rounded-[30%] border-2 border-ink-3/50" />}
+      {children}
     </div>
   )
 }
 
-/** A fan of card backs for "how many cards is that player holding". */
-export function BackFan({ count, w = 26, step = 9 }: { count: number; w?: number; step?: number }) {
-  const n = Math.min(count, 12)
+/** The back: oxblood with a brass lattice and the PHASES monogram. */
+export const CardBack = memo(function CardBack({ w, className, style, lift }: { w: number; className?: string; style?: CSSProperties; lift?: boolean }) {
+  const small = w < 46
+  const lattice = Math.max(4, w * 0.09)
   return (
-    <div className="relative shrink-0" style={{ width: n ? w + (n - 1) * step : w, height: w * 1.4 }} aria-hidden>
+    <div aria-hidden className={cx('no-select', className)} style={{ ...shell(w, lift), ...style }}>
+      <div
+        style={{
+          ...panel(w),
+          background: `repeating-linear-gradient(45deg, rgba(226,188,110,0.26) 0 1px, transparent 1px ${lattice}px), repeating-linear-gradient(-45deg, rgba(226,188,110,0.26) 0 1px, transparent 1px ${lattice}px), radial-gradient(ellipse at 50% 45%, #8A2A30 0%, ${LOUNGE.oxblood} 55%, ${LOUNGE.oxbloodDark} 100%)`,
+        }}
+      >
+        <div className="absolute" style={{ inset: Math.max(2, w * 0.05), borderRadius: Math.max(2, w * 0.05), boxShadow: `inset 0 0 0 ${Math.max(1, w * 0.015)}px ${LOUNGE.brass}` }} />
+        <div
+          className="absolute grid place-items-center"
+          style={{
+            left: '50%', top: '50%', width: w * 0.66, height: w * 0.42, transform: 'translate(-50%, -50%)', borderRadius: '50%',
+            background: LOUNGE.oxbloodDark, boxShadow: `0 0 0 ${Math.max(1, w * 0.02)}px ${LOUNGE.brass}`,
+          }}
+        >
+          <span style={{ fontFamily: BUNGEE, color: LOUNGE.brass, fontSize: small ? w * 0.26 : w * 0.105, lineHeight: 1, letterSpacing: small ? 0 : '0.04em' }}>
+            {small ? 'P' : 'PHASES'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+})
+
+/** A face-down pile with visible thickness (one layer per ~10 cards, at most 7). */
+export function DeckStack({ count, w, className }: { count: number; w: number; className?: string }) {
+  const layers = Math.min(7, Math.ceil(count / 10))
+  const step = Math.max(1.5, w * 0.022)
+  const edge = Array.from({ length: layers }, (_, i) => `${(i + 1) * step * 0.5}px ${(i + 1) * step}px 0 ${i % 2 ? '#CDBF9C' : '#E8DDC2'}`)
+  if (!count) {
+    return <div className={className} style={{ width: w, height: Math.round(w * H), borderRadius: w * 0.1, border: `2px dashed rgba(246,238,219,0.3)` }} />
+  }
+  return (
+    <div className={cx('relative', className)} style={{ width: w, height: Math.round(w * H), borderRadius: w * 0.1, boxShadow: [...edge, `${layers * step * 0.5 + 2}px ${layers * step + 6}px 12px rgba(0,0,0,0.5)`].join(', ') }}>
+      <CardBack w={w} style={{ position: 'absolute', inset: 0 }} />
+    </div>
+  )
+}
+
+/** A little fanned hand of card backs: how many cards a player is holding. */
+export function BackFan({ count, w = 26, step = 9, max = 11 }: { count: number; w?: number; step?: number; max?: number }) {
+  const n = Math.min(count, max)
+  const mid = (n - 1) / 2
+  const h = Math.round(w * H)
+  return (
+    <div className="relative shrink-0" style={{ width: n ? w + (n - 1) * step : w, height: h + 6 }} aria-hidden>
       {Array.from({ length: n }, (_, i) => (
-        <div key={i} className="absolute top-0" style={{ left: i * step }}><CardBack w={w} /></div>
+        <div
+          key={i}
+          className="absolute top-1"
+          style={{ left: i * step, transform: `rotate(${(i - mid) * 5}deg) translateY(${Math.abs(i - mid) * 1.2}px)`, transformOrigin: '50% 120%' }}
+        >
+          <CardBack w={w} />
+        </div>
       ))}
     </div>
   )
