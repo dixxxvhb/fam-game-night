@@ -106,7 +106,7 @@ function TallyRow({ r, i, s, who, start, now, h }: { r: RoundRow; i: number; s: 
             : `Stuck on Phase ${was + 1}`}
         </div>
       </div>
-      <div className="w-28 text-right tabular" style={{ fontFamily: 'var(--font-party)', fontSize: big ? 46 : 36, lineHeight: 1, color: r.points ? LOUNGE.bad : LOUNGE.good }}>
+      <div className="w-28 text-right tabular" style={{ fontFamily: 'var(--font-party)', fontSize: big ? 46 : 36, lineHeight: 1, color: r.points ? LOUNGE.bad : LOUNGE.good, opacity: r.points && !v ? 0.25 : 1 }}>
         {r.points ? `+${v}` : '0'}
       </div>
       <div className="grid w-24 justify-items-end" style={{ gap: 0 }}>
