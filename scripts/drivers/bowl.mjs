@@ -1,8 +1,10 @@
-// QA driver for Bowl. Whoever is up swipes a throw on their phone's lane (no motion sensor
+// QA driver for Gator Lanes (id bowl). First every phone picks a critter with a real tap (the
+// shoe counter), then whoever is up swipes a throw on their phone's lane (no motion sensor
 // in Playwright, so this is the swipe fallback): sometimes they slide the ball over or drag
 // the aim arrow first, and the swipe speed and sideways drift vary. Plays to the end.
-// Screens: aim, mid-roll, pin action and result for every ball of frame 1 and the first
-// ball of every later frame, the scoreboard whenever a frame turns over, then results.
+// Screens: pick, aim, mid-roll (ball cam), pin action (pin cam) and result for every ball of
+// frame 1 and the first ball of every later frame, the scoreboard whenever a frame turns over,
+// the podium, then results.
 //   BOWL_QUICK=1 stops after frame 1 (for iterating on looks).
 export default async function ({ tv, phones, shot, wait }) {
   const log = (...a) => console.log('[bowl]', ...a)
@@ -15,10 +17,46 @@ export default async function ({ tv, phones, shot, wait }) {
     return false
   }
   const padOn = async (p) => (await p.locator('[data-bowl-pad]').count()) > 0
+
+  // ---- pick: every phone taps a free critter (solo: the bots pick their own) ----
+  const picks = ['chomp', 'ibby', 'mattie', 'pete', 'zippy', 'shelly']
+  for (let i = 0; i < 80; i++) {
+    if (await phones[0].locator('[data-bowl-pick]').count()) break
+    await wait(150)
+  }
+  await shot('pick-open')
+  for (let k = 0; k < phones.length; k++) {
+    const p = phones[k]
+    if (!(await p.locator('[data-bowl-pick]').count())) { failures.push(`${p.playerId}: no pick screen`); continue }
+    let done = false
+    for (const c of [picks[k], ...picks]) {
+      const b = p.locator(`[data-bowl-pick="${c}"]`)
+      if ((await b.count()) && !(await b.isDisabled())) { await b.click(); done = true; break }
+    }
+    if (!done) failures.push(`${p.playerId}: could not pick`)
+    await wait(350)
+    if (k === 0) await shot('pick-one')
+  }
+  for (let i = 0; i < 40; i++) {
+    if (await phones[0].locator('[data-bowl-picked]').count()) break
+    await wait(100)
+  }
+  await shot('pick-all')
+  for (const p of phones) if (!(await p.locator('[data-bowl-picked]').count()) && !(await padOn(p))) failures.push(`${p.playerId}: pick did not land`)
+  let podiumShot = false
+  async function podiumCheck() {
+    if (podiumShot) return
+    if (await watcher.locator('[data-bowl-stage="podium"]').count()) {
+      podiumShot = true
+      await wait(2600)
+      await shot('podium')
+    }
+  }
   async function whoIsUp(ms) {
     const t0 = Date.now()
     while (Date.now() - t0 < ms) {
       for (const p of phones) if (await padOn(p)) return p
+      await podiumCheck()
       if (await resultsUp()) return 'done'
       await wait(250)
     }
@@ -33,7 +71,7 @@ export default async function ({ tv, phones, shot, wait }) {
     return watcher.evaluate(() => {
       const c = document.querySelector('canvas[data-lane]')
       if (!c) return null
-      return { f: c.dataset.frame, hit: Number(c.dataset.hit ?? -1), n: Number(c.dataset.n ?? 0) }
+      return { f: c.dataset.frame, shot: c.dataset.shot, hit: Number(c.dataset.hit ?? -1), n: Number(c.dataset.n ?? 0) }
     })
   }
 
@@ -153,11 +191,23 @@ export default async function ({ tv, phones, shot, wait }) {
       continue
     }
     if (full) {
+      if (throws === 1) {
+        for (let i = 0; i < 20; i++) { lf = await laneFrame(); if (lf?.shot === 'windup') break; await wait(40) }
+        await wait(300)
+        await shot(`${label}-windup`)
+      }
       for (let i = 0; i < 80; i++) { lf = await laneFrame(); if (Number(lf?.f) >= Math.max(10, (lf?.hit ?? 30) * 0.55)) break; await wait(50) }
       await shot(`${label}-mid`)
+      if (throws === 1) {
+        // Frame rate while the ball cam is running (headless caps at 60).
+        const fps = await watcher.evaluate(() => new Promise((res) => { let n = 0; const t0 = performance.now(); const f = () => { n++; if (performance.now() - t0 < 1000) requestAnimationFrame(f); else res(n) }; requestAnimationFrame(f) }))
+        log(`  lane fps during the roll: ${fps}`)
+      }
+      if (lf?.shot !== 'chase') failures.push(`${label}: mid-roll was not on the ball cam (${lf?.shot})`)
       if ((lf?.hit ?? -1) >= 0) {
-        for (let i = 0; i < 80; i++) { lf = await laneFrame(); if (Number(lf?.f) >= lf.hit + 5) break; await wait(50) }
+        for (let i = 0; i < 120; i++) { lf = await laneFrame(); if (Number(lf?.f) >= lf.hit + 3) break; await wait(40) }
         await shot(`${label}-pins`)
+        if (lf?.shot !== 'pins') failures.push(`${label}: impact was not on the pin cam (${lf?.shot})`)
       }
     }
     let res = null
@@ -168,7 +218,7 @@ export default async function ({ tv, phones, shot, wait }) {
     const word = res ? (await watcher.locator('[data-result]').first().innerText().catch(() => '')).trim() : null
     log(`  -> ${res} ${word}`)
     if (!res) failures.push(`${label}: no result shown`)
-    if (full) await shot(`${label}-result`)
+    if (full) { await wait(650); await shot(`${label}-result`) }
     // Let the result clear before looking for the next bowler.
     for (let i = 0; i < 40; i++) { if (!(await watcher.locator('[data-result]').count())) break; await wait(100) }
     // Solo: bots bowl on their own between our turns. Catch one of them mid-roll each frame.
@@ -182,7 +232,8 @@ export default async function ({ tv, phones, shot, wait }) {
     }
   }
   if (!quick) {
-    for (let i = 0; i < 60 && !(await resultsUp()); i++) await wait(1000)
+    for (let i = 0; i < 60 && !(await resultsUp()); i++) { await podiumCheck(); await wait(500) }
+    if (!podiumShot) failures.push('never saw the podium')
     if (!(await resultsUp())) failures.push('never reached results')
     await shot(`frame${lastFrame}-board`)
     await wait(800)

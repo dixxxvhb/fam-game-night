@@ -1,149 +1,141 @@
-import { useEffect, useLayoutEffect, useRef } from 'react'
-import type { RoomPlayer, StageProps } from '../../engine/types'
+import { useEffect, type ReactNode } from 'react'
+import type { StageProps } from '../../engine/types'
 import { useTicker } from '../../engine/context'
-import { sfx } from '../../ui/sfx'
-import { Avatar, cx } from '../../ui/kit'
+import { cx } from '../../ui/kit'
+import { INK, Mingo } from '../board/park/cast'
+import { Portrait } from '../board/park/ui'
+import { MusicButton } from '../../room/shared'
+import '../board/park/show/show.css'
+import './bowl.css'
 import { LaneView } from './LaneView'
-import { PinChart, Scoreboard } from './Scoreboard'
-import { nextBowler, type BowlResult, type BowlState } from './logic'
-import { position } from './score'
+import { Scoreboard } from './Scoreboard'
+import { PICK_DONE_MS, PICK_MS, type BowlState } from './logic'
+import { mingoLine } from './lines'
+import { NIGHT, ROOM_BG } from './look'
+import { preloadSprites } from './sprites'
+import { standings } from './stats'
+import { useBowlAudio } from './show/audio'
+import { ballLine, LanesScreen } from './show/Lanes'
+import { Neon, ordinal, placeColor, whoFrom, type WhoFn } from './show/parts'
+import { PickScreen } from './show/Pick'
+import { PodiumScreen } from './show/Podium'
+import { ResultWord } from './show/Reaction'
 
 const WARN_MS = 10_000
 
-function useBowlSounds(s: BowlState, now: () => number) {
-  const resN = useRef(s.result?.n ?? 0)
-  const clock = useRef(now)
-  useLayoutEffect(() => { clock.current = now })
-  const roll = s.stage === 'roll' ? s.roll : null
-  const rollN = roll?.n ?? 0
-  useEffect(() => {
-    if (!roll) return
-    sfx.play('whoosh')
-    if (roll.hit < 0) return
-    // The pins crash when the ball gets there on the replay clock.
-    const wait = roll.at + roll.hit * roll.replay.dt - clock.current()
-    if (wait < -200) return
-    const t = setTimeout(() => sfx.play('pop'), Math.max(0, wait))
-    return () => clearTimeout(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one sound per throw
-  }, [rollN])
-  useEffect(() => {
-    const r = s.result
-    if (!r || s.stage !== 'result' || r.n === resN.current) return
-    resN.current = r.n
-    if (r.kind === 'strike' || r.kind === 'spare') sfx.play('good')
-    else if (r.kind === 'gutter' || r.kind === 'miss') sfx.play('bad')
-  }, [s.result, s.stage])
-}
+/**
+ * Gator Lanes on the TV, and the compact version above the controller on apart phones. Every
+ * screen that shows the lane also plays the music and the moments.
+ */
+export function BowlStage({ state: s, room, now, compact, me }: StageProps<BowlState>) {
+  useTicker(compact ? 250 : 100)
+  useBowlAudio(s, now)
+  const who = whoFrom(room.players, s)
+  const charKey = s.order.map((id) => s.chars[id] ?? '').join(',')
+  useEffect(() => { preloadSprites(Object.values(s.chars)) }, [charKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-function ResultWord({ r, big }: { r: BowlResult; big: boolean }) {
-  const tone = r.kind === 'strike' || r.kind === 'spare' ? 'text-hot' : r.kind === 'gutter' || r.kind === 'miss' ? 'text-bad' : 'text-ink'
+  if (compact) return <Compact s={s} room={room} now={now} me={me ?? null} who={who} />
+
+  let screen = null
+  if (s.stage === 'pick') screen = <PickScreen s={s} who={who} now={now()} />
+  else if (s.stage === 'podium' || s.stage === 'done') screen = <PodiumScreen s={s} who={who} />
+  else screen = <LanesScreen s={s} room={room} now={now} who={who} />
   return (
-    <div key={r.n} className={cx('grid justify-items-center rounded-2xl bg-paper/85 text-center animate-pop', big ? 'gap-1 px-10 py-4' : 'px-4 py-1.5')}>
-      <div className={cx('font-display leading-none', tone, big ? (r.label.length > 6 ? 'text-7xl' : 'text-8xl') : 'text-3xl')} data-result={r.kind}>{r.label}</div>
-      <div className={cx('font-bold text-ink-2', big ? 'text-2xl' : 'text-sm')}>{r.line}</div>
+    <div data-bowl-stage={s.stage} className="relative h-full min-h-0 w-full overflow-hidden" style={{ background: ROOM_BG }}>
+      {screen}
+      <div className="absolute bottom-2 left-2 z-20 opacity-70"><MusicButton /></div>
     </div>
   )
 }
 
-function useWho(players: RoomPlayer[]) {
-  return (id: string) => players.find((p) => p.id === id) ?? { id, name: id, color: '#888', guest: true, connected: true }
-}
+// ---------------- apart: the compact stage above each phone's controller ----------------
 
-function ballLine(s: BowlState) {
-  const pos = position(s.rolls[s.bowler] ?? [], s.frames)
-  const ball = s.stage === 'aim' ? pos.ball : s.roll?.ball ?? pos.ball
-  const frame = s.stage === 'aim' ? s.frame : s.roll?.frame ?? s.frame
-  return `Frame ${Math.min(frame, s.frames - 1) + 1} of ${s.frames} · Ball ${ball + 1}`
-}
+function Compact({ s, room, now, me, who }: { s: BowlState; room: StageProps<BowlState>['room']; now: () => number; me: string | null; who: WhoFn }) {
+  const t = now()
+  const wrap = (body: ReactNode) => (
+    <div data-bowl-stage={s.stage} className="-m-3 grid gap-2 p-3" style={{ background: ROOM_BG, color: NIGHT.text }}>
+      {body}
+    </div>
+  )
 
-export function BowlStage({ state: s, room, now, compact, me }: StageProps<BowlState>) {
-  useTicker(250)
-  useBowlSounds(s, now)
-  const who = useWho(room.players)
-  const bowler = who(s.bowler)
-  const left = Math.max(0, s.endsAt - now())
-  const warn = s.stage === 'aim' && left <= WARN_MS
-  const showResult = s.stage === 'result' && s.result
-
-  if (compact) {
-    // On the bowler's own phone the pad below already shows the lane while they aim.
-    const mine = me === s.bowler && s.stage === 'aim'
-    return (
-      <div className="grid gap-2">
-        {!mine && (
-          <>
-            <div className="flex items-center justify-between gap-2">
-              <span className="flex min-w-0 items-center gap-2">
-                <Avatar name={bowler.name} color={bowler.color} size={22} />
-                <span className="truncate font-bold">{s.stage === 'done' ? 'That is the game' : `${bowler.name}${s.stage === 'aim' ? ' is up' : ''}`}</span>
-              </span>
-              <span className="shrink-0 font-mono text-xs text-ink-3">{s.stage === 'roll' && s.roll ? `${s.roll.mph} mph` : ballLine(s)}</span>
-            </div>
-            <div className="relative h-[190px] overflow-hidden rounded-xl">
-              <LaneView s={s} room={room} now={now} className="relative h-full w-full" neighbors={false} />
-              {showResult && (
-                <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
-                  <ResultWord r={s.result!} big={false} />
-                </div>
-              )}
-              {warn && (
-                <div className="absolute inset-x-0 top-2 flex justify-center">
-                  <span className="rounded-full bg-paper/85 px-3 py-1 text-sm font-bold text-bad">Rolls itself in {Math.ceil(left / 1000)}</span>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-        <Scoreboard s={s} players={room.players} size="compact" />
-      </div>
+  if (s.stage === 'pick') {
+    const picked = s.order.filter((id) => s.chars[id])
+    const all = picked.length === s.order.length
+    const left = Math.max(0, s.endsAt - t)
+    return wrap(
+      <div className="flex items-center gap-3">
+        <Neon size={24} color={NIGHT.pink} glowColor={NIGHT.pink}>GATOR LANES</Neon>
+        <div className="flex min-w-0 flex-1 justify-end -space-x-2">
+          {s.order.map((id) => <Portrait key={id} char={s.chars[id]} name={who(id).name} size={34} dim={!s.chars[id]} />)}
+        </div>
+        <div className="h-3 w-16 shrink-0 overflow-hidden rounded-full border-2" style={{ borderColor: INK, background: '#fff' }}>
+          <div className="h-full" style={{ width: `${Math.min(1, left / (all ? PICK_DONE_MS : PICK_MS)) * 100}%`, background: NIGHT.pink }} />
+        </div>
+      </div>,
     )
   }
 
-  const dense = s.order.length >= 4
-  const nextId = nextBowler(s)
-  const next = nextId && nextId !== s.bowler ? who(nextId) : null
-  const chartStanding = s.stage === 'roll' && s.roll ? s.roll.before : s.stage === 'result' && s.roll ? s.roll.left : s.standing
-  const chartKnocked = s.stage === 'result' && s.roll ? s.roll.knocked : []
-  const status =
-    s.stage === 'aim' ? (warn ? `Rolls itself in ${Math.ceil(left / 1000)}` : s.standing.length < 10 ? `${s.standing.length} to pick up` : 'Lining it up')
-    : s.stage === 'roll' && s.roll ? `${s.roll.mph} mph${Math.abs(s.roll.th.curve) > 0.15 ? `, hooking ${s.roll.th.curve < 0 ? 'left' : 'right'}` : ''}`
-    : s.stage === 'result' && s.result ? `${s.result.pins} down`
-    : 'That is the game'
-
-  return (
-    <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto] gap-4 px-6 pb-5 pt-4">
-      <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_290px] gap-5">
-        <div className="relative min-h-0 overflow-hidden rounded-2xl border-2 border-line">
-          <LaneView s={s} room={room} now={now} className="relative h-full w-full" />
-          {showResult && (
-            <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
-              <ResultWord r={s.result!} big />
-            </div>
-          )}
+  if (s.stage === 'podium' || s.stage === 'done') {
+    const table = standings(s)
+    return wrap(
+      <>
+        <Neon size={26} color={NIGHT.yellow} glowColor={NIGHT.yellow}>LANE CLOSED</Neon>
+        <div className="grid gap-1.5">
+          {table.map((row) => {
+            const w = who(row.id)
+            return (
+              <div key={row.id} className="flex items-center gap-2 rounded-xl px-2 py-1" style={{ background: row.id === me ? `${w.tint}33` : 'rgba(255,255,255,0.05)' }}>
+                <span className="w-10 font-party text-[20px] leading-none" style={{ color: placeColor(row.place) }}>{ordinal(row.place)}</span>
+                <Portrait char={w.char} name={w.name} size={30} />
+                <span className="min-w-0 flex-1 truncate font-party text-[19px] leading-none">{row.id === me ? 'You' : w.name}</span>
+                <span className="font-party text-[22px] leading-none tabular" style={{ color: NIGHT.yellow }}>{row.score}</span>
+              </div>
+            )
+          })}
         </div>
-        <aside className="flex min-h-0 flex-col gap-3 overflow-hidden">
-          <div className="flex min-w-0 items-center gap-3">
-            <Avatar name={bowler.name} color={bowler.color} size={dense ? 40 : 52} />
-            <div className="min-w-0">
-              <div className={cx('truncate font-bold leading-tight', dense ? 'text-2xl' : 'text-3xl')}>{bowler.name}</div>
-              <div className="font-mono text-sm text-ink-2">{ballLine(s)}</div>
-            </div>
+      </>,
+    )
+  }
+
+  // On the bowler's own phone the pad below already shows the lane while they aim.
+  const mine = me === s.bowler && s.stage === 'aim'
+  const bowler = who(s.bowler)
+  const left = Math.max(0, s.endsAt - t)
+  const warn = s.stage === 'aim' && left <= WARN_MS
+  const r = s.stage === 'result' ? s.result : null
+  return wrap(
+    <>
+      {!mine && (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="rounded-full" style={{ boxShadow: `0 0 0 3px ${bowler.tint}, 0 0 10px ${bowler.tint}` }}><Portrait char={bowler.char} name={bowler.name} size={30} /></span>
+              <span className="truncate font-party text-[20px] leading-none">{bowler.name}{s.stage === 'aim' ? ' is up' : ''}</span>
+            </span>
+            <span className="shrink-0 font-mono text-xs" style={{ color: NIGHT.text2 }}>{s.stage === 'roll' && s.roll ? `${s.roll.mph} mph` : ballLine(s)}</span>
           </div>
-          <div className={cx('grid min-h-0 flex-1 content-center justify-items-center rounded-2xl bg-tile px-4', dense ? 'gap-1.5 py-2' : 'gap-2 py-3')}>
-            <PinChart standing={chartStanding} knocked={chartKnocked} size={dense ? 26 : 32} />
-            <div className={cx('text-center text-xl font-bold leading-tight', warn ? 'text-bad' : 'text-ink-2')}>{status}</div>
+          <div className="relative h-[210px] overflow-hidden rounded-[16px] border-[3px]" style={{ borderColor: INK, boxShadow: `0 0 0 2px ${NIGHT.pink}66, 0 0 16px ${NIGHT.pink}44` }}>
+            <LaneView s={s} room={room} now={now} className="absolute inset-0" neighbors />
+            {r && (
+              <div key={r.n} className={cx('pointer-events-none absolute inset-0 grid place-items-center', (r.kind === 'gutter' || r.kind === 'miss') && 'bg-[rgba(11,5,34,0.5)]')}>
+                <ResultWord r={r} size={r.kind === 'count' ? 50 : 54} />
+              </div>
+            )}
+            {warn && (
+              <div className="absolute inset-x-0 bottom-2 flex justify-center">
+                <span className="rounded-full border-[3px] bg-white px-3 py-0.5 font-party text-[17px]" style={{ borderColor: INK, color: NIGHT.red }}>Rolls itself in {Math.ceil(left / 1000)}</span>
+              </div>
+            )}
           </div>
-          {next && !dense && (
-            <div className="flex items-center gap-2 text-ink-3">
-              <span className="font-mono text-xs uppercase tracking-[0.14em]">Next</span>
-              <Avatar name={next.name} color={next.color} size={24} />
-              <span className="truncate font-bold text-ink-2">{next.name}</span>
+          {r && (
+            <div key={`m${r.n}`} className="gl-pop flex items-center gap-2">
+              <div className="shrink-0"><Mingo size={46} mood={r.kind === 'strike' ? 'happy' : r.kind === 'gutter' ? 'sad' : 'idle'} /></div>
+              <div className="min-w-0 rounded-2xl border-[3px] bg-white px-3 py-1.5 font-party text-[15px] leading-tight" style={{ borderColor: INK, color: INK }}>{mingoLine(r, !!s.roll?.auto)}</div>
             </div>
           )}
-        </aside>
-      </div>
-      <Scoreboard s={s} players={room.players} size="tv" />
-    </div>
+        </>
+      )}
+      <Scoreboard s={s} players={room.players} size="compact" />
+    </>,
   )
 }

@@ -3,15 +3,18 @@ import { placeByScore } from '../../engine/points'
 import { shuffle } from '../../lib/shuffle'
 import { ALL_PINS, isSplit, leaveName, PIN_SPOT, position, scoreCard } from './score'
 import { AIM_MAX_DEG, HEAD, simulate, START_HALF, type Replay, type Throw } from './sim'
+import { CAST_IDS, isCritterId, type CritterId } from '../board/park/cast'
+import { rollMs } from './timeline'
 
 /**
- * Bowl: ten-pin, one lane, everyone takes their whole frame in turn (the order rotates
+ * Gator Lanes (id bowl): ten-pin, one lane, Party Park's cosmic bowling alley. Everyone picks a
+ * critter first (pick), then bowls, everyone takes their whole frame in turn (the order rotates
  * every frame). The bowler's phone sends one `throw`; the host simulates the roll right
  * there in reduce and keeps a compact replay for the TV. When the replay has played out,
  * tick scores the ball and shows the result, then sets up the next ball.
  */
 
-export type BowlStage = 'aim' | 'roll' | 'result' | 'done'
+export type BowlStage = 'pick' | 'aim' | 'roll' | 'result' | 'podium' | 'done'
 export type ResultKind = 'strike' | 'spare' | 'gutter' | 'split' | 'count' | 'miss'
 
 export interface BowlRoll {
@@ -46,12 +49,16 @@ export interface BowlResult {
   /** Smaller line under it. */
   line: string
   pins: number
+  /** Strikes in a row for this bowler, counting this ball (0 if it was not a strike). */
+  streak?: number
 }
 
 export interface BowlMoment { playerId: string; text: string; frame: number }
 
 export interface BowlState {
   frames: number
+  /** The critter each player bowls as (null until picked). */
+  chars: Record<string, CritterId | null>
   /** Seat order for frame 1; every frame starts one seat later. */
   order: string[]
   /** Pins per ball, the way a score sheet reads. */
@@ -77,9 +84,15 @@ export interface BowlState {
 }
 
 export const AIM_MS = 30_000
-export const RESULT_MS = 1600
-export const BIG_RESULT_MS = 2200
-const REPLAY_PAD_MS = 200
+export const RESULT_MS = 1900
+export const BIG_RESULT_MS = 2700
+/** A turkey or better gets the whole show. */
+export const HUGE_RESULT_MS = 3300
+export const PICK_MS = 45_000
+/** All picked: hold the pick screen this long so the last name tag lands. */
+export const PICK_DONE_MS = 1500
+export const PODIUM_MS = 8000
+const REPLAY_PAD_MS = 250
 export const FRAME_CHOICES = [5, 10]
 
 export function frameOrder(s: Pick<BowlState, 'order'>, frame: number): string[] {
@@ -89,7 +102,7 @@ export function frameOrder(s: Pick<BowlState, 'order'>, frame: number): string[]
 
 /** Who bowls after the current bowler finishes their frame, or null at the end of the game. */
 export function nextBowler(s: BowlState): string | null {
-  if (s.stage === 'done') return null
+  if (s.stage === 'done' || s.stage === 'podium') return null
   const order = frameOrder(s, s.frame)
   if (s.turn + 1 < order.length) return order[s.turn + 1]
   if (s.frame + 1 < s.frames) return frameOrder(s, s.frame + 1)[0]
@@ -102,6 +115,7 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Bowl
   const ids = order
   return {
     frames,
+    chars: Object.fromEntries(ids.map((id) => [id, null])),
     order,
     rolls: Object.fromEntries(ids.map((id) => [id, []])),
     splits: Object.fromEntries(ids.map((id) => [id, []])),
@@ -109,8 +123,8 @@ export function setup(ctx: GameCtx, opts: Record<string, string | number>): Bowl
     turn: 0,
     bowler: order[0],
     standing: [...ALL_PINS],
-    stage: 'aim',
-    endsAt: ctx.now + AIM_MS,
+    stage: 'pick',
+    endsAt: ctx.now + PICK_MS,
     stageStartedAt: ctx.now,
     throwNo: 0,
     roll: null,
@@ -169,7 +183,7 @@ function rollBall(s: BowlState, th: Throw, ctx: GameCtx, auto: boolean): BowlSta
     result: null,
     aims: { ...s.aims, [s.bowler]: { x: th.x, aim: th.aim } },
     stageStartedAt: ctx.now,
-    endsAt: ctx.now + roll.replay.n * roll.replay.dt + REPLAY_PAD_MS,
+    endsAt: ctx.now + Math.ceil(rollMs({ n: roll.replay.n, dt: roll.replay.dt, hit: roll.hit })) + REPLAY_PAD_MS,
   }
 }
 
@@ -231,7 +245,8 @@ function applyRoll(s: BowlState, ctx: GameCtx): BowlState {
   const pos = position(rolls, s.frames)
   const sameFrame = pos.frame === s.frame
   const standing = sameFrame ? (pos.fresh ? [...ALL_PINS] : r.left) : s.standing
-  const big = kind === 'strike' || kind === 'spare' || kind === 'split'
+  const big = kind === 'strike' || kind === 'spare' || kind === 'split' || kind === 'gutter'
+  const hold = strike && streak >= 3 ? HUGE_RESULT_MS : big ? BIG_RESULT_MS : RESULT_MS
   return {
     ...s,
     rolls: { ...s.rolls, [by]: rolls },
@@ -240,9 +255,9 @@ function applyRoll(s: BowlState, ctx: GameCtx): BowlState {
     moments,
     standing,
     stage: 'result',
-    result: { n: r.n, by, kind, label, line, pins: r.knocked.length },
+    result: { n: r.n, by, kind, label, line, pins: r.knocked.length, streak },
     stageStartedAt: ctx.now,
-    endsAt: ctx.now + (big ? BIG_RESULT_MS : RESULT_MS),
+    endsAt: ctx.now + hold,
   }
 }
 
@@ -257,11 +272,43 @@ function advance(s: BowlState, ctx: GameCtx): BowlState {
     turn = 0
     frame += 1
   }
-  if (frame >= s.frames) return { ...s, stage: 'done', frame: s.frames, endsAt: ctx.now, stageStartedAt: ctx.now }
+  if (frame >= s.frames) return { ...s, stage: 'podium', frame: s.frames, endsAt: ctx.now + PODIUM_MS, stageStartedAt: ctx.now }
   return { ...s, ...aim, frame, turn, bowler: frameOrder(s, frame)[turn], standing: [...ALL_PINS] }
 }
 
+// ---------------- pick ----------------
+
+export const CRITTERS: CritterId[] = [...CAST_IDS]
+
+export function charOf(s: Pick<BowlState, 'chars'>, id: string): CritterId | null {
+  return s.chars?.[id] ?? null
+}
+
+function allPicked(s: BowlState) {
+  return s.order.every((id) => !!s.chars[id])
+}
+
+/** Everyone who did not pick gets a free critter (random, unique while they last). */
+function fillChars(s: BowlState, random: () => number): Record<string, CritterId | null> {
+  const chars = { ...s.chars }
+  for (const id of s.order) {
+    if (chars[id]) continue
+    const free = CRITTERS.filter((c) => !Object.values(chars).includes(c))
+    chars[id] = free.length ? free[Math.floor(random() * free.length) % free.length] : CRITTERS[s.order.indexOf(id) % CRITTERS.length]
+  }
+  return chars
+}
+
+function pick(s: BowlState, a: PlayerAction, ctx: GameCtx): BowlState {
+  if (s.stage !== 'pick' || !s.order.includes(a.playerId) || s.chars[a.playerId]) return s
+  const c = (a.payload as { char?: unknown } | null)?.char
+  if (!isCritterId(c) || Object.values(s.chars).includes(c)) return s
+  const next = { ...s, chars: { ...s.chars, [a.playerId]: c } }
+  return allPicked(next) ? { ...next, endsAt: Math.min(next.endsAt, ctx.now + PICK_DONE_MS) } : next
+}
+
 export function reduce(s: BowlState, a: PlayerAction, ctx: GameCtx): BowlState {
+  if (a.type === 'pick') return pick(s, a, ctx)
   if (a.type !== 'throw') return s
   if (s.stage !== 'aim' || a.playerId !== s.bowler) return s
   const th = readThrow(a.payload)
@@ -271,6 +318,10 @@ export function reduce(s: BowlState, a: PlayerAction, ctx: GameCtx): BowlState {
 
 export function tick(s: BowlState, ctx: GameCtx): BowlState {
   if (s.stage === 'done' || ctx.now < s.endsAt) return s
+  if (s.stage === 'pick') {
+    return { ...s, chars: fillChars(s, ctx.random), stage: 'aim', stageStartedAt: ctx.now, endsAt: ctx.now + AIM_MS }
+  }
+  if (s.stage === 'podium') return { ...s, stage: 'done', stageStartedAt: ctx.now, endsAt: ctx.now }
   if (s.stage === 'aim') {
     // Phone asleep or someone stalling: the lane rolls a lazy one from their last spot.
     const last = s.aims[s.bowler] ?? { x: 0, aim: 0 }
@@ -303,7 +354,7 @@ export function outcome(s: BowlState, ctx: GameCtx): GameOutcome | null {
     placements,
     summary,
     highlights: moments.map((m) => ({ playerId: m.playerId, kind: 'moment' as const, label: `Bowl, frame ${m.frame}`, content: { text: m.text } })),
-    details: { frames: s.frames, scores: score, rolls: s.rolls },
+    details: { frames: s.frames, scores: score, rolls: s.rolls, chars: s.chars },
   }
 }
 
@@ -347,6 +398,11 @@ export function aimFor(target: number, th: Omit<Throw, 'aim'>): number {
  * at what's left, from the other side of the lane. Either way the hand is off by a few inches.
  */
 export function bot(s: BowlState, id: string, ctx: GameCtx): BotMove | null {
+  if (s.stage === 'pick') {
+    if (s.chars[id] || ctx.now - s.stageStartedAt < 1200 || ctx.random() > 0.25) return null
+    const free = CRITTERS.filter((c) => !Object.values(s.chars).includes(c))
+    return free.length ? { type: 'pick', payload: { char: free[Math.floor(ctx.random() * free.length) % free.length] } } : null
+  }
   if (s.stage !== 'aim' || s.bowler !== id) return null
   if (ctx.now - s.stageStartedAt < 1800 || ctx.random() > 0.35) return null
   const r = ctx.random
