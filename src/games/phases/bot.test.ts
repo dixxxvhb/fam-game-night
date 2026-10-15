@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { GameCtx, PlayerAction, RoomPlayer } from '../../engine/types'
 import { COLORS, PHASES, isWild, type Color, type Req } from './cards'
-import { bot, phaseDeficit, pickDiscard, skipTarget, solveLay, wantsDiscard } from './bot'
+import { DEAL_MS, bot, dealHold, phaseDeficit, pickDiscard, skipTarget, solveLay, wantsDiscard } from './bot'
 import { autoDiscardPick, checkGroup, outcome, reduce, reqsFor, setup, tick, type PhasesState } from './logic'
 
 const P = (id: string, name: string, isBot = false): RoomPlayer => ({ id, name, color: '#888888', guest: isBot, connected: true, ...(isBot ? { bot: true } : {}) })
@@ -167,13 +167,31 @@ describe('Phases bot choices', () => {
 
   it('waits its turn and paces itself: 1.5 to 4 seconds before drawing', () => {
     const random = rng(8)
-    const s = base({ current: 'bot-gator', turnStage: 'draw', stage: 'play' })
+    // Round 2+, mid-round (the deal hold has its own test below).
+    const s0 = base({ current: 'bot-gator', turnStage: 'draw', stage: 'play', round: 2 })
+    const s = { ...s0, last: { ...s0.last!, k: 'draw' as const } }
     const at = s.log.at(-1)!.at
     const ctx = (now: number): GameCtx => ({ now, players: [HUMAN, GATOR, PIGEON], mode: 'apart', random })
     expect(bot(s, 'bot-pigeon', ctx(at + 10_000))).toBeNull()
     for (let i = 0; i < 50; i++) expect(bot(s, 'bot-gator', ctx(at + 1400))).toBeNull()
     expect(bot(s, 'bot-gator', ctx(at + 4000))?.type).toBe('draw')
     expect(bot({ ...s, stage: 'roundEnd' }, 'bot-gator', ctx(at + 9000))).toBeNull()
+  })
+})
+
+describe('Phases bot deal hold', () => {
+  it('waits for the rules card and the deal in round 1, and for the deal after that', () => {
+    const random = rng(4)
+    const ctx = (now: number): GameCtx => ({ now, players: [HUMAN, GATOR, PIGEON], mode: 'apart', random })
+    const s = { ...setup(ctx(1_000_000), { length: 'full' }), current: 'bot-gator' }
+    expect(s.last?.k).toBe('deal')
+    const at = s.last!.at
+    for (let i = 0; i < 30; i++) expect(bot(s, 'bot-gator', ctx(at + dealHold(1) - 1))).toBeNull()
+    expect(bot(s, 'bot-gator', ctx(at + dealHold(1) + 4000))?.type).toBe('draw')
+    const r2 = { ...s, round: 2 }
+    expect(bot(r2, 'bot-gator', ctx(at + DEAL_MS - 1))).toBeNull()
+    expect(bot(r2, 'bot-gator', ctx(at + DEAL_MS + 4000))?.type).toBe('draw')
+    expect(dealHold(1)).toBeGreaterThan(dealHold(2))
   })
 })
 
@@ -204,7 +222,8 @@ function playGame(players: RoomPlayer[], length: string, seed: number, step: num
     for (const p of players.filter((x) => x.bot)) {
       const m = bot(s, p.id, ctx())
       if (!m) continue
-      if (m.type === 'draw') draws.push(now - s.log.at(-1)!.at)
+      // Pace between turns (the first draw after a deal waits for the deal instead, tested above).
+      if (m.type === 'draw' && s.last?.k !== 'deal') draws.push(now - s.log.at(-1)!.at)
       if (m.type === 'discard' && (m.payload as { target?: string }).target) {
         skipsAimed++
         expect((m.payload as { target: string }).target).toBe(skipTarget(s, p.id))

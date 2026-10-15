@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { GameCtx, PlayerAction, RoomPlayer } from '../../engine/types'
 import { card, COLORS, LENGTHS, PHASES, isSkip, isWild, penalty, type Color, type Req } from './cards'
 import {
-  AWAY_MS, ROUND_END_MS, checkGroup, hitSpots, outcome, reduce, reqsFor, setup, tick,
+  AWAY_MS, FINAL_END_MS, ROUND_END_MS, checkGroup, hitSpots, outcome, reduce, reqsFor, setup, tick,
   type Group, type PhasesState,
 } from './logic'
 
@@ -468,7 +468,10 @@ describe('game end', () => {
       expect(s.stage).toBe('roundEnd')
       expect(s.summary?.final).toBe(true)
       expect(outcome(s, ctx)).toBeNull()
-      s = tick(s, mk(THREE, ctx.now + ROUND_END_MS))
+      // The final summary holds longer (tally, then the winner's scene).
+      expect(s.endsAt).toBe(ctx.now + FINAL_END_MS)
+      expect(tick(s, mk(THREE, ctx.now + ROUND_END_MS)).stage).toBe('roundEnd')
+      s = tick(s, mk(THREE, ctx.now + FINAL_END_MS))
       expect(s.stage).toBe('done')
       const out = outcome(s, ctx)!
       // dixxx finished every phase; johnnyboy is one short despite fewer points
@@ -675,4 +678,58 @@ describe('whole games', () => {
       expect(JSON.parse(JSON.stringify(s))).toEqual(s)
     })
   }
+})
+
+// ---------------- last move (for the screens) ----------------
+
+describe('last move', () => {
+  it('records each move with a rising seq', () => {
+    const ctx = mk(THREE, 5_000_000)
+    const s0 = setup(ctx, {})
+    expect(s0.last).toMatchObject({ k: 'deal', who: s0.order[s0.dealer], seq: 1, at: ctx.now })
+
+    let s = rig(s0, {
+      current: 'dixxx', turnStage: 'draw', discard: [R(5)], deck: [G(9), B(2)],
+      hands: { dixxx: [R(7), B(7), G(7), Y(4), Y(4, 1), W(0), S(0), R(12), B(7, 1)], johnnyboy: [R(1)], torii: [R(2)] },
+    })
+    s = reduce(s, act('dixxx', 'draw', { from: 'discard' }), ctx)
+    expect(s.last).toMatchObject({ k: 'draw', who: 'dixxx', from: 'discard', card: R(5), seq: 2 })
+
+    s = reduce(s, act('dixxx', 'lay', { groups: [[R(7), B(7), G(7)], [Y(4), Y(4, 1), W(0)]] }), ctx)
+    expect(s.last?.k).toBe('lay')
+    expect(s.last?.phase).toBe(0)
+    expect(s.last?.groups).toEqual(s.table.map((g) => g.id))
+
+    const sevens = s.table.find((g) => g.n === 7)!
+    s = reduce(s, act('dixxx', 'hit', { cardId: B(7, 1), groupId: sevens.id }), ctx)
+    expect(s.last).toMatchObject({ k: 'hit', who: 'dixxx', card: B(7, 1), group: sevens.id, seq: 4 })
+
+    s = reduce(s, act('dixxx', 'discard', { cardId: S(0), target: 'torii' }), ctx)
+    expect(s.last).toMatchObject({ k: 'skip', who: 'dixxx', card: S(0), target: 'torii', seq: 5 })
+    // no undefined fields: the state stays plain JSON
+    expect(Object.values(s.last!).every((v) => v !== undefined)).toBe(true)
+  })
+
+  it('a deck draw does not reveal the card', () => {
+    const ctx = mk(THREE)
+    const s = reduce(rig(setup(ctx, {}), { current: 'dixxx', turnStage: 'draw' }), act('dixxx', 'draw', { from: 'deck' }), ctx)
+    expect(s.last).toMatchObject({ k: 'draw', from: 'deck' })
+    expect(s.last?.card).toBeUndefined()
+  })
+
+  it('going out keeps how it happened', () => {
+    const ctx = mk(THREE, 6_000_000)
+    const s = rig(setup(ctx, {}), {
+      current: 'dixxx', turnStage: 'play',
+      down: { dixxx: true, johnnyboy: false, torii: false },
+      hands: { dixxx: [R(5)], johnnyboy: [R(3)], torii: [B(12)] },
+    })
+    const n = reduce(s, act('dixxx', 'discard', { cardId: R(5) }), ctx)
+    expect(n.stage).toBe('roundEnd')
+    expect(n.last).toMatchObject({ k: 'out', who: 'dixxx', via: 'discard', card: R(5), seq: (s.last?.seq ?? 0) + 2 })
+    expect(n.endsAt).toBe(ctx.now + ROUND_END_MS)
+    const r2 = tick(n, mk(THREE, ctx.now + ROUND_END_MS))
+    expect(r2.last).toMatchObject({ k: 'deal', who: r2.order[r2.dealer] })
+    expect(r2.last!.seq).toBeGreaterThan(n.last!.seq)
+  })
 })
