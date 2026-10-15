@@ -892,21 +892,29 @@ export function drawReplayScene(ctx: CanvasRenderingContext2D, w: number, h: num
     const count = v.strike ? 64 : 22
     const tt = (since * rp.dt) / 1000
     ctx.globalCompositeOperation = 'lighter'
+    const rnd = (k: number) => { const x = Math.sin(k * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x) }
     for (let i = 0; i < count; i++) {
-      const r1 = ((i * 9301 + 49297) % 233280) / 233280
-      const r2 = ((i * 4096 + 150889) % 714025) / 714025
-      const a = r1 * Math.PI * 2
-      const spd = (v.strike ? 90 : 55) * (0.4 + r2)
-      const px = hx + Math.cos(a) * spd * tt
-      const py = hy + 6 + Math.abs(Math.sin(a)) * spd * tt * 0.8
-      const pz = 4 + (40 + r2 * 60) * tt - 120 * tt * tt
+      const a = rnd(i) * Math.PI * 2
+      const e = 0.15 + rnd(i + 99) * 1.2
+      const spd = (v.strike ? 95 : 60) * (0.35 + rnd(i + 7) * 0.9)
+      const jx = (rnd(i + 3) - 0.5) * 6
+      const jz = rnd(i + 5) * 8
+      const px = hx + jx + Math.cos(a) * Math.cos(e) * spd * tt
+      const py = hy + 5 + Math.abs(Math.sin(a)) * Math.cos(e) * spd * tt
+      const pz = 3 + jz + Math.sin(e) * spd * tt - 140 * tt * tt
       if (pz < 0) continue
       const q = proj(px, py, pz)
       if (q.d < 4) continue
-      const sz = Math.max(1.5, q.s * (0.8 + r1 * 0.9))
-      ctx.globalAlpha = Math.max(0, 1 - since / 26)
-      ctx.fillStyle = BURST_COLORS[i % BURST_COLORS.length]
-      ctx.fillRect(q.x - sz / 2, q.y - sz / 2, sz, sz)
+      const r = Math.max(1.2, q.s * (0.5 + rnd(i + 11) * 0.7))
+      ctx.globalAlpha = Math.max(0, 1 - since / 26) * (0.6 + rnd(i + 13) * 0.4)
+      ctx.fillStyle = BURST_COLORS[Math.floor(rnd(i + 17) * BURST_COLORS.length)]
+      ctx.beginPath()
+      ctx.moveTo(q.x, q.y - r * 1.6)
+      ctx.lineTo(q.x + r * 0.6, q.y)
+      ctx.lineTo(q.x, q.y + r * 1.6)
+      ctx.lineTo(q.x - r * 0.6, q.y)
+      ctx.closePath()
+      ctx.fill()
     }
     ctx.globalAlpha = 1
     ctx.globalCompositeOperation = 'source-over'

@@ -58,7 +58,7 @@ export function ReactionLayer({ s, who }: { s: BowlState; who: WhoFn }) {
   const banner = r.kind === 'strike' || r.kind === 'spare'
   const color = kindColor(r.kind)
   const line = mingoLine(r, !!s.roll?.auto)
-  const sub = r.kind === 'strike' ? (streakWord(streak) ?? r.line) : r.line
+  const sub = r.kind === 'strike' ? (streak >= 3 ? `${streak} strikes in a row` : (streakWord(streak) ?? r.line)) : r.line
   return (
     <div key={r.n} className={cx('pointer-events-none absolute inset-0 overflow-hidden', r.kind === 'strike' && streak >= 3 && 'gl-shake')} data-bowl-reaction={r.kind}>
       {(r.kind === 'gutter' || r.kind === 'miss') && <div className="gl-dim absolute inset-0" style={{ background: 'rgba(11, 5, 34, 0.55)' }} />}
