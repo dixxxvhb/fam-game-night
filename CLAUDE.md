@@ -10,7 +10,7 @@ Dixon, Johnnyboy (John) and Torii's game night. The TV (or any browser) is the c
 React 19 + TS + Vite 7 + Tailwind v4 + react-router (HashRouter) on GitHub Pages (`base: '/fam-game-night/'`). Realtime + saving via Supabase, **inside figgg's project** (`swjqlfcqvcrnydpyjyog`) in its own `gamenight` schema, reached only through `public.gn_*` security-definer functions (`supabase/gamenight.sql`). Never add game-night tables to figgg's `public` schema (figgg's export/wipe enumerates it).
 
 ## Games (18, all live)
-Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Party Park (id `board`, Mario Party, 15 minigames), Turnpike (id `kart`, Mario Kart), Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together only), Bowl (Wii Bowling), Arena (Bomberman, together only). Every game has a `bot()` policy.
+Phases (Phase 10), Aggro (Aggravation), Guess the Percent (Guesspionage), Party Park (id `board`, Mario Party, 15 minigames), Turnpike (id `kart`, Mario Kart), Survive the Quiz (Trivia Murder Party), Trivia Night, Quip (Quiplash + the House), Bluff (Fibbage), Fake Word (Dictionarium), Sketch (Pictionary), Draw Bluff (Drawful), Telephone (Gartic Phone), Melon (Suika), Categories (Scattergories), Forehead (Heads Up, together only), Gator Lanes (id `bowl`, Wii Bowling), Kaboom (id `arena`, Bomberman, together and apart). Every game has a `bot()` policy.
 
 ## Platform features
 - Bots (Gator, Pigeon, Toaster, Nana, Roomba) can sit in any lobby; any game with a bot is practice and never saved. "Play solo" = one device hosts with two bots.
@@ -60,6 +60,11 @@ Kart rebuilt as a real kart racer in the Party Park universe: the eight critters
 - `view/` WebGL Mode 7 chase cam, split screen, overview, flyover, minimap (`#/kart-view?track=&n=&cam=split|overview|flyover|single`, `&show=<stage>` previews the real Stage). `garage/` all sprites (critter karts in 8 views x 6 poses, props, items; `#/kart-garage`); call `preloadGarage` before a race. `show/` TV stages (host sim in `show/useHostRace.ts`, `show/live.ts` shares it with the apart host's Controller). `phone/` controller screens. Music: `src/games/kart/music.ts` on the park engine (a theme per track + final-lap variants).
 - Never import `view/` or `garage/` statically from anything the registry loads (they need a DOM; host.test runs in node): lazy-load them.
 - Room QA: `--name "Turnpike" --driver scripts/drivers/kart.mjs` (also `--mode apart|solo`).
+
+## Gator Lanes (id `bowl`) and Kaboom (id `arena`), rebuilt 2026-10-15
+Both joined the Party Park universe: critter pick first, Party Park kit and existing park music, a podium stage before the outcome.
+- Gator Lanes: the park's neon bowling alley. Critter bowler at the foul line, chase cam then pin cam (`timeline.ts` holds the shared roll clock), Mingo lines per result, overhead monitor scoreboard. Dev-only frame freezer: `src/games/bowl/dev/sandbox.html?scene=strike|spare|split|gutter|turkey|pick|podium&view=tv|compact|phone`.
+- Kaboom: four arenas rotate by round (`themes.ts`), firecracker bombs and firework blasts. Apart mode: the host phone runs the sim (`useArenaSim.ts`) and streams `arena:snap` (`snap.ts`, ~15 Hz); a new host after handoff resumes from the last snapshot.
 
 ## Deploy
 Push to `main` → GitHub Actions → Pages (secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` = figgg's URL + publishable key). Verify with `gh run list --limit 1`.
