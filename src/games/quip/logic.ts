@@ -22,6 +22,8 @@ export const SCORES_MS = 8_000
 export const REVEAL_LEAD_MS = 1_200
 export const REVEAL_STEP_MS = 1_300
 export const REVEAL_TAIL_MS = 4_500
+/** After the Last Quip's verdict, the stage holds on tonight's headliner before the game ends. */
+export const HEADLINER_MS = 8_000
 export const LETTERS = 'ABCDEFGHIJ'
 
 export type QuipStage = 'answer' | 'vote' | 'reveal' | 'scores' | 'done'
@@ -105,6 +107,14 @@ export function roundIdx(s: Pick<QuipState, 'prompts'>, round: number): number[]
 
 export function revealMs(rows: number): number {
   return REVEAL_LEAD_MS + rows * REVEAL_STEP_MS + REVEAL_TAIL_MS
+}
+
+/** True once the night's headliner poster is up (the tail of the Last Quip reveal, and done). */
+export function headlinerUp(s: QuipState, now: number): boolean {
+  if (s.stage === 'done') return true
+  if (s.stage !== 'reveal' || s.round !== 3) return false
+  const n = s.prompts[s.current]?.result?.rows.length ?? 0
+  return now - s.stageStartedAt >= revealMs(n)
 }
 
 /** How far the reveal has got: how many rows are shown and whether the verdict is up. */
@@ -283,7 +293,7 @@ function toReveal(s: QuipState, now: number): QuipState {
     scores,
     houseScore,
     stage: 'reveal',
-    ...stageTimes(now, revealMs(result.rows.length)),
+    ...stageTimes(now, revealMs(result.rows.length) + (s.round === 3 ? HEADLINER_MS : 0)),
   }
 }
 

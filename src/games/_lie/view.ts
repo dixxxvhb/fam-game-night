@@ -1,5 +1,6 @@
 import type { RoomView } from '../../engine/types'
 import type { LieState } from './logic'
+import type { ThemeId } from './theme'
 
 /** What differs between Bluff and Fake Word on screen. */
 export interface LieView {
@@ -12,6 +13,8 @@ export interface LieView {
   writeHint: string
   /** Pick phase. */
   pickLabel: string
+  /** Which world to draw (default: 'bluff' for blanks, 'word' for words). */
+  theme?: ThemeId
 }
 
 export function playerOf(room: RoomView, id: string) {
