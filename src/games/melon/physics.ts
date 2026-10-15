@@ -26,18 +26,26 @@ const GRACE_MS = 1000
 const SETTLED_SPEED = 0.9
 const JUNK_GAP_MS = 140
 
-/** Everything that decides how the jar feels. Tuned against Suika; see UNDERWATER below. */
+/** Everything that decides how the jar feels. See UNDERWATER below. */
 export interface Tuning {
   /** Gravity (matter-js units, scale 0.001). */
   gravity: number
   /** Bounciness of fruit (0 dead, 1 superball). */
   bounce: number
-  /** Fruit-on-fruit grip: higher rolls, lower slides. */
+  /** Contact friction. In matter-js this brakes a rolling ball, so UNDERWATER sets it to 0. */
   friction: number
   frictionStatic: number
-  /** Drag through the air. Also damps spin, so low keeps fruit rolling. */
+  /** Matter's built-in drag. It damps spin as much as motion, so keep it tiny. */
   air: number
+  /** Water drag on movement only, times speed (quadratic): slows a fast sink, barely touches a slow roll. */
+  water: number
   wallFriction: number
+  /**
+   * Matter can't really roll a ball: contact friction just brakes it. So the bodies stay
+   * frictionless (a bumped fruit keeps going, like a real roll) and with rollLook the drawn spin
+   * comes from how far the fruit travelled, so it still visibly rolls.
+   */
+  rollLook: boolean
   /** A merged fruit pops in from this fraction of its size... */
   growFrom: number
   /** ...over this many 60 Hz steps. Faster pop = bigger shove on the neighbours. */
@@ -46,16 +54,16 @@ export interface Tuning {
 
 /** The first version (Oct 14): heavy air drag, slidey, soft merge pop. */
 export const ORIGINAL: Tuning = {
-  gravity: 1.7, bounce: 0.12, friction: 0.12, frictionStatic: 0.4, air: 0.012, wallFriction: 0.25, growFrom: 0.6, growSteps: 7,
+  gravity: 1.7, bounce: 0.12, friction: 0.12, frictionStatic: 0.4, air: 0.012, water: 0, wallFriction: 0.25, rollLook: false, growFrom: 0.6, growSteps: 7,
 }
 
 /**
- * Underwater, like the Netflix version: water drag slows every fall to a readable sink, fruit
- * lands with no bounce and drifts into place, and merges swell in over a fifth of a second so
- * you can watch them happen. The jar is drawn full of water to match (draw.ts).
+ * Underwater, like the Netflix version: quadratic water drag slows every fall to a readable
+ * sink, fruit lands with no bounce, a bumped fruit rolls on along the bottom, and merges swell
+ * in over a fifth of a second so you can watch them. The jar is drawn full of water (draw.ts).
  */
 export const UNDERWATER: Tuning = {
-  gravity: 1.6, bounce: 0.08, friction: 0.3, frictionStatic: 0.1, air: 0.05, wallFriction: 0.05, growFrom: 0.4, growSteps: 12,
+  gravity: 1.6, bounce: 0.08, friction: 0, frictionStatic: 0, air: 0.002, water: 0.008, wallFriction: 0, rollLook: true, growFrom: 0.4, growSteps: 12,
 }
 
 export interface FruitBody {
@@ -70,6 +78,9 @@ export interface FruitBody {
   junk: boolean
   /** Made by a merge (the presentation gives it a pop). */
   merged: boolean
+  /** Drawn spin (rollLook): distance travelled sideways over radius. */
+  roll: number
+  lastX: number
 }
 
 export interface MergeEvent { tier: number; made: number | null; points: number; x: number; y: number }
@@ -103,9 +114,11 @@ export class Jar {
       enableSleeping: false,
     })
     const T = 200
-    const wall = { isStatic: true, friction: tune.wallFriction, restitution: 0.1, label: 'wall' }
+    // Slick glass sides; the floor grips like the fruit do, so a bumped fruit rolls instead of skating.
+    const wall = { isStatic: true, friction: tune.wallFriction, frictionStatic: tune.frictionStatic, restitution: 0.1, label: 'wall' }
+    const floor = { ...wall, friction: Math.max(tune.wallFriction, tune.friction) }
     Composite.add(this.engine.world, [
-      Bodies.rectangle(WORLD_W / 2, WORLD_H + T / 2, WORLD_W + T * 2, T, wall),
+      Bodies.rectangle(WORLD_W / 2, WORLD_H + T / 2, WORLD_W + T * 2, T, floor),
       Bodies.rectangle(-T / 2, WORLD_H / 2 - WORLD_H, T, WORLD_H * 4, wall),
       Bodies.rectangle(WORLD_W + T / 2, WORLD_H / 2 - WORLD_H, T, WORLD_H * 4, wall),
     ])
@@ -148,7 +161,7 @@ export class Jar {
       label: 'fruit',
     })
     if (opts.vx || opts.vy) Body.setVelocity(body, { x: opts.vx ?? 0, y: opts.vy ?? 0 })
-    const fb: FruitBody = { body, tier, born: this.time, over: 0, grow: opts.grow ? t.growSteps : 0, junk: Boolean(opts.junk), merged: Boolean(opts.grow) }
+    const fb: FruitBody = { body, tier, born: this.time, over: 0, grow: opts.grow ? t.growSteps : 0, junk: Boolean(opts.junk), merged: Boolean(opts.grow), roll: 0, lastX: x }
     this.fruits.set(body.id, fb)
     Composite.add(this.engine.world, body)
     return fb
@@ -209,7 +222,25 @@ export class Jar {
         fb.grow -= 1
       }
     }
+    const { water } = this.tune
+    if (water) {
+      for (const fb of this.fruits.values()) {
+        const b = fb.body
+        {
+          // Quadratic, like real water: strong on a fast sink, almost nothing on a slow roll.
+          const k = Math.max(0.5, 1 - water * b.speed)
+          Body.setVelocity(b, { x: b.velocity.x * k, y: b.velocity.y * k })
+        }
+      }
+    }
     Engine.update(this.engine, STEP)
+    if (this.tune.rollLook) {
+      for (const fb of this.fruits.values()) {
+        const x = fb.body.position.x
+        fb.roll += (x - fb.lastX) / (fb.body.circleRadius ?? fruit(fb.tier).r)
+        fb.lastX = x
+      }
+    }
     this.resolveMerges()
     this.checkDanger()
   }
@@ -262,7 +293,7 @@ export class Jar {
         x: fb.body.position.x,
         y: fb.body.position.y,
         r: fb.body.circleRadius ?? fruit(fb.tier).r,
-        angle: fb.body.angle,
+        angle: this.tune.rollLook ? fb.roll : fb.body.angle,
         junk: fb.junk,
       })
     }
