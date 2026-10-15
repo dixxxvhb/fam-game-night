@@ -27,7 +27,9 @@ export function ArenaCanvas({ feed, theme, who, onFx, sound = true, className }:
   const [T, setT] = useState(0)
   const live = useRef({ feed, theme, who, onFx, sound, T })
   useLayoutEffect(() => { live.current = { feed, theme, who, onFx, sound, T } })
-  const [renderer] = useState(() => new ArenaRenderer())
+  const rendererRef = useRef<ArenaRenderer | null>(null)
+  rendererRef.current ??= new ArenaRenderer()
+  const renderer = rendererRef.current
 
   useEffect(() => {
     const el = box.current

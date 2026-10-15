@@ -4,7 +4,6 @@ import { useTicker } from '../../engine/context'
 import { cx } from '../../ui/kit'
 import { INK, Mingo } from '../board/park/cast'
 import { Portrait } from '../board/park/ui'
-import { MusicButton } from '../../room/shared'
 import '../board/park/show/show.css'
 import './bowl.css'
 import { LaneView } from './LaneView'
@@ -43,7 +42,6 @@ export function BowlStage({ state: s, room, now, compact, me }: StageProps<BowlS
   return (
     <div data-bowl-stage={s.stage} className="relative h-full min-h-0 w-full overflow-hidden" style={{ background: ROOM_BG }}>
       {screen}
-      <div className="absolute bottom-2 left-2 z-20 opacity-70"><MusicButton /></div>
     </div>
   )
 }

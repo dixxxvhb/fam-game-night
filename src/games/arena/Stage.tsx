@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { StageProps } from '../../engine/types'
 import { useTicker } from '../../engine/context'
 import { sfx } from '../../ui/sfx'
@@ -48,7 +48,6 @@ export function ArenaStage({ state: s, room, now, isHost, hostAction, compact, m
       {s.stage === 'pick' && <PickScreen s={s} who={who} now={t} />}
       {(s.stage === 'intro' || s.stage === 'play' || s.stage === 'over') && <ArenaView s={s} who={who} now={t} feed={feed} compact={false} me={null} />}
       {(s.stage === 'podium' || s.stage === 'done') && <PodiumScreen s={s} who={who} />}
-      <MusicSwitch />
     </div>
   )
 }
@@ -85,24 +84,3 @@ function useArenaAudio(s: ArenaState, t: number, feed: ArenaFeed) {
   }, [closeKey])
 }
 
-/** A small music switch in the corner of the TV. */
-function MusicSwitch() {
-  const [on, setOn] = useState(() => music.isOn())
-  useEffect(() => music.onChange(setOn), [])
-  return (
-    <button
-      type="button"
-      onClick={() => music.setOn(!on)}
-      aria-label={on ? 'Music off' : 'Music on'}
-      className="absolute right-3 top-3 z-20 grid h-11 w-11 place-items-center rounded-full border-[3px] bg-white"
-      style={{ borderColor: INK, boxShadow: `0 3px 0 ${INK}`, opacity: 0.85 }}
-    >
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
-        <path d="M9 18 V6 L19 4 V16" fill="none" stroke={INK} strokeWidth="2.4" strokeLinejoin="round" />
-        <circle cx="6.5" cy="18" r="2.8" fill={INK} />
-        <circle cx="16.5" cy="16" r="2.8" fill={INK} />
-        {!on && <path d="M3 3 L21 21" stroke="#F2414F" strokeWidth="2.8" strokeLinecap="round" />}
-      </svg>
-    </button>
-  )
-}
