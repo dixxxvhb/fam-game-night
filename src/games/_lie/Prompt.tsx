@@ -41,8 +41,8 @@ export function Prompt({
   if (kind === 'word') {
     return (
       <div className={cx('grid min-w-0 gap-1', className)}>
-        <div className={cx('font-display leading-[1.05] text-ink [overflow-wrap:anywhere]', wordSize(item.prompt.length, size))}>{item.prompt}</div>
-        {item.pos && <div className={cx('italic text-ink-2', size === 'sm' ? 'text-sm' : size === 'md' ? 'text-xl' : 'text-2xl')}>{item.pos}</div>}
+        <div className={cx('font-display leading-[1.05] [overflow-wrap:anywhere]', wordSize(item.prompt.length, size))}>{item.prompt}</div>
+        {item.pos && <div className={cx('italic opacity-75', size === 'sm' ? 'text-sm' : size === 'md' ? 'text-xl' : 'text-2xl')}>{item.pos}</div>}
       </div>
     )
   }
@@ -56,14 +56,14 @@ export function Prompt({
   const lead = glue ? before.match(/(\S+\s*)$/)?.[1] ?? '' : ''
   const tail = glue ? after.match(/^[.,;:!?'")]*/)?.[0] ?? '' : ''
   return (
-    <p className={cx('min-w-0 font-bold leading-snug text-ink [overflow-wrap:anywhere] [text-wrap:pretty]', sentenceSize(item.prompt.length, size), className)}>
+    <p className={cx('min-w-0 font-bold leading-snug [overflow-wrap:anywhere] [text-wrap:pretty]', sentenceSize(item.prompt.length, size), className)}>
       {before.slice(0, before.length - lead.length)}
       <span className={glue ? 'whitespace-nowrap' : undefined}>
         {lead}
         {fill ? (
-          <span key={fill} className={cx('animate-pop rounded-md px-1', truth ? 'bg-hot text-paper' : 'bg-tile-2 text-ink underline decoration-hot decoration-[0.08em] underline-offset-[0.18em]')}>{fill}</span>
+          <span key={fill} className={cx('animate-pop rounded-md px-1', truth ? 'bg-[var(--l-accent,var(--color-hot))] text-[var(--l-on-accent,var(--color-paper))]' : 'bg-[var(--l-fill,var(--color-tile-2))] underline decoration-[var(--l-hot,var(--color-hot))] decoration-[0.08em] underline-offset-[0.18em]')}>{fill}</span>
         ) : (
-          <span aria-label="blank" className="inline-block w-[3.2em] translate-y-[0.1em] border-b-[0.14em] border-hot" />
+          <span aria-label="blank" className="inline-block w-[3.2em] translate-y-[0.1em] border-b-[0.14em] border-[var(--l-accent,var(--color-hot))]" />
         )}
         {tail}
       </span>

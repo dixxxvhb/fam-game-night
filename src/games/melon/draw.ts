@@ -1,77 +1,30 @@
 import { DANGER_Y, fruit, WORLD_H, WORLD_W } from './fruits'
+import { FRUIT_INK } from './art'
 
 /**
- * Canvas drawing shared by the phone jar and the TV jars. Everything is in world units;
- * callers set the transform (world -> pixels) first.
+ * The glass jar, drawn in world units (callers set world -> pixels with fitWorld first).
+ * The canvas holds the world box plus a little room on the sides for the glass and above
+ * it for the rim and the dropper's claw.
  */
 
-export const JAR = {
-  ground: '#131A42',
-  inside: '#0F1538',
-  line: '#3A4580',
-  accent: '#FF6B3D',
-}
+export const GLASS_INK = '#2C3A4A'
+const WALL = 12
+const SIDE = WALL + 16
+const TOP = 70
+const BOTTOM = WALL + 6
+const CORNER = 70
+/** The jar's neck band (in the player's color) and the glass lip above it. */
+const BAND_Y0 = -34
+const BAND_Y1 = -4
+const LIP_Y0 = -50
 
-const LIP = 36
-const WALL = 10
-const CORNER = 34
-
-/** Rounded vessel: open top, walls hugging the world box. */
-export function drawJarBack(ctx: CanvasRenderingContext2D) {
-  ctx.fillStyle = JAR.inside
-  ctx.beginPath()
-  ctx.moveTo(0, LIP)
-  ctx.lineTo(0, WORLD_H - CORNER)
-  ctx.quadraticCurveTo(0, WORLD_H, CORNER, WORLD_H)
-  ctx.lineTo(WORLD_W - CORNER, WORLD_H)
-  ctx.quadraticCurveTo(WORLD_W, WORLD_H, WORLD_W, WORLD_H - CORNER)
-  ctx.lineTo(WORLD_W, LIP)
-  ctx.closePath()
-  ctx.fill()
-}
-
-export function drawJarFront(ctx: CanvasRenderingContext2D, danger = 0, pulse = 0) {
-  // Walls
-  ctx.strokeStyle = JAR.line
-  ctx.lineWidth = WALL
-  ctx.lineJoin = 'round'
-  ctx.lineCap = 'round'
-  ctx.beginPath()
-  ctx.moveTo(-WALL / 2, LIP)
-  ctx.lineTo(-WALL / 2, WORLD_H - CORNER)
-  ctx.quadraticCurveTo(-WALL / 2, WORLD_H + WALL / 2, CORNER, WORLD_H + WALL / 2)
-  ctx.lineTo(WORLD_W - CORNER, WORLD_H + WALL / 2)
-  ctx.quadraticCurveTo(WORLD_W + WALL / 2, WORLD_H + WALL / 2, WORLD_W + WALL / 2, WORLD_H - CORNER)
-  ctx.lineTo(WORLD_W + WALL / 2, LIP)
-  ctx.stroke()
-  // Lip
-  ctx.beginPath()
-  ctx.moveTo(-WALL * 1.6, LIP)
-  ctx.lineTo(WALL * 0.6, LIP)
-  ctx.moveTo(WORLD_W - WALL * 0.6, LIP)
-  ctx.lineTo(WORLD_W + WALL * 1.6, LIP)
-  ctx.stroke()
-  // Danger line
-  ctx.save()
-  ctx.strokeStyle = JAR.accent
-  ctx.globalAlpha = danger > 0 ? 0.55 + 0.45 * pulse : 0.7
-  ctx.lineWidth = danger > 0 ? 6 : 4
-  ctx.setLineDash([18, 14])
-  ctx.beginPath()
-  ctx.moveTo(8, DANGER_Y)
-  ctx.lineTo(WORLD_W - 8, DANGER_Y)
-  ctx.stroke()
-  ctx.restore()
-}
-
-const PAD = WALL * 1.6
 /** Width / height of a canvas that holds the whole jar. */
-export const JAR_ASPECT = (WORLD_W + PAD * 2) / (WORLD_H + PAD)
+export const JAR_ASPECT = (WORLD_W + SIDE * 2) / (TOP + WORLD_H + BOTTOM)
 
 /** World -> pixel mapping for a box of w x h: jar centered, floor on the bottom edge. */
 export function worldMap(w: number, h: number) {
-  const s = Math.min(w / (WORLD_W + PAD * 2), h / (WORLD_H + PAD))
-  return { s, ox: (w - WORLD_W * s) / 2, oy: h - (WORLD_H + WALL) * s }
+  const s = Math.min(w / (WORLD_W + SIDE * 2), h / (TOP + WORLD_H + BOTTOM))
+  return { s, ox: (w - WORLD_W * s) / 2, oy: h - (WORLD_H + BOTTOM) * s }
 }
 
 export function fitWorld(ctx: CanvasRenderingContext2D, pxW: number, pxH: number) {
@@ -80,175 +33,314 @@ export function fitWorld(ctx: CanvasRenderingContext2D, pxW: number, pxH: number
   return m
 }
 
-function circle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+function bodyPath(ctx: CanvasRenderingContext2D, inset = 0) {
+  const l = -WALL / 2 + inset
+  const r = WORLD_W + WALL / 2 - inset
+  const b = WORLD_H + WALL / 2 - inset
+  const t = BAND_Y1
   ctx.beginPath()
-  ctx.arc(x, y, r, 0, Math.PI * 2)
+  ctx.moveTo(l, t)
+  ctx.lineTo(l, b - CORNER)
+  ctx.quadraticCurveTo(l, b, l + CORNER, b)
+  ctx.lineTo(r - CORNER, b)
+  ctx.quadraticCurveTo(r, b, r, b - CORNER)
+  ctx.lineTo(r, t)
 }
 
-/** A flat fruit: color disc, one detail, darker outline. (x, y) center, r radius. */
-export function drawFruit(ctx: CanvasRenderingContext2D, tier: number, x: number, y: number, r: number, angle = 0, alpha = 1) {
-  const f = fruit(tier)
-  ctx.save()
-  ctx.globalAlpha = alpha
-  ctx.translate(x, y)
-  ctx.rotate(angle)
-  const lw = Math.max(2, r * 0.07)
+/** Where the water starts: a little under the claw, so fruit drops in with a plop. */
+export const WATER_Y = 104
 
-  if (tier === 1) {
-    // cherry stem (drawn first so the fruit overlaps its base)
-    ctx.strokeStyle = f.detail
-    ctx.lineWidth = Math.max(2.5, r * 0.16)
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.moveTo(0, -r * 0.7)
-    ctx.quadraticCurveTo(r * 0.15, -r * 1.25, r * 0.6, -r * 1.35)
-    ctx.stroke()
-  }
-
-  circle(ctx, 0, 0, r - lw / 2)
-  ctx.fillStyle = f.color
+/**
+ * Glass interior, filled with water (the jar is a fish-tank: fruit sinks and drifts instead of
+ * falling). `t` (ms) moves the surface ripple, the light bands and the rising bubbles.
+ */
+export function drawJarBack(ctx: CanvasRenderingContext2D, t = 0) {
+  bodyPath(ctx)
+  ctx.closePath()
+  const g = ctx.createLinearGradient(0, 0, WORLD_W, 0)
+  g.addColorStop(0, 'rgba(214, 244, 255, 0.78)')
+  g.addColorStop(0.5, 'rgba(236, 251, 255, 0.62)')
+  g.addColorStop(1, 'rgba(196, 232, 248, 0.8)')
+  ctx.fillStyle = g
   ctx.fill()
-
   ctx.save()
-  circle(ctx, 0, 0, r - lw / 2)
+  bodyPath(ctx)
+  ctx.closePath()
   ctx.clip()
-  switch (tier) {
-    case 2: {
-      // strawberry seeds
-      ctx.fillStyle = f.detail
-      const seeds = [[-0.4, -0.25], [0.05, -0.4], [0.45, -0.15], [-0.15, 0.1], [0.3, 0.3], [-0.45, 0.35], [0.0, 0.55]]
-      for (const [sx, sy] of seeds) {
-        ctx.beginPath()
-        ctx.ellipse(sx * r, sy * r, r * 0.07, r * 0.1, 0, 0, Math.PI * 2)
-        ctx.fill()
-      }
-      break
-    }
-    case 3: {
-      // grape cluster bumps
-      ctx.strokeStyle = f.dark
-      ctx.fillStyle = f.detail
-      ctx.lineWidth = Math.max(1.5, r * 0.05)
-      const bumps = [[-0.38, -0.32], [0.22, -0.42], [0.45, 0.12], [-0.05, 0.08], [-0.45, 0.32], [0.12, 0.5]]
-      for (const [bx, by] of bumps) {
-        circle(ctx, bx * r, by * r, r * 0.3)
-        ctx.globalAlpha = alpha * 0.55
-        ctx.fill()
-        ctx.globalAlpha = alpha * 0.6
-        ctx.stroke()
-      }
-      ctx.globalAlpha = alpha
-      break
-    }
-    case 4: {
-      // orange dimple
-      ctx.fillStyle = f.detail
-      ctx.beginPath()
-      ctx.ellipse(0, -r * 0.62, r * 0.13, r * 0.08, 0, 0, Math.PI * 2)
-      ctx.fill()
-      break
-    }
-    case 8: {
-      // peach crease
-      ctx.strokeStyle = f.detail
-      ctx.lineWidth = Math.max(2, r * 0.06)
-      ctx.lineCap = 'round'
-      ctx.beginPath()
-      ctx.moveTo(-r * 0.1, -r * 0.95)
-      ctx.quadraticCurveTo(-r * 0.5, 0, -r * 0.1, r * 0.95)
-      ctx.stroke()
-      break
-    }
-    case 9: {
-      // pineapple crosshatch
-      ctx.strokeStyle = f.detail
-      ctx.lineWidth = Math.max(2, r * 0.035)
-      const g = r * 0.42
-      ctx.beginPath()
-      for (let k = -3; k <= 3; k++) {
-        ctx.moveTo(k * g - r, -r)
-        ctx.lineTo(k * g + r, r)
-        ctx.moveTo(k * g + r, -r)
-        ctx.lineTo(k * g - r, r)
-      }
-      ctx.stroke()
-      break
-    }
-    case 10: {
-      // melon stripes
-      ctx.strokeStyle = f.detail
-      ctx.lineWidth = Math.max(2, r * 0.05)
-      ctx.beginPath()
-      for (const k of [-0.6, -0.2, 0.2, 0.6]) {
-        ctx.moveTo(k * r, -r)
-        ctx.quadraticCurveTo(k * r * 1.7, 0, k * r, r)
-      }
-      ctx.stroke()
-      break
-    }
-    case 11: {
-      // watermelon stripes
-      ctx.fillStyle = f.detail
-      for (const k of [-0.66, -0.22, 0.22, 0.66]) {
-        ctx.beginPath()
-        ctx.moveTo(k * r - r * 0.07, -r)
-        ctx.quadraticCurveTo(k * r * 1.6 - r * 0.12, 0, k * r - r * 0.07, r)
-        ctx.lineTo(k * r + r * 0.07, r)
-        ctx.quadraticCurveTo(k * r * 1.6 + r * 0.12, 0, k * r + r * 0.07, -r)
-        ctx.closePath()
-        ctx.fill()
-      }
-      break
-    }
+  // the water: a rippling surface, deeper toward the floor
+  const w = ctx.createLinearGradient(0, WATER_Y, 0, WORLD_H)
+  w.addColorStop(0, 'rgba(110, 200, 235, 0.42)')
+  w.addColorStop(1, 'rgba(40, 130, 190, 0.55)')
+  ctx.fillStyle = w
+  ctx.beginPath()
+  ctx.moveTo(-WALL, WORLD_H + WALL)
+  for (let x = -WALL; x <= WORLD_W + WALL; x += 20) ctx.lineTo(x, WATER_Y + Math.sin(x / 46 + t / 520) * 5 + Math.sin(x / 19 - t / 380) * 2)
+  ctx.lineTo(WORLD_W + WALL, WORLD_H + WALL)
+  ctx.closePath()
+  ctx.fill()
+  // surface highlight
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  for (let x = -WALL; x <= WORLD_W + WALL; x += 20) {
+    const y = WATER_Y + Math.sin(x / 46 + t / 520) * 5 + Math.sin(x / 19 - t / 380) * 2
+    if (x === -WALL) ctx.moveTo(x, y); else ctx.lineTo(x, y)
   }
-  ctx.restore()
-
-  // details that sit on top, outside the clip
-  if (tier === 5) {
-    // persimmon calyx
-    ctx.fillStyle = f.detail
-    for (let k = 0; k < 4; k++) {
-      const a = (k * Math.PI) / 2 + Math.PI / 4
-      ctx.beginPath()
-      ctx.ellipse(Math.cos(a) * r * 0.15, -r * 0.7 + Math.sin(a) * r * 0.09, r * 0.17, r * 0.075, a, 0, Math.PI * 2)
-      ctx.fill()
-    }
-  } else if (tier === 6) {
-    // apple leaf
-    ctx.fillStyle = f.detail
+  ctx.stroke()
+  // slanted light bands drifting through the water
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.07)'
+  for (let i = 0; i < 4; i++) {
+    const x = ((i * 190 + t / 40) % (WORLD_W + 300)) - 150
     ctx.beginPath()
-    ctx.ellipse(r * 0.22, -r * 0.86, r * 0.26, r * 0.12, -0.5, 0, Math.PI * 2)
+    ctx.moveTo(x, WATER_Y)
+    ctx.lineTo(x + 70, WATER_Y)
+    ctx.lineTo(x + 230, WORLD_H)
+    ctx.lineTo(x + 130, WORLD_H)
+    ctx.closePath()
     ctx.fill()
-  } else if (tier === 7) {
-    // pear stem
-    ctx.strokeStyle = f.detail
-    ctx.lineWidth = Math.max(3, r * 0.08)
-    ctx.lineCap = 'round'
+  }
+  // a few bubbles always rising
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)'
+  ctx.lineWidth = 2.5
+  for (let i = 0; i < 9; i++) {
+    const speed = 0.05 + (i % 3) * 0.018
+    const span = WORLD_H - WATER_Y
+    const y = WORLD_H - ((t * speed + i * 211) % span)
+    const x = ((i * 137) % (WORLD_W - 60)) + 30 + Math.sin(t / 400 + i) * 8
+    const r = 3 + (i % 4) * 1.6
     ctx.beginPath()
-    ctx.moveTo(0, -r * 0.8)
-    ctx.quadraticCurveTo(r * 0.05, -r * 1.05, r * 0.2, -r * 1.15)
+    ctx.arc(x, y, r, 0, Math.PI * 2)
     ctx.stroke()
   }
+  // floor shadow inside the glass
+  const f = ctx.createLinearGradient(0, WORLD_H - 90, 0, WORLD_H)
+  f.addColorStop(0, 'rgba(20, 90, 140, 0)')
+  f.addColorStop(1, 'rgba(20, 90, 140, 0.3)')
+  ctx.fillStyle = f
+  ctx.fillRect(-WALL, WORLD_H - 90, WORLD_W + WALL * 2, 100)
+  ctx.restore()
+}
 
-  // outline
-  circle(ctx, 0, 0, r - lw / 2)
-  ctx.strokeStyle = f.dark
-  ctx.lineWidth = lw
-  ctx.globalAlpha = alpha * 0.75
+export interface JarLook {
+  /** The player's color for the neck band. */
+  color: string
+  /** 0..1 how close this jar is to spilling. */
+  danger?: number
+  /** 0..1 pulse phase for the danger glow. */
+  pulse?: number
+  /** Draw cracks (the jar spilled). */
+  cracked?: boolean
+  /** White flash over the glass (big fruit moments), 0..1. */
+  flash?: number
+}
+
+function crack(ctx: CanvasRenderingContext2D, pts: number[][]) {
+  ctx.beginPath()
+  ctx.moveTo(pts[0][0], pts[0][1])
+  for (const [x, y] of pts.slice(1)) ctx.lineTo(x, y)
+}
+
+export function drawJarFront(ctx: CanvasRenderingContext2D, look: JarLook) {
+  const danger = look.danger ?? 0
+  const pulse = look.pulse ?? 0
+  ctx.save()
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+
+  // Danger line: calm dashes, or a red glow that pulses when fruit sits above it.
+  if (danger > 0) {
+    ctx.strokeStyle = '#FF2D3D'
+    ctx.globalAlpha = (0.25 + 0.35 * pulse) * Math.min(1, 0.4 + danger)
+    ctx.lineWidth = 26 + 14 * pulse
+    ctx.beginPath()
+    ctx.moveTo(4, DANGER_Y)
+    ctx.lineTo(WORLD_W - 4, DANGER_Y)
+    ctx.stroke()
+    ctx.globalAlpha = 1
+    ctx.lineWidth = 8
+    ctx.strokeStyle = pulse > 0.5 ? '#FFFFFF' : '#FF2D3D'
+    ctx.setLineDash([26, 14])
+  } else {
+    ctx.globalAlpha = 0.75
+    ctx.lineWidth = 5
+    ctx.strokeStyle = '#FF5A5F'
+    ctx.setLineDash([18, 16])
+  }
+  ctx.beginPath()
+  ctx.moveTo(10, DANGER_Y)
+  ctx.lineTo(WORLD_W - 10, DANGER_Y)
+  ctx.stroke()
+  ctx.setLineDash([])
+  ctx.globalAlpha = 1
+
+  // Glass streaks
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)'
+  roundRect(ctx, 16, 70, 18, WORLD_H - 230, 9)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'
+  roundRect(ctx, 44, 90, 9, 240, 5)
+  ctx.fill()
+  roundRect(ctx, 44, 350, 9, 40, 5)
+  ctx.fill()
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
+  roundRect(ctx, WORLD_W - 36, 140, 12, WORLD_H - 360, 6)
+  ctx.fill()
+  // a curved shine along the bottom
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)'
+  ctx.lineWidth = 8
+  ctx.beginPath()
+  ctx.moveTo(60, WORLD_H - 22)
+  ctx.quadraticCurveTo(WORLD_W / 2, WORLD_H - 10, WORLD_W - 140, WORLD_H - 22)
+  ctx.stroke()
+
+  if (look.flash && look.flash > 0) {
+    bodyPath(ctx)
+    ctx.closePath()
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.75 * look.flash})`
+    ctx.fill()
+  }
+
+  if (look.cracked) {
+    ctx.strokeStyle = '#FFFFFF'
+    ctx.lineWidth = 7
+    const a = [[WORLD_W * 0.62, WORLD_H * 0.4], [WORLD_W * 0.7, WORLD_H * 0.5], [WORLD_W * 0.64, WORLD_H * 0.58], [WORLD_W * 0.78, WORLD_H * 0.72]]
+    const b = [[WORLD_W * 0.7, WORLD_H * 0.5], [WORLD_W * 0.86, WORLD_H * 0.47], [WORLD_W + 4, WORLD_H * 0.52]]
+    const c = [[WORLD_W * 0.64, WORLD_H * 0.58], [WORLD_W * 0.5, WORLD_H * 0.64], [WORLD_W * 0.42, WORLD_H * 0.6]]
+    const d = [[WORLD_W * 0.62, WORLD_H * 0.4], [WORLD_W * 0.55, WORLD_H * 0.3], [WORLD_W * 0.58, WORLD_H * 0.2]]
+    for (const p of [a, b, c, d]) { crack(ctx, p); ctx.strokeStyle = GLASS_INK; ctx.lineWidth = 9; ctx.stroke(); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 4; ctx.stroke() }
+  }
+
+  // The glass outline
+  bodyPath(ctx)
+  ctx.strokeStyle = GLASS_INK
+  ctx.lineWidth = 9
+  ctx.stroke()
+  bodyPath(ctx, 9)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)'
+  ctx.lineWidth = 3
+  ctx.stroke()
+
+  // Neck band in the player's color, with thread lines
+  const bl = -WALL / 2 - 10
+  const br = WORLD_W + WALL / 2 + 10
+  roundRect(ctx, bl, BAND_Y0, br - bl, BAND_Y1 - BAND_Y0, 8)
+  ctx.fillStyle = look.color
+  ctx.fill()
+  ctx.strokeStyle = GLASS_INK
+  ctx.lineWidth = 6
+  ctx.stroke()
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.22)'
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  for (const y of [BAND_Y0 + 11, BAND_Y0 + 21]) {
+    ctx.moveTo(bl + 10, y)
+    ctx.lineTo(br - 10, y)
+  }
+  ctx.stroke()
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
+  roundRect(ctx, bl + 14, BAND_Y0 + 4, 60, 6, 3)
+  ctx.fill()
+  // Glass lip above the band
+  roundRect(ctx, bl - 4, LIP_Y0, br - bl + 8, BAND_Y0 - LIP_Y0 + 4, 8)
+  ctx.fillStyle = 'rgba(225, 248, 255, 0.95)'
+  ctx.fill()
+  ctx.strokeStyle = GLASS_INK
+  ctx.lineWidth = 6
   ctx.stroke()
   ctx.restore()
 }
 
-/** Faint guide from the held fruit down to the floor. */
-export function drawGuide(ctx: CanvasRenderingContext2D, x: number, fromY: number) {
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath()
+  ctx.roundRect(x, y, w, h, r)
+}
+
+/** Where a fruit of radius r dropped at x first touches: the floor or the top of a fruit under it. */
+export function landingY(x: number, r: number, fruits: readonly { x: number; y: number; r: number }[]): number {
+  let y = WORLD_H - r
+  for (const f of fruits) {
+    const dx = Math.abs(x - f.x)
+    const rr = r + f.r
+    if (dx >= rr) continue
+    const top = f.y - Math.sqrt(rr * rr - dx * dx)
+    if (top < y) y = top
+  }
+  return y
+}
+
+/** The aim guide: a dashed line from the held fruit to where it lands, and a ghost ring there. */
+export function drawGuide(ctx: CanvasRenderingContext2D, x: number, fromY: number, toY: number, r: number, color: string) {
   ctx.save()
-  ctx.strokeStyle = '#E8ECFF'
-  ctx.globalAlpha = 0.14
-  ctx.lineWidth = 3
-  ctx.setLineDash([6, 10])
+  ctx.strokeStyle = color
+  ctx.globalAlpha = 0.85
+  ctx.lineWidth = 5
+  ctx.lineCap = 'round'
+  ctx.setLineDash([2, 16])
   ctx.beginPath()
   ctx.moveTo(x, fromY)
-  ctx.lineTo(x, WORLD_H - 4)
+  ctx.lineTo(x, Math.max(fromY, toY - r))
+  ctx.stroke()
+  ctx.setLineDash([12, 10])
+  ctx.globalAlpha = 0.6
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.arc(x, toY, r, 0, Math.PI * 2)
   ctx.stroke()
   ctx.restore()
+}
+
+/**
+ * The dropper: a claw on a rope from the top of the canvas. `open` 0 grips a fruit of
+ * radius r at (x, y); 1 is wide open (just let go).
+ */
+export function drawClaw(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, open: number, color: string) {
+  const top = -TOP - 10
+  const head = y - r - 26
+  ctx.save()
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  // rope
+  ctx.strokeStyle = GLASS_INK
+  ctx.lineWidth = 10
+  ctx.beginPath()
+  ctx.moveTo(x, top)
+  ctx.lineTo(x, head)
+  ctx.stroke()
+  ctx.strokeStyle = '#F4E3C1'
+  ctx.lineWidth = 5
+  ctx.stroke()
+  // arms
+  const spread = r * (0.82 + 0.4 * open) + 8
+  for (const s of [-1, 1]) {
+    ctx.beginPath()
+    ctx.moveTo(x + s * 14, head + 10)
+    ctx.quadraticCurveTo(x + s * (spread + 14), head + 8, x + s * spread, y - r * 0.15 + open * -r * 0.4)
+    ctx.strokeStyle = FRUIT_INK
+    ctx.lineWidth = 15
+    ctx.stroke()
+    ctx.strokeStyle = '#C9D3DE'
+    ctx.lineWidth = 8
+    ctx.stroke()
+  }
+  // head
+  ctx.beginPath()
+  ctx.roundRect(x - 28, head - 14, 56, 30, 12)
+  ctx.fillStyle = color
+  ctx.fill()
+  ctx.strokeStyle = FRUIT_INK
+  ctx.lineWidth = 6
+  ctx.stroke()
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
+  ctx.beginPath()
+  ctx.roundRect(x - 20, head - 9, 22, 6, 3)
+  ctx.fill()
+  ctx.restore()
+}
+
+/** Danger from a jar picture alone (bots send no danger): 0 below the line, 1 well above it. */
+export function dangerOf(fruits: readonly { t: number; y: number }[]): number {
+  let top = Infinity
+  for (const f of fruits) top = Math.min(top, f.y - fruit(f.t).r)
+  if (!Number.isFinite(top)) return 0
+  return Math.max(0, Math.min(1, (DANGER_Y + 30 - top) / 90))
 }

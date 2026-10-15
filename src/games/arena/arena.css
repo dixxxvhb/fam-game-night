@@ -1,0 +1,101 @@
+/*
+ * Kaboom motion. Transforms and opacity only; reduced motion is handled globally in index.css.
+ * Every class is kb-* so nothing collides with the park's pp-* / ps-* classes.
+ */
+
+/* The 3, 2, 1: slams in big, settles, fades on its way out. */
+.kb-count { animation: kb-count 1000ms cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes kb-count {
+  0% { transform: scale(2.8) rotate(-10deg); opacity: 0; }
+  22% { transform: scale(0.92) rotate(3deg); opacity: 1; }
+  34% { transform: scale(1.04) rotate(-1deg); }
+  80% { transform: scale(1) rotate(0); opacity: 1; }
+  100% { transform: scale(0.7); opacity: 0; }
+}
+
+.kb-go { animation: kb-go 900ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes kb-go {
+  0% { transform: scale(0.2) rotate(-14deg); opacity: 0; }
+  30% { transform: scale(1.18) rotate(4deg); opacity: 1; }
+  48% { transform: scale(0.96) rotate(-2deg); }
+  75% { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* VS card: critters slide in from their sides, the VS stamps down between them. */
+.kb-in-l { animation: kb-in-l 560ms cubic-bezier(0.2, 1.35, 0.4, 1) both; }
+@keyframes kb-in-l { 0% { transform: translateX(-140%) rotate(-8deg); } 100% { transform: translateX(0) rotate(0); } }
+.kb-in-r { animation: kb-in-r 560ms cubic-bezier(0.2, 1.35, 0.4, 1) both; }
+@keyframes kb-in-r { 0% { transform: translateX(140%) rotate(8deg); } 100% { transform: translateX(0) rotate(0); } }
+.kb-in-up { animation: kb-in-up 560ms cubic-bezier(0.2, 1.35, 0.4, 1) both; }
+@keyframes kb-in-up { 0% { transform: translateY(120%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+.kb-vs { animation: kb-vs 520ms cubic-bezier(0.2, 1.7, 0.4, 1) both; }
+@keyframes kb-vs {
+  0% { transform: scale(3.2) rotate(-24deg); opacity: 0; }
+  55% { transform: scale(0.9) rotate(-6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-8deg); opacity: 1; }
+}
+.kb-card-out { animation: kb-card-out 380ms ease-in both; }
+@keyframes kb-card-out { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.08); opacity: 0; } }
+
+/* A kill feed line pops in from the left. */
+.kb-feed { animation: kb-feed 460ms cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes kb-feed {
+  0% { transform: translateX(-60px) scale(0.8); opacity: 0; }
+  60% { transform: translateX(6px) scale(1.04); opacity: 1; }
+  100% { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+/* OUT stamps onto a plate. */
+.kb-stamp { animation: kb-stamp 420ms cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes kb-stamp {
+  0% { transform: scale(2.4) rotate(-20deg); opacity: 0; }
+  60% { transform: scale(0.94) rotate(-10deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-12deg); opacity: 1; }
+}
+
+.kb-pop { animation: kb-pop 480ms cubic-bezier(0.25, 1.5, 0.45, 1) both; }
+@keyframes kb-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.kb-bob { animation: kb-bob 1.6s ease-in-out infinite; }
+@keyframes kb-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6%); } }
+
+.kb-cheer { animation: kb-cheer 640ms cubic-bezier(0.3, 0, 0.4, 1) infinite; transform-origin: 50% 100%; }
+@keyframes kb-cheer {
+  0%, 100% { transform: translateY(0) scale(1.08, 0.9); }
+  40% { transform: translateY(-22%) scale(0.94, 1.08) rotate(-5deg); }
+  70% { transform: translateY(-12%) rotate(4deg); }
+}
+
+.kb-pulse { animation: kb-pulse 600ms ease-in-out infinite; }
+@keyframes kb-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+.kb-rise { animation: kb-rise 620ms cubic-bezier(0.25, 1.3, 0.45, 1) both; transform-origin: 50% 100%; }
+@keyframes kb-rise { 0% { transform: scaleY(0); } 100% { transform: scaleY(1); } }
+
+.kb-land { animation: kb-land 700ms cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+@keyframes kb-land {
+  0% { transform: translateY(-160%); opacity: 0; }
+  40% { opacity: 1; }
+  65% { transform: translateY(4%) scale(1.08, 0.9); }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.kb-rays { animation: kb-rays 22s linear infinite; }
+@keyframes kb-rays { to { transform: rotate(360deg); } }
+
+/* Phone: the controller buttons press down. */
+.kb-press:active { transform: translateY(5px); }
+
+.kb-shake { animation: kb-shake 360ms linear both; }
+@keyframes kb-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px) rotate(-2deg); }
+  40% { transform: translateX(9px) rotate(2deg); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(4px); }
+}

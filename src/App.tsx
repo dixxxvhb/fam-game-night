@@ -10,6 +10,7 @@ import MgSandbox from './games/board/park/MgSandbox'
 import MusicBox from './games/board/park/MusicBox'
 import KartView from './games/kart/view/ViewSandbox'
 import KartGarage from './games/kart/garage/Gallery'
+import GameLab from './dev/GameLab'
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
       <Route path="/park-music" element={<MusicBox />} />
       <Route path="/kart-view" element={<KartView />} />
       <Route path="/kart-garage" element={<KartGarage />} />
+      <Route path="/lab/:id" element={<GameLab />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
