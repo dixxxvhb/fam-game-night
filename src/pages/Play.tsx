@@ -59,7 +59,7 @@ export default function Play() {
       <span className="font-display text-lg tracking-[0.12em] text-hot">{code}</span>
       <div className="flex-1" />
       <StatusDot status={room.status} />
-      {s?.mode === 'apart' && s.phase === 'playing' && (s.game?.id === 'board' || s.game?.id === 'kart') && <MusicButton />}
+      {s?.mode === 'apart' && s.phase === 'playing' && ['board', 'kart', 'bluff', 'fakeword', 'quip'].includes(s.game?.id ?? '') && <MusicButton />}
       {s?.mode === 'apart' && <MuteButton />}
       {s?.phase === 'playing' && (
         <button onClick={() => setConfirmEnd(true)} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="End this game" title="End this game">
