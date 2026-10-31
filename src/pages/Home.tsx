@@ -19,11 +19,16 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-xl flex-col gap-10 px-4 pb-16 safe-top">
-      <header className="grid gap-3 pt-8">
-        <h1 className="font-display text-6xl leading-[0.95] riso sm:text-7xl">Game<br />Night</h1>
-        <div className="flex items-center gap-2">
-          {CORE.map((p) => <Avatar key={p.id} name={p.name} color={p.color} size={26} />)}
-          <span className="ml-1 text-ink-2">Johnnyboy, Dixxx, Torii</span>
+      <header className="relative mt-6 overflow-hidden rounded-3xl border-2 border-line bg-tile/70 px-6 pb-6 pt-7">
+        <div aria-hidden className="halftone absolute -right-6 -top-6 h-40 w-48 opacity-30 [mask-image:radial-gradient(circle_at_top_right,black,transparent_70%)]" />
+        <Label className="relative mb-3">Season 1 · every game counts</Label>
+        <h1 className="relative font-display text-6xl leading-[0.92] riso sm:text-7xl">Game<br />Night</h1>
+        <div className="relative mt-5 flex flex-wrap gap-2">
+          {CORE.map((p) => (
+            <span key={p.id} className="inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-3 font-bold" style={{ background: `color-mix(in srgb, ${p.color} 18%, transparent)`, color: p.color }}>
+              <Avatar name={p.name} color={p.color} size={26} />{p.name}
+            </span>
+          ))}
         </div>
       </header>
 

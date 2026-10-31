@@ -62,7 +62,46 @@
   .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom, 0px), 12px); }
   .no-select { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
   .touch-none-all { touch-action: none; }
+  /* Printed edge: the ink sits a hair off its shadow, like a second riso pass. */
+  .print-edge { box-shadow: 4px 4px 0 0 var(--edge, #0008); }
+  .print-edge:active { box-shadow: 1px 1px 0 0 var(--edge, #0008); transform: translate(3px, 3px); }
+  /* Halftone dots for poster corners. */
+  .halftone {
+    background-image: radial-gradient(circle, var(--dot, var(--color-hot)) 1.2px, transparent 1.6px);
+    background-size: 9px 9px;
+  }
 }
+
+/* Riso paper: fine grain plus a soft ink glow at the top, fixed so it never scrolls. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--color-hot) 9%, transparent), transparent 60%),
+    radial-gradient(80% 50% at 100% 110%, color-mix(in srgb, var(--color-johnnyboy) 8%, transparent), transparent 70%);
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Shelf cards: the game's world ink washes in from the corner. */
+.world-card {
+  background:
+    radial-gradient(140% 90% at 0% 0%, color-mix(in srgb, var(--world) 13%, transparent), transparent 55%),
+    var(--color-tile);
+  border-color: color-mix(in srgb, var(--world) 22%, var(--color-line));
+}
+.world-card:hover { border-color: color-mix(in srgb, var(--world) 55%, var(--color-line)); }
 
 
 /* Party Park (Board Night): critter motion. Transform origin is set inline at the feet. */

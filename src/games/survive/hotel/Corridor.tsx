@@ -2,7 +2,7 @@ import type { RoomView } from '../../../engine/types'
 import { whoIn } from '../../_quiz/who'
 import { cx } from '../../../ui/kit'
 import { Ghost, Guest } from './cast'
-import { ceilY, depthScale, floorY, runnerAt, VIEW, wallX } from './corridor'
+import { ceilY, depthScale, floorY, runnerAt, VIEW, wallX } from './perspective'
 import { DISPLAY, HOTEL, SIGN } from './look'
 
 export const STEP_MS = 650

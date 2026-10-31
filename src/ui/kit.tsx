@@ -15,7 +15,7 @@ export function btnClass(variant: BtnVariant = 'secondary', size: BtnSize = 'md'
     size === 'md' && 'min-h-12 px-5 text-base',
     size === 'lg' && 'min-h-14 px-6 text-lg',
     size === 'xl' && 'min-h-16 px-8 text-xl',
-    variant === 'primary' && 'bg-hot text-paper hover:bg-hot-ink',
+    variant === 'primary' && 'bg-hot text-paper hover:bg-hot-ink print-edge [--edge:#8A2A10] active:scale-100 disabled:shadow-none disabled:translate-0',
     variant === 'secondary' && 'border-2 border-line bg-tile text-ink hover:border-ink-3',
     variant === 'ghost' && 'text-ink-2 hover:text-ink',
     variant === 'danger' && 'border-2 border-bad/50 text-bad hover:border-bad',

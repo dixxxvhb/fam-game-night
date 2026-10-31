@@ -11,6 +11,7 @@ import { CORE, GUEST_COLORS, guestId } from '../lib/players'
 import type { SavedMe } from '../lib/ids'
 import { getSaveStatus, loadSeason } from '../data/api'
 import { seasonStats } from '../data/season'
+import { worldOf } from './worlds'
 
 export function joinUrl(code: string) {
   const base = `${window.location.origin}${window.location.pathname}`
@@ -58,13 +59,20 @@ export function GameShelf({
         const tooMany = ready > g.maxPlayers
         const isOpen = open === g.id
         const played = state.games.filter((x) => x.gameId === g.id).length
+        const world = worldOf(g.id)
         return (
-          <div key={g.id} className={cx('rounded-2xl border bg-tile p-4 transition-colors', isOpen ? 'border-hot sm:col-span-2' : 'border-line')}>
-            <button className="grid w-full gap-1 text-left" onClick={() => choose(g)} aria-expanded={isOpen}>
+          <div
+            key={g.id}
+            className={cx('world-card relative overflow-hidden rounded-2xl border-2 bg-tile p-4 pl-5 transition-[border-color,transform] duration-150', isOpen ? 'sm:col-span-2' : 'hover:-translate-y-0.5')}
+            style={{ ['--world' as string]: world.ink, borderColor: isOpen ? world.ink : undefined }}
+          >
+            <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ background: world.ink }} />
+            <button className="relative grid w-full gap-1 text-left" onClick={() => choose(g)} aria-expanded={isOpen}>
               <div className="flex items-baseline justify-between gap-3">
-                <span className="font-display text-xl">{g.name}</span>
+                <span className="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.16em]" style={{ color: world.ink }}>{world.place}</span>
                 <span className="shrink-0 font-mono text-xs text-ink-3">{g.minutes} min{played ? ` · played ${played}` : ''}</span>
               </div>
+              <span className="font-display text-xl leading-tight">{g.name}</span>
               <span className="text-ink-2">{g.tagline}</span>
               {g.instead && <span className="text-sm text-ink-3">{g.instead}</span>}
               {bots > 0 && !g.bot && <span className="text-sm text-hot-ink">Bots sit this one out</span>}

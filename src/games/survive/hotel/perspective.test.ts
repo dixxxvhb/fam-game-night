@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { depthScale, floorY, laneOffset, runnerAt, VIEW, wallX } from './corridor'
+import { depthScale, floorY, laneOffset, runnerAt, VIEW, wallX } from './perspective'
 
 describe('finale corridor perspective', () => {
   it('shrinks toward the exit and never flips', () => {
