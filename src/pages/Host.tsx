@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useRoom } from '../engine/useRoom'
 import { GameEnvProvider } from '../engine/context'
 import { getGame } from '../games/registry'
 import { cleanCode, lsSet, makeRoomCode } from '../lib/ids'
-import { Avatar, Btn, cx, Label, LinkBtn } from '../ui/kit'
+import { Avatar, Btn, ConfirmBar, cx, Label, LinkBtn } from '../ui/kit'
 import { QR } from '../ui/QR'
-import { BotControls, GameShelf, joinUrl, MuteButton, MusicButton, NightSummary, NightTable, Podium, shortJoinUrl, StatusDot, useRoomSounds } from '../room/shared'
+import { BotControls, EndNight, GameShelf, joinUrl, MuteButton, MusicButton, NightSummary, NightTable, Podium, shortJoinUrl, StatusDot, useRoomSounds } from '../room/shared'
 import { getSaveStatus, loadSeason, onSaveStatus, type SaveStatus, type SeasonData } from '../data/api'
 import { seasonStats } from '../data/season'
 
@@ -32,6 +32,8 @@ export default function Host() {
   const room = useRoom(code.length === 4 ? code : null, { host: true, mode: 'together' })
   const save = useSaveStatus()
   const s = room.state
+  const nav = useNavigate()
+  const [asking, setAsking] = useState<null | 'end' | 'leave'>(null)
   useRoomSounds(s, true)
 
   useEffect(() => {
@@ -46,7 +48,10 @@ export default function Host() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-4 border-b border-line px-6 py-3">
-        <Link to="/" className="font-display text-lg text-ink-2 hover:text-ink">Game Night</Link>
+        <button
+          onClick={() => (s.players.some((p) => !p.bot) ? setAsking('leave') : nav('/'))}
+          className="-ml-2 rounded-xl px-2 py-1 font-display text-lg text-ink-2 hover:bg-tile hover:text-ink"
+        >Game Night</button>
         <span className="font-mono text-sm text-ink-3">Room</span>
         <span className="font-display text-xl tracking-[0.12em] text-hot">{s.code}</span>
         <div className="flex-1" />
@@ -56,9 +61,19 @@ export default function Host() {
         {s.phase === 'playing' && ['board', 'kart', 'bluff', 'fakeword', 'quip', 'bowl', 'arena', 'survive', 'trivia', 'percent', 'categories', 'forehead'].includes(s.game?.id ?? '') && <MusicButton />}
         <MuteButton />
         {s.phase === 'playing' && (
-          <Btn size="sm" variant="ghost" onClick={() => room.send('room', 'abort')}>End game</Btn>
+          <Btn size="sm" variant="ghost" onClick={() => setAsking('end')}>End game</Btn>
         )}
       </header>
+      {asking === 'end' && s.phase === 'playing' && (
+        <div className="border-b border-line px-6 py-3">
+          <ConfirmBar big question="End this game for everyone? No points." yes="End it" no="Keep playing" onYes={() => { setAsking(null); room.send('room', 'abort') }} onNo={() => setAsking(null)} />
+        </div>
+      )}
+      {asking === 'leave' && (
+        <div className="border-b border-line px-6 py-3">
+          <ConfirmBar big question="Close the room? Everyone's phones lose this game." yes="Close it" no="Stay" onYes={() => nav('/')} onNo={() => setAsking(null)} />
+        </div>
+      )}
 
       <main className="min-h-0 flex-1">
         {s.phase === 'lobby' && <TvLobby room={room} />}
@@ -138,11 +153,7 @@ function TvLobby({ room }: { room: ReturnType<typeof useRoom> }) {
         <BotControls state={s} big send={(type, payload) => room.send('room', type, payload)} />
 
         <NightTable state={s} big />
-        {s.games.length > 0 && (
-          <div>
-            <Btn variant="danger" onClick={() => room.send('room', 'endNight')}>End the night</Btn>
-          </div>
-        )}
+        {s.games.length > 0 && <EndNight big onEnd={() => room.send('room', 'endNight')} />}
         {s.games.length === 0 && <SeasonMini />}
       </section>
 

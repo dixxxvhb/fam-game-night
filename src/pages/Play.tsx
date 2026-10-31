@@ -4,9 +4,9 @@ import { useRoom } from '../engine/useRoom'
 import { GameEnvProvider } from '../engine/context'
 import { getGame } from '../games/registry'
 import { cleanCode, getTabMe, lsSet } from '../lib/ids'
-import { Avatar, Btn, cx, Label, Spinner } from '../ui/kit'
-import { BotControls, GameShelf, LostHost, MuteButton, MusicButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
-import { LogOut, Share2, X } from 'lucide-react'
+import { Avatar, Btn, ConfirmBar, cx, Label, Spinner } from '../ui/kit'
+import { BotControls, EndNight, GameShelf, LostHost, MuteButton, MusicButton, NightSummary, NightTable, Podium, StatusDot, useRoomSounds } from '../room/shared'
+import { ChevronLeft, Share2 } from 'lucide-react'
 
 /** A phone in the room. In apart mode the hosting phone also runs the room. */
 export default function Play() {
@@ -26,6 +26,7 @@ export default function Play() {
     if (!s.players.some((p) => p.bot)) { room.send('room', 'addBot'); room.send('room', 'addBot') }
   }, [solo, room, s, code])
   const [confirmEnd, setConfirmEnd] = useState(false)
+  const [confirmLeave, setConfirmLeave] = useState(false)
   useRoomSounds(s, s?.mode === 'apart')
 
   useEffect(() => {
@@ -34,10 +35,18 @@ export default function Play() {
 
   function leave() {
     if (!me) return
-    room.send('room', 'leave', { id: me.id })
-    lsSet('gn-last-room', null)
+    // In the lobby a guest phone leaves for real. Mid-game, or while hosting, it only steps away,
+    // so Back to room on the home screen brings it straight back.
+    if (s?.phase === 'lobby' && !room.isHost) {
+      room.send('room', 'leave', { id: me.id })
+      lsSet('gn-last-room', null)
+    }
     nav('/', { replace: true })
   }
+  const othersHere = s?.players.some((p) => !p.bot && p.connected && p.id !== me?.id) ?? false
+  const leaveQuestion = room.isHost && s?.mode === 'apart'
+    ? othersHere ? 'Leave? You are hosting. Another phone takes over in a few seconds.' : 'Leave? The room closes when you go.'
+    : s?.phase === 'lobby' ? 'Leave the room?' : 'Step out? The game keeps going. Back to room on the home screen brings you back.'
 
   // Keep the screen awake while in a room.
   useEffect(() => {
@@ -55,20 +64,17 @@ export default function Play() {
 
   const header = (
     <header className="flex items-center gap-3 border-b border-line px-4 py-2 safe-top">
-      <Link to="/" className="font-display text-sm text-ink-3">GN</Link>
+      <button onClick={() => (s ? setConfirmLeave(true) : nav('/', { replace: true }))} className="-ml-2 inline-flex min-h-11 items-center gap-0.5 rounded-xl pl-1 pr-2 font-bold text-ink-2 hover:bg-tile hover:text-ink" aria-label="Leave room">
+        <ChevronLeft size={20} />Leave
+      </button>
       <span className="font-display text-lg tracking-[0.12em] text-hot">{code}</span>
       <div className="flex-1" />
       <StatusDot status={room.status} />
       {s?.mode === 'apart' && s.phase === 'playing' && ['board', 'kart', 'bluff', 'fakeword', 'quip', 'bowl', 'arena', 'survive', 'trivia', 'percent', 'categories', 'forehead'].includes(s.game?.id ?? '') && <MusicButton />}
       {s?.mode === 'apart' && <MuteButton />}
       {s?.phase === 'playing' && (
-        <button onClick={() => setConfirmEnd(true)} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="End this game" title="End this game">
-          <X size={18} />
-        </button>
-      )}
-      {s?.phase === 'lobby' && !room.isHost && (
-        <button onClick={leave} className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:text-ink" aria-label="Leave room" title="Leave room">
-          <LogOut size={18} />
+        <button onClick={() => { setConfirmLeave(false); setConfirmEnd(true) }} className="min-h-11 whitespace-nowrap rounded-xl px-2 text-sm font-bold text-ink-3 hover:bg-tile hover:text-ink">
+          End game
         </button>
       )}
       <Avatar name={me.name} color={me.color} size={28} />
@@ -98,10 +104,13 @@ export default function Play() {
       {header}
       <LostHost heardAt={room.heardAt} isHost={room.isHost} what={apart ? 'the host phone' : 'the TV'} />
       {confirmEnd && s.phase === 'playing' && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-line bg-tile px-4 py-3" role="alertdialog" aria-label="End this game?">
-          <span className="flex-1 font-bold">End this game for everyone? No points.</span>
-          <Btn size="sm" variant="danger" onClick={() => { setConfirmEnd(false); room.send('room', 'abort') }}>End it</Btn>
-          <Btn size="sm" onClick={() => setConfirmEnd(false)}>Keep playing</Btn>
+        <div className="border-b border-line p-3">
+          <ConfirmBar question="End this game for everyone? No points." yes="End it" no="Keep playing" onYes={() => { setConfirmEnd(false); room.send('room', 'abort') }} onNo={() => setConfirmEnd(false)} />
+        </div>
+      )}
+      {confirmLeave && (
+        <div className="border-b border-line p-3">
+          <ConfirmBar question={leaveQuestion} yes="Leave" no="Stay" onYes={leave} onNo={() => setConfirmLeave(false)} />
         </div>
       )}
       <main className="min-h-0 flex-1 overflow-y-auto">
@@ -122,8 +131,8 @@ export default function Play() {
           <div className="grid gap-6 p-4">
             <Podium state={s} />
             <div className="grid grid-cols-2 gap-3">
-              <Btn variant="primary" size="lg" onClick={() => room.send('room', 'again')}>Again</Btn>
-              <Btn size="lg" onClick={() => room.send('room', 'lobby')}>Next game</Btn>
+              <Btn variant="primary" size="lg" onClick={() => room.send('room', 'again')}>Play again</Btn>
+              <Btn size="lg" onClick={() => room.send('room', 'lobby')}>Pick another</Btn>
             </div>
             <NightTable state={s} />
           </div>
@@ -195,9 +204,8 @@ function PhoneLobby({ room }: { room: ReturnType<typeof useRoom> }) {
       </div>
 
       <NightTable state={s} />
-      {s.games.length > 0 && (
-        <Btn variant="danger" onClick={() => room.send('room', 'endNight')}>End the night</Btn>
-      )}
+      {s.games.length > 0 && <EndNight onEnd={() => room.send('room', 'endNight')} />}
     </div>
   )
 }
+

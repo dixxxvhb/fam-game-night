@@ -5,7 +5,7 @@ import { getGame } from '../games/registry'
 import { CORE } from '../lib/players'
 import { StrokeThumb } from '../games/sketch/Canvas'
 import type { Stroke } from '../games/sketch/logic'
-import { Label } from '../ui/kit'
+import { BackBtn, Label } from '../ui/kit'
 
 export default function Hall() {
   const [items, setItems] = useState<HallItem[] | null>(null)
@@ -16,7 +16,7 @@ export default function Hall() {
   return (
     <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-8 px-4 pb-16 safe-top">
       <div className="flex items-center justify-between pt-2">
-        <Link to="/" className="font-display text-ink-2">Game Night</Link>
+        <BackBtn />
         <Link to="/season" className="text-sm text-ink-2 underline">Season</Link>
       </div>
       <h1 className="font-display text-4xl riso">Hall of Fame</h1>

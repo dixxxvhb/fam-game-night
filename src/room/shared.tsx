@@ -6,7 +6,7 @@ import { useTicker } from '../engine/context'
 import type { GameDef, RoomPlayer, RoomState } from '../engine/types'
 import { GAMES } from '../games/registry'
 import { nightStandings } from '../engine/points'
-import { Avatar, Btn, cx, Label } from '../ui/kit'
+import { Avatar, Btn, ConfirmBar, cx, Label } from '../ui/kit'
 import { CORE, GUEST_COLORS, guestId } from '../lib/players'
 import type { SavedMe } from '../lib/ids'
 import { getSaveStatus, loadSeason } from '../data/api'
@@ -383,4 +383,11 @@ export function BotControls({ state, send, big = false }: { state: RoomState; se
       )}
     </div>
   )
+}
+
+/** End the night: totals it up and saves it to the season, so it asks first. */
+export function EndNight({ onEnd, big = false }: { onEnd: () => void; big?: boolean }) {
+  const [asking, setAsking] = useState(false)
+  if (asking) return <ConfirmBar big={big} question="End the night? Tonight's points get totaled and saved." yes="End the night" no="Keep playing" onYes={onEnd} onNo={() => setAsking(false)} />
+  return <div><Btn variant="danger" onClick={() => setAsking(true)}>End the night</Btn></div>
 }

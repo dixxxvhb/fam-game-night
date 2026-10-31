@@ -4,7 +4,7 @@ import { loadSeason, type SeasonData } from '../data/api'
 import { seasonStats } from '../data/season'
 import { getGame } from '../games/registry'
 import { CORE } from '../lib/players'
-import { Avatar, cx, Label } from '../ui/kit'
+import { Avatar, BackBtn, cx, Label } from '../ui/kit'
 
 function useSeason() {
   const [data, setData] = useState<SeasonData | null>(null)
@@ -19,7 +19,7 @@ function Page({ title, children }: { title: string; children: React.ReactNode })
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-8 px-4 pb-16 safe-top">
       <div className="flex items-center justify-between pt-2">
-        <Link to="/" className="font-display text-ink-2">Game Night</Link>
+        <BackBtn />
         <div className="flex gap-4 text-sm">
           <Link to="/season" className="text-ink-2 underline">Season</Link>
           <Link to="/hall" className="text-ink-2 underline">Hall of Fame</Link>

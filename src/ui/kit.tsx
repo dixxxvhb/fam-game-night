@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { ChevronLeft } from 'lucide-react'
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
 export function cx(...parts: (string | false | null | undefined)[]) {
@@ -86,6 +87,43 @@ export function Spinner({ label = 'Connecting' }: { label?: string }) {
     <div className="flex items-center gap-3 text-ink-2" role="status">
       <span className="h-3 w-3 animate-ping rounded-full bg-hot" />
       <span>{label}</span>
+    </div>
+  )
+}
+
+/** Back, thumb-sized. Goes back in the app when there is somewhere to go back to, otherwise to `to`. */
+export function BackBtn({ to = '/', label = 'Back', className }: { to?: string; label?: string; className?: string }) {
+  const nav = useNavigate()
+  const canGoBack = (window.history.state as { idx?: number } | null)?.idx ? true : false
+  return (
+    <button
+      onClick={() => (canGoBack ? nav(-1) : nav(to, { replace: true }))}
+      className={cx('-ml-2 inline-flex min-h-11 items-center gap-1 rounded-xl pl-1 pr-3 font-bold text-ink-2 hover:bg-tile hover:text-ink no-select', className)}
+    >
+      <ChevronLeft size={22} />{label}
+    </button>
+  )
+}
+
+/** A yes/no strip for anything that can't be undone. The safe choice comes first and gets focus. */
+export function ConfirmBar({
+  question,
+  yes,
+  no = 'Cancel',
+  onYes,
+  onNo,
+  big = false,
+}: { question: string; yes: string; no?: string; onYes: () => void; onNo: () => void; big?: boolean }) {
+  return (
+    <div
+      role="alertdialog"
+      aria-label={question}
+      onKeyDown={(e) => { if (e.key === 'Escape') onNo() }}
+      className={cx('flex flex-wrap items-center gap-3 rounded-2xl border-2 border-bad/40 bg-tile animate-rise', big ? 'p-5' : 'p-4')}
+    >
+      <span className={cx('basis-full font-bold sm:basis-auto sm:flex-1', big && 'text-xl')}>{question}</span>
+      <Btn size="md" autoFocus className="flex-1 sm:flex-none" onClick={onNo}>{no}</Btn>
+      <Btn size="md" variant="danger" className="flex-1 sm:flex-none" onClick={onYes}>{yes}</Btn>
     </div>
   )
 }

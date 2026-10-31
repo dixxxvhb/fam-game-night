@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { cleanCode, makeRoomCode, saveMe, setTabMe, type SavedMe } from '../lib/ids'
 import { CORE } from '../lib/players'
 import { useRoom } from '../engine/useRoom'
-import { Btn, Label } from '../ui/kit'
+import { BackBtn, Btn, Label } from '../ui/kit'
 import { WhoAreYou } from '../room/shared'
 import { addGuest } from '../data/api'
 
@@ -11,7 +11,7 @@ function Shell({ title, children }: { title: string; children: React.ReactNode }
   return (
     <div className="mx-auto flex min-h-full w-full max-w-md flex-col gap-6 px-4 safe-top safe-bottom">
       <div className="flex items-center justify-between pt-2">
-        <Link to="/" className="font-display text-ink-2">Game Night</Link>
+        <BackBtn />
       </div>
       <h1 className="font-display text-4xl riso">{title}</h1>
       {children}
@@ -81,6 +81,7 @@ export default function Join() {
         {!room.state && room.status === 'live' && <span className="text-sm text-ink-3">looking for the TV</span>}
       </div>
       <WhoAreYou taken={taken} onPick={go} />
+      <Link to="/join" replace className="text-center text-ink-2 underline">Wrong room? Change the code</Link>
     </Shell>
   )
 }
