@@ -49,7 +49,7 @@ for (const name of names) {
   const text = (await page.locator('main').innerText()).slice(0, 80).split('\n').join(' | ')
   report.push([name, errors.length > before ? `ERROR ${errors.slice(before).join(' / ')}` : `ok: ${text}`])
   // End it from the phone
-  const end = page.getByLabel('End this game')
+  const end = page.getByRole('button', { name: 'End game', exact: true })
   if (await end.count()) {
     await end.click()
     await page.getByRole('button', { name: 'End it' }).click()
