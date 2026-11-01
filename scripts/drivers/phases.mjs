@@ -41,7 +41,7 @@ function twoSets(hand) {
 
 export default async function ({ tv, phones, shot, wait }) {
   if (tv) {
-    await tv.getByRole('button', { name: 'End game' }).click()
+    await tv.getByRole('button', { name: 'End game' }).click(); await tv.getByRole('button', { name: 'End it' }).click()
     await wait(1200)
     const p0 = phones[0]
     await p0.locator('button[aria-expanded]', { hasText: /Phases/ }).first().click()

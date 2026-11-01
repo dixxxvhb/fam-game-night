@@ -4,7 +4,7 @@
 //   node scripts/qa-room.mjs --game melon --name Melon --players 1 --driver scripts/drivers/solo/melon-tv.mjs
 export default async function ({ tv, phones, shot, wait }) {
   const p = phones[0]
-  await tv.getByRole('button', { name: 'End game' }).click()
+  await tv.getByRole('button', { name: 'End game' }).click(); await tv.getByRole('button', { name: 'End it' }).click()
   await wait(1200)
   await p.getByRole('button', { name: /Add a bot/ }).click()
   await wait(500)
@@ -22,7 +22,7 @@ export default async function ({ tv, phones, shot, wait }) {
   let next = t0 + 4000
   let k = 0
   while (Date.now() - t0 < 150_000) {
-    if (await p.getByRole('button', { name: 'Next game' }).count()) break
+    if (await p.getByRole('button', { name: 'Pick another' }).count()) break
     const c = p.locator('canvas[data-myjar]').first()
     if (await c.count()) {
       const b = await c.boundingBox()
@@ -37,7 +37,7 @@ export default async function ({ tv, phones, shot, wait }) {
     }
     await wait(900)
   }
-  for (let i = 0; i < 20 && !(await p.getByRole('button', { name: 'Next game' }).count()); i++) await wait(1000)
+  for (let i = 0; i < 20 && !(await p.getByRole('button', { name: 'Pick another' }).count()); i++) await wait(1000)
   await wait(1200)
   await shot('results')
   console.log(`[melon-tv] TV results: ${(await tv.locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 300)}`)

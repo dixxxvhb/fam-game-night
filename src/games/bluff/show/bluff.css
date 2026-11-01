@@ -1,0 +1,110 @@
+/* Bluff: Polly's interrogation room. Classes are prefixed bf-. */
+
+.bf-room { position: relative; overflow: hidden; isolation: isolate; }
+
+/* The lamp: a warm cone from the top, swinging a hair. */
+.bf-lamp {
+  position: absolute; left: 50%; top: -2px; width: 74%; height: 92%; pointer-events: none; z-index: -1;
+  transform: translateX(-50%); transform-origin: 50% 0;
+  background: radial-gradient(50% 78% at 50% 0%, rgba(255, 214, 140, 0.20) 0%, rgba(255, 214, 140, 0.07) 46%, rgba(255, 214, 140, 0) 72%);
+  clip-path: polygon(41% 0, 59% 0, 100% 100%, 0 100%);
+  animation: bf-swing 7s ease-in-out infinite;
+}
+.bf-shade { position: absolute; left: 50%; top: 0; width: 120px; height: 34px; transform: translateX(-50%); z-index: -1; }
+@keyframes bf-swing { 0%, 100% { transform: translateX(-50%) rotate(-1.2deg); } 50% { transform: translateX(-50%) rotate(1.2deg); } }
+
+/* One-way mirror on the back wall. */
+.bf-mirror {
+  position: absolute; right: 3%; top: 9%; width: 17%; height: 34%; z-index: -1; border-radius: 6px;
+  background: linear-gradient(135deg, rgba(160, 190, 185, 0.10) 0%, rgba(20, 30, 30, 0.6) 40%, rgba(160, 190, 185, 0.06) 70%, rgba(20, 30, 30, 0.7) 100%);
+  border: 6px solid #1A2422; box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
+}
+.bf-mirror::after { content: ""; position: absolute; inset: 10% 0 0 18%; background: linear-gradient(115deg, transparent 0 40%, rgba(255, 255, 255, 0.07) 41% 47%, transparent 48%); }
+
+/* Manila case file. */
+.bf-file {
+  position: relative; color: #2B2318; border-radius: 4px 14px 14px 14px;
+  background: linear-gradient(180deg, #F2DFAB 0%, #E4C98A 100%);
+  border: 2px solid #9C7F45; box-shadow: 0 8px 0 #050909, 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+.bf-file::before { /* the folder tab */
+  content: attr(data-tab); position: absolute; left: 22px; top: -30px; height: 30px; padding: 0 18px;
+  display: flex; align-items: center; border-radius: 10px 10px 0 0;
+  background: #E9D195; border: 2px solid #9C7F45; border-bottom: 0;
+  font-family: "Special Elite", "Courier New", monospace; font-size: 15px; letter-spacing: 0.06em; color: #4A3B22; text-transform: uppercase;
+}
+.bf-file:not([data-tab])::before { display: none; }
+.bf-type { font-family: "Special Elite", "Courier New", monospace; }
+.bf-stencil { font-family: "Black Ops One", "Bungee", "Arial Black", sans-serif; letter-spacing: 0.02em; }
+
+/* Evidence tag (pick phase). */
+.bf-tag {
+  position: relative; color: #2B2318; border-radius: 6px 16px 16px 6px;
+  background: linear-gradient(180deg, #F6E9C4 0%, #EAD49C 100%);
+  border: 2px solid #9C7F45; box-shadow: 0 5px 0 #050909;
+}
+.bf-tag::before { /* the string hole */
+  content: ""; position: absolute; left: 12px; top: 50%; width: 14px; height: 14px; margin-top: -7px; border-radius: 999px;
+  background: #23302C; box-shadow: 0 0 0 3px #C9AE6E;
+}
+
+/* Rubber stamps. */
+.bf-stamp {
+  display: inline-block; font-family: "Black Ops One", "Bungee", sans-serif; line-height: 1; padding: 0.12em 0.36em;
+  border: 0.09em solid currentColor; border-radius: 0.14em; color: #D7263D; text-transform: uppercase;
+  transform: rotate(var(--bf-rot, -10deg)); mix-blend-mode: multiply; opacity: 0.92;
+  animation: bf-stamp 380ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.bf-stamp.bf-true { color: #1F9D5C; }
+.bf-on-dark .bf-stamp { mix-blend-mode: normal; background: rgba(10, 16, 17, 0.55); }
+@keyframes bf-stamp {
+  0% { transform: rotate(var(--bf-rot, -10deg)) scale(2.4); opacity: 0; }
+  60% { transform: rotate(var(--bf-rot, -10deg)) scale(0.94); opacity: 1; }
+  100% { transform: rotate(var(--bf-rot, -10deg)) scale(1); opacity: 0.92; }
+}
+
+/* Mugshot board behind the subject in About Us. */
+.bf-mug {
+  position: relative; overflow: hidden; border-radius: 10px; border: 3px solid #050909;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.0) 0 27px, rgba(255, 255, 255, 0.55) 27px 29px),
+    linear-gradient(180deg, #C9CFC8 0%, #A9B1AA 100%);
+}
+.bf-mug-plate {
+  font-family: "Special Elite", "Courier New", monospace; background: #111A1A; color: #F1EBDC; border: 2px solid #F1EBDC;
+  padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+/* The chart strip at the bottom. */
+.bf-chart { position: relative; background: #F4EEDC; border-top: 3px solid #050909; }
+.bf-chart-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, rgba(46, 140, 110, 0.20) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(0deg, rgba(46, 140, 110, 0.14) 0 1px, transparent 1px 12px);
+}
+.bf-pen { position: absolute; right: 0; top: 0; bottom: 0; width: 40px; background: linear-gradient(90deg, rgba(244, 238, 220, 0), #F4EEDC 60%); }
+
+/* Splash card at the top of a case. */
+.bf-splash { animation: bf-splash 2.4s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes bf-splash {
+  0% { opacity: 0; transform: translateY(-30px) rotate(-3deg) scale(1.2); }
+  14% { opacity: 1; transform: translateY(0) rotate(-3deg) scale(1); }
+  80% { opacity: 1; transform: translateY(0) rotate(-3deg) scale(1); }
+  100% { opacity: 0; transform: translateY(20px) rotate(-3deg) scale(0.96); }
+}
+.bf-rise { animation: bf-rise 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes bf-rise { 0% { opacity: 0; transform: translateY(16px); } 100% { opacity: 1; transform: translateY(0); } }
+.bf-slide { animation: bf-slide 520ms cubic-bezier(0.2, 0.9, 0.2, 1) both; }
+@keyframes bf-slide { 0% { opacity: 0; transform: translateX(-60px) rotate(-4deg); } 100% { opacity: 1; transform: translateX(0) rotate(-1deg); } }
+.bf-shake { animation: bf-shake 0.24s linear infinite; }
+@keyframes bf-shake { 0%, 100% { transform: translate(0, 0); } 25% { transform: translate(-2px, 1px); } 50% { transform: translate(2px, -1px); } 75% { transform: translate(-1px, -1px); } }
+.bf-blink { animation: bf-blink 1s steps(1) infinite; }
+@keyframes bf-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0.25; } }
+
+/* Polly's speech bubble: a printout. */
+.bf-bubble {
+  position: relative; background: #FFF8E6; color: #1A1A14; border: 3px solid #050909; border-radius: 14px;
+  font-family: "Special Elite", "Courier New", monospace; box-shadow: 0 5px 0 #050909;
+}
+.bf-bubble::before { content: ""; position: absolute; left: -14px; bottom: 22px; border: 8px solid transparent; border-right: 12px solid #050909; }

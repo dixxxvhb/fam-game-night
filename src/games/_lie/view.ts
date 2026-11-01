@@ -38,7 +38,8 @@ export function joinNames(names: string[]): string {
 /** Players who still have to act in this phase. */
 export function waitingOn(s: LieState, room: RoomView): string[] {
   if (s.stage === 'lie') return room.gamePlayers.filter((id) => !s.cur.lies[id])
-  if (s.stage === 'pick') return room.gamePlayers.filter((id) => !s.cur.picks[id])
+  if (s.stage === 'pick') return room.gamePlayers.filter((id) => !s.cur.picks[id] && id !== s.cur.item.subject)
+  if (s.stage === 'category') return s.choose ? [s.choose.by] : []
   return []
 }
 

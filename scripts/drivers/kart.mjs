@@ -58,7 +58,7 @@ async function look(page) {
         steer: Boolean(q('[data-kart-steer]')),
         buttons: Boolean(q('[data-kart-buttons]')),
         startRun: Boolean(q('[data-kart-start-run]:not([disabled])')),
-        results: [...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Next game'),
+        results: [...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === 'Pick another'),
       }
     })
   } catch {
@@ -332,7 +332,7 @@ export default async function ({ tv, phones, shot, wait }) {
   if (tv) {
     // A single race on a Hurricane Cup track, for the look of it. Abort from the TV after ~25 s.
     for (const [label, id] of TRACKS) {
-      await phones[0].getByRole('button', { name: 'Next game' }).click().catch(() => {})
+      await phones[0].getByRole('button', { name: 'Pick another' }).click().catch(() => {})
       await wait(800)
       const card = phones[0].locator('button[aria-expanded]', { hasText: /Kart|Turnpike/ }).first()
       if ((await card.getAttribute('aria-expanded')) !== 'true') await card.click()
@@ -346,16 +346,16 @@ export default async function ({ tv, phones, shot, wait }) {
       raceNo = 10
       await driveCup(25_000 + 6500 + 4500 + 2000)
       await shot(`${id}-race`)
-      await tv.getByRole('button', { name: 'End game' }).click().catch(() => {})
+      await tv.getByRole('button', { name: 'End game' }).click().catch(() => {}); await tv.getByRole('button', { name: 'End it' }).click().catch(() => {})
       await wait(1000)
     }
-    await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {})
+    await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {}); await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {})
     await wait(1200)
     await shot('summary')
   } else {
-    await phones[0].getByRole('button', { name: 'Next game' }).click().catch(() => {})
+    await phones[0].getByRole('button', { name: 'Pick another' }).click().catch(() => {})
     await wait(800)
-    await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {})
+    await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {}); await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {})
     await wait(1200)
     await shot('summary')
   }

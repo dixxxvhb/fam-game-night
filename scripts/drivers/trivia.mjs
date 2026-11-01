@@ -29,7 +29,7 @@ export default async function ({ tv, phones, shot, wait }) {
       return { phase: await el.getAttribute('data-phase', { timeout: 2000 }), step: await el.getAttribute('data-step', { timeout: 2000 }) }
     } catch { return null }
   }
-  const done = async () => (await phones[0].getByRole('button', { name: 'Next game' }).count()) > 0
+  const done = async () => (await phones[0].getByRole('button', { name: 'Pick another' }).count()) > 0
 
   let lastKey = ''
   let questions = 0
@@ -119,9 +119,9 @@ export default async function ({ tv, phones, shot, wait }) {
   await wait(1200)
   await shot('results')
   if (!(await done())) throw new Error('The game never reached the results screen')
-  await phones[0].getByRole('button', { name: 'Next game' }).click()
+  await phones[0].getByRole('button', { name: 'Pick another' }).click()
   await wait(800)
-  await phones[0].getByRole('button', { name: 'End the night' }).click()
+  await phones[0].getByRole('button', { name: 'End the night' }).click(); await phones[0].getByRole('button', { name: 'End the night' }).click()
   await wait(1200)
   await shot('summary')
 }

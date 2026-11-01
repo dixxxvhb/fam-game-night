@@ -44,7 +44,7 @@ export default async function ({ tv, phones, shot, wait }) {
   }
 
   const resultsUp = async () => {
-    for (const p of live()) if ((await p.getByRole('button', { name: 'Next game' }).count()) > 0) return true
+    for (const p of live()) if ((await p.getByRole('button', { name: 'Pick another' }).count()) > 0) return true
     return false
   }
   /** The screen running the arena right now. */
@@ -65,7 +65,7 @@ export default async function ({ tv, phones, shot, wait }) {
   }
 
   if (bots > 0 && tv) {
-    await tv.getByRole('button', { name: 'End game' }).click()
+    await tv.getByRole('button', { name: 'End game' }).click(); await tv.getByRole('button', { name: 'End it' }).click()
     await wait(1200)
     for (let i = 0; i < bots; i++) {
       await tv.getByRole('button', { name: /Add a bot|Another bot/ }).click()
@@ -274,9 +274,9 @@ export default async function ({ tv, phones, shot, wait }) {
   log(`presses: ${presses} bomb taps, ${slides} thumb slides`)
 
   if (first) {
-    await first.getByRole('button', { name: 'Next game' }).click().catch(() => {})
+    await first.getByRole('button', { name: 'Pick another' }).click().catch(() => {})
     await wait(800)
-    await first.getByRole('button', { name: 'End the night' }).click().catch(() => {})
+    await first.getByRole('button', { name: 'End the night' }).click().catch(() => {}); await first.getByRole('button', { name: 'End the night' }).click().catch(() => {})
     await wait(1200)
     await shot('summary')
   }

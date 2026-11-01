@@ -60,7 +60,7 @@ async function play({ phones, shot, wait }) {
     let artist = null
     let guessers = []
     for (let t = 0; t < 120; t++) {
-      if (await p0.getByRole('button', { name: 'Next game' }).count()) break
+      if (await p0.getByRole('button', { name: 'Pick another' }).count()) break
       if (await p0.getByRole('button', { name: 'See the scores' }).count()) break
       artist = null
       for (const p of phones) if (await p.getByText("That's yours").count()) artist = p
@@ -131,12 +131,12 @@ async function play({ phones, shot, wait }) {
   await wait(1800)
   await shot('finale')
   if (await p0.getByRole('button', { name: 'See the scores' }).count()) await p0.getByRole('button', { name: 'See the scores' }).click()
-  await p0.getByRole('button', { name: 'Next game' }).waitFor({ timeout: 30000 })
+  await p0.getByRole('button', { name: 'Pick another' }).waitFor({ timeout: 30000 })
   await wait(1000)
   await shot('results')
-  await p0.getByRole('button', { name: 'Next game' }).click()
+  await p0.getByRole('button', { name: 'Pick another' }).click()
   await wait(800)
-  await p0.getByRole('button', { name: 'End the night' }).click()
+  await p0.getByRole('button', { name: 'End the night' }).click(); await p0.getByRole('button', { name: 'End the night' }).click()
   await wait(1200)
   await shot('summary')
 }

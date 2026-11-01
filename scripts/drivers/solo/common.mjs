@@ -7,7 +7,7 @@ export async function soloLoop({ phones, shot, wait }, { label, act, every = 800
   const t0 = Date.now()
   let next = t0
   let n = 0
-  const resultsUp = async () => (await p.getByRole('button', { name: 'Next game' }).count()) > 0
+  const resultsUp = async () => (await p.getByRole('button', { name: 'Pick another' }).count()) > 0
   while (Date.now() - t0 < maxMs) {
     if (await resultsUp()) break
     if (Date.now() >= next) {
@@ -25,9 +25,9 @@ export async function soloLoop({ phones, shot, wait }, { label, act, every = 800
   await shot(`${label}-results`)
   console.log(`[${label}] results: ${(await p.locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 300)}`)
   if (!done) { process.exitCode = 1; return }
-  await p.getByRole('button', { name: 'Next game' }).click()
+  await p.getByRole('button', { name: 'Pick another' }).click()
   await wait(800)
-  await p.getByRole('button', { name: 'End the night' }).click()
+  await p.getByRole('button', { name: 'End the night' }).click(); await p.getByRole('button', { name: 'End the night' }).click()
   await wait(1200)
   await shot('summary')
 }

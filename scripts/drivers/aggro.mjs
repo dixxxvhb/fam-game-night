@@ -8,7 +8,7 @@
 export default async function ({ tv, phones, shot, wait }) {
   const host = phones[0]
   const solo = !tv && phones.length === 1
-  const done = async () => (await host.getByRole('button', { name: 'Next game' }).count()) > 0
+  const done = async () => (await host.getByRole('button', { name: 'Pick another' }).count()) > 0
   const pad = (n) => String(n).padStart(2, '0')
   const seqOf = (p) => p.evaluate(() => Number(document.querySelector('[data-aggro-seq]')?.getAttribute('data-aggro-seq') ?? -1))
   const phaseOf = (p) => p.evaluate(() => document.querySelector('[data-aggro-phase]')?.getAttribute('data-aggro-phase') ?? '')
@@ -31,7 +31,7 @@ export default async function ({ tv, phones, shot, wait }) {
   await wait(300)
 
   if (tv) {
-    await tv.getByRole('button', { name: 'End game' }).click()
+    await tv.getByRole('button', { name: 'End game' }).click(); await tv.getByRole('button', { name: 'End it' }).click()
     await wait(1200)
     await host.locator('button[aria-expanded]', { hasText: /Aggro/ }).first().click()
     await wait(300)
@@ -137,7 +137,7 @@ export default async function ({ tv, phones, shot, wait }) {
   await shot(solo ? 'results' : 'end')
   if (solo && !(await done())) console.log('solo: the game did not reach results')
   if (tv) {
-    await tv.getByRole('button', { name: 'End game' }).click()
+    await tv.getByRole('button', { name: 'End game' }).click(); await tv.getByRole('button', { name: 'End it' }).click()
     await wait(800)
   }
 }

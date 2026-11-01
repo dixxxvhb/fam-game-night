@@ -9,7 +9,7 @@ export default async function ({ tv, phones, shot, wait }) {
   const failures = []
 
   const resultsUp = async () => {
-    for (const p of phones) if (await p.getByRole('button', { name: 'Next game' }).count()) return true
+    for (const p of phones) if (await p.getByRole('button', { name: 'Pick another' }).count()) return true
     return false
   }
 
@@ -91,7 +91,7 @@ export default async function ({ tv, phones, shot, wait }) {
 
   if (!apart) {
     // The runner started the default game. Restart as a 2 minute Race, the way someone would.
-    await tv.getByRole('button', { name: 'End game' }).click()
+    await tv.getByRole('button', { name: 'End game' }).click(); await tv.getByRole('button', { name: 'End it' }).click()
     await wait(1200)
     await startMelon(phones[0], 'Race', 2)
     await play({ label: 'race', maxMs: 2 * 60_000 + 25_000, aimFor: varied })
@@ -101,7 +101,7 @@ export default async function ({ tv, phones, shot, wait }) {
     if (!(await resultsUp())) failures.push('apart race never reached results')
     await wait(1500)
     await shot('race-results')
-    await phones[0].getByRole('button', { name: 'Next game' }).click()
+    await phones[0].getByRole('button', { name: 'Pick another' }).click()
     await wait(1000)
     await startMelon(phones[0], 'Attack')
     // The host plays it straight, the other two stack the middle and get buried.
@@ -115,9 +115,9 @@ export default async function ({ tv, phones, shot, wait }) {
   if (tv) log('tv results:', (await tv.locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 300))
   else log('phone results:', (await phones[0].locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 300))
 
-  await phones[0].getByRole('button', { name: 'Next game' }).click()
+  await phones[0].getByRole('button', { name: 'Pick another' }).click()
   await wait(800)
-  await phones[0].getByRole('button', { name: 'End the night' }).click()
+  await phones[0].getByRole('button', { name: 'End the night' }).click(); await phones[0].getByRole('button', { name: 'End the night' }).click()
   await wait(1200)
   await shot('summary')
 

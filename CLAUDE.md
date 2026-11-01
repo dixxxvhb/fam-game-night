@@ -1,6 +1,6 @@
 # Game Night
 
-Last verified: 2026-10-14
+Last verified: 2026-10-31
 
 Dixon, Johnnyboy (John) and Torii's game night. The TV (or any browser) is the console, phones are the controllers, and it also plays fully apart (every phone shows the whole game). It keeps score across every game, every night, all season. Concept page: https://claude.ai/artifact/S47w2hDXWUNg1jadJkZmRD
 
@@ -70,6 +70,9 @@ Both joined the Party Park universe: critter pick first, Party Park kit and exis
 Survive the Quiz, Trivia Night, Guess the Percent, Categories and Forehead each got their own world (brief: `docs/plans/2026-10-15-quiz-games.md`): the Grand Palmetto haunted hotel with the Night Manager (`survive/hotel/`), Trivia Night LIVE with host Chip Doubloon (`trivia/host.tsx`, `look.tsx`, `show.tsx`), Operation Percent spy agency (`percent/look.tsx`, `agents.tsx`, `Meter.tsx`), the Letter Machine (`categories/look.tsx`, `machine.ts`) and Forehead at the Club (`forehead/club.tsx`, apart mode added).
 - Music: `src/games/_quiz/music.ts` is a small synth engine; each game keeps its tracks and stingers as data in its own `music.ts` (`useQuizMusic`, `quizMusic.stinger`). It follows the shared music switch. Extra Google Fonts load per game via `_quiz/fonts.ts` (`useGameFonts`), not index.html.
 - Room QA where Supabase is unreachable (cloud sandboxes): add `NODE_OPTIONS="--import ./scripts/qa-local-realtime.mjs"` to any qa-room/smoke run (an in-process stand-in for Realtime; set `QA_PROXY=1` to fetch web fonts through HTTPS_PROXY). The dev server still needs VITE_SUPABASE_* set (any values).
+
+## Bluff v2, rebuilt 2026-10-31
+Polly's Interrogation (brief: `docs/plans/2026-10-31-bluff-v2.md`). Bluff left the shared lie screens for its own TV (`bluff/show/Stage.tsx`: interrogation room, case files, evidence tags, stamps, a live polygraph chart with one trace per player) and gained a category pick before each fact and an About Us closing run (one question about each player; they type the truth, the others lie about them). Both are opt-in extras of the shared engine (`cfg.cats`, `cfg.about` in `_lie/logic.ts`); Fake Word leaves them off and is unchanged. Phones stay on the shared `_lie/Controller.tsx`.
 
 ## Deploy
 Push to `main` → GitHub Actions → Pages (secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` = figgg's URL + publishable key). Verify with `gh run list --limit 1`.

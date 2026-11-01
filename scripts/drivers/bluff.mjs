@@ -46,8 +46,17 @@ export async function playLieGame({ tv, phones, shot, wait }, { game, name }) {
   }
   const has = async (p, text) => (await p.getByText(text, { exact: false }).count()) > 0
   const inLie = async (p) => (await p.locator('textarea').count()) > 0
-  const inPick = async (p) => (await p.locator('main button[aria-label]:not([aria-pressed])').count()) > 0 && !(await inLie(p))
-  const atFinal = async (p) => (await has(p, "That's the game")) || (await p.getByRole('button', { name: 'Next game' }).count()) > 0
+  const inPick = async (p) => ((await p.locator('main button[aria-label]:not([aria-pressed])').count()) > 0 || (await has(p, 'Sit tight'))) && !(await inLie(p))
+  // Bluff: whoever's phone says so picks the first category offered.
+  const pickCategory = async () => {
+    for (const p of phones) {
+      if (await has(p, 'Pick the line of questioning')) { await shot('category'); await p.locator('main button.l-choice:not([disabled])').first().click(); return true }
+    }
+    return false
+  }
+  // The lock button: "Swear to it" for the player under questioning in About Us.
+  const lock = (p) => p.getByRole('button', { name: /^(Lock it in|Swear to it)$/ }).click()
+  const atFinal = async (p) => (await has(p, "That's the game")) || (await p.getByRole('button', { name: 'Pick another' }).count()) > 0
 
   async function truthOn(p) {
     const text = await p.locator('main').innerText()
@@ -59,7 +68,7 @@ export async function playLieGame({ tv, phones, shot, wait }, { game, name }) {
   // Together: restart as Short from a phone. qa-room started the default (Normal).
   if (tv) {
     await until(() => inLie(phones[0]))
-    await tv.getByRole('button', { name: 'End game' }).click()
+    await tv.getByRole('button', { name: 'End game' }).click(); await tv.getByRole('button', { name: 'End it' }).click()
     await until(async () => (await phones[0].locator('button[aria-expanded]').count()) > 0)
     await phones[0].locator('button[aria-expanded]', { hasText: new RegExp(`^${name}`, 'i') }).first().click()
     await phones[0].getByRole('button', { name: 'Short', exact: true }).click()
@@ -69,7 +78,7 @@ export async function playLieGame({ tv, phones, shot, wait }, { game, name }) {
 
   const lies = LIES[game]
   for (let round = 0; round < 8; round++) {
-    const ok = await until(async () => (await inLie(phones[0])) || (await atFinal(phones[0])), 30000)
+    const ok = await until(async () => { await pickCategory(); return (await inLie(phones[0])) || (await atFinal(phones[0])) }, 30000)
     if (!ok || (await atFinal(phones[0]))) break
     const full = round === 0 || round === 4 || round === 6
     await until(async () => { for (const p of phones) if (!(await inLie(p))) return false; return true }, 10000)
@@ -80,31 +89,32 @@ export async function playLieGame({ tv, phones, shot, wait }, { game, name }) {
     const truth = await truthOn(phones[0])
     if (round === 0 && truth) {
       await phones[0].locator('textarea').fill(truth)
-      await phones[0].getByRole('button', { name: 'Lock it in' }).click()
+      await lock(phones[0])
       await until(() => has(phones[0], "That's actually the truth"), 5000)
       await shot(`r${round + 1}-truth-rejected`)
     } else if (round === 0) {
       console.log('driver: could not find the truth on screen for the rejection check')
     }
+    if (await has(phones[0], 'You are under questioning')) await shot(`r${round + 1}-about-subject`)
     await phones[0].locator('textarea').fill(lies[round % lies.length])
-    await phones[0].getByRole('button', { name: 'Lock it in' }).click()
+    await lock(phones[0])
 
     // Player 2: "Lie for me" (a cop-out) on the first round, otherwise a lie.
-    if (round === 0) {
+    if (round === 0 && (await phones[1].getByRole('button', { name: 'Lie for me' }).count())) {
       await phones[1].getByRole('button', { name: 'Lie for me' }).click()
       await wait(300)
       await shot(`r${round + 1}-lie-for-me`)
     } else {
       await phones[1].locator('textarea').fill(lies[(round + 3) % lies.length])
     }
-    await phones[1].getByRole('button', { name: 'Lock it in' }).click()
+    await lock(phones[1])
     await wait(700)
     if (full) await shot(`r${round + 1}-waiting`)
 
     // Player 3: the long one.
     if (phones[2]) {
       await phones[2].locator('textarea').fill(round % 2 === 0 ? LONG[game] : lies[(round + 5) % lies.length])
-      await phones[2].getByRole('button', { name: 'Lock it in' }).click()
+      await lock(phones[2])
     }
 
     // Pick: player 1 takes the first open answer, the others spread out.
@@ -140,12 +150,12 @@ export async function playLieGame({ tv, phones, shot, wait }, { game, name }) {
   await until(() => has(phones[0], "That's the game"), 15000)
   await wait(600)
   await shot('final')
-  await until(async () => (await phones[0].getByRole('button', { name: 'Next game' }).count()) > 0, 15000)
+  await until(async () => (await phones[0].getByRole('button', { name: 'Pick another' }).count()) > 0, 15000)
   await wait(1200)
   await shot('results')
-  await phones[0].getByRole('button', { name: 'Next game' }).click()
+  await phones[0].getByRole('button', { name: 'Pick another' }).click()
   await wait(800)
-  await phones[0].getByRole('button', { name: 'End the night' }).click()
+  await phones[0].getByRole('button', { name: 'End the night' }).click(); await phones[0].getByRole('button', { name: 'End the night' }).click()
   await wait(1200)
   await shot('summary')
 }

@@ -68,11 +68,12 @@ export function GameShelf({
           >
             <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ background: world.ink }} />
             <button className="relative grid w-full gap-1 text-left" onClick={() => choose(g)} aria-expanded={isOpen}>
-              <div className="flex items-baseline justify-between gap-3">
+              {/* Name first in reading order (screen readers, QA drivers); the world label still shows on top. */}
+              <span className="font-display text-xl leading-tight">{g.name}</span>
+              <div className="order-first flex items-baseline justify-between gap-3">
                 <span className="font-mono text-[0.68rem] font-semibold uppercase tracking-[0.16em]" style={{ color: world.ink }}>{world.place}</span>
                 <span className="shrink-0 font-mono text-xs text-ink-3">{g.minutes} min{played ? ` · played ${played}` : ''}</span>
               </div>
-              <span className="font-display text-xl leading-tight">{g.name}</span>
               <span className="text-ink-2">{g.tagline}</span>
               {g.instead && <span className="text-sm text-ink-3">{g.instead}</span>}
               {bots > 0 && !g.bot && <span className="text-sm text-hot-ink">Bots sit this one out</span>}

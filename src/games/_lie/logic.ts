@@ -9,6 +9,12 @@ import { freshFirst, shuffle } from '../../lib/shuffle'
  *   pick   all lies + one House lie + the truth, shuffled; pick what you think is true
  *   reveal walk the picked lies one at a time, then the truth, then the round tally
  * Three players only make two lies to sort through, so the House always adds one more.
+ *
+ * Two optional extras (Bluff turns them on, Fake Word leaves them off):
+ *   category  before each fact, one player (rotating) picks from three categories
+ *   about     "About Us": a closing run of rounds, one per player, where the question is about
+ *             that player. They type the truth while everyone else lies about them, and they
+ *             score for every friend who spots it.
  */
 
 export interface LieItem {
@@ -24,12 +30,28 @@ export interface LieItem {
   house: string[]
   /** Short credit shown with the truth. */
   source?: string
+  /** Category id (category pick). */
+  cat?: string
+  /** About Us: the player the question is about. They write the truth during the lie phase. */
+  subject?: string
+}
+
+/** An About Us question. `{name}` in the prompt becomes the subject's name. */
+export interface AboutItem {
+  id: string
+  prompt: string
+  /** Three House lies, generic enough to fit anyone. */
+  house: string[]
 }
 
 export interface LieConfig {
   /** 'blank' answers are 1 to 4 words; 'word' answers are definitions (looser truth match). */
   kind: 'blank' | 'word'
   maxLen: number
+  /** Category pick before each fact: category id -> label. Items need `cat`. */
+  cats?: Record<string, string>
+  /** About Us rounds at the end, one per player (up to ABOUT_MAX). */
+  about?: readonly AboutItem[]
 }
 
 export interface Answer {
@@ -56,6 +78,8 @@ export interface Gain {
   fooledCount: number
   house: number
   likes: number
+  /** About Us: points the subject earned for friends who found their truth. */
+  told: number
   /** Score change this round after the floor (likes included). */
   net: number
 }
@@ -84,15 +108,19 @@ export interface LieRound {
   steps: RevealStep[]
   step: number
   gains: Record<string, Gain>
+  /** About Us: the subject never answered, so the round is skipped. */
+  skipped?: boolean
 }
 
-export type LieStage = 'lie' | 'pick' | 'reveal' | 'final' | 'done'
+export type LieStage = 'category' | 'lie' | 'pick' | 'reveal' | 'final' | 'done'
 
 export interface LieStats {
   truths: number
   fooled: number
   likes: number
   house: number
+  /** Times this player picked another player's lie. */
+  fell: number
 }
 
 export interface LieState {
@@ -112,6 +140,14 @@ export interface LieState {
   stats: Record<string, LieStats>
   /** Most-liked lie of the game so far. */
   best: { playerId: string; text: string; likes: number; prompt: string } | null
+  /** Category pick: who is choosing this round and from what. */
+  choose?: { by: string; cats: string[] } | null
+  /** Category pick: fact ids in the order to draw them (fresh first). */
+  pool?: string[]
+  /** Category labels, so screens can show them. */
+  catNames?: Record<string, string>
+  /** Index of the first About Us round (items.length when there are none). */
+  aboutFrom?: number
 }
 
 export const LIE_MS = 60_000
@@ -120,6 +156,11 @@ export const STEP_LIE_MS = 5_000
 export const STEP_TRUTH_MS = 5_500
 export const STEP_TALLY_MS = 6_500
 export const FINAL_MS = 8_000
+export const CATEGORY_MS = 12_000
+/** About Us: a beat longer to write, since the subject is thinking about their real life. */
+export const ABOUT_LIE_MS = 70_000
+export const SKIP_MS = 4_000
+export const ABOUT_MAX = 4
 /** Inside a lie step: when the pickers show, and when the card flips to its author. */
 export const BEAT_PICKERS_MS = 1_100
 export const BEAT_FLIP_MS = 2_500
@@ -128,10 +169,18 @@ export const TRUTH_POINTS = 1000
 export const FOOL_POINTS = 500
 export const HOUSE_PENALTY = 250
 export const LIKE_POINTS = 100
+/** About Us: the subject earns this (times the factor) for each friend who finds their truth. */
+export const TOLD_POINTS = 500
 
 export const LENGTHS = {
   short: [1, 1, 2, 2, 3],
   normal: [1, 1, 1, 2, 2, 2, 3],
+} as const
+
+/** With About Us on, the facts run shorter and the About Us rounds carry the big points. */
+export const ABOUT_LENGTHS = {
+  short: [1, 2, 2],
+  normal: [1, 1, 2, 2, 2],
 } as const
 
 // ---------------- text matching ----------------
@@ -257,7 +306,21 @@ export function cleanText(raw: unknown, maxLen: number): string {
 // ---------------- rounds ----------------
 
 function blankGain(): Gain {
-  return { truth: 0, fooled: 0, fooledCount: 0, house: 0, likes: 0, net: 0 }
+  return { truth: 0, fooled: 0, fooledCount: 0, house: 0, likes: 0, told: 0, net: 0 }
+}
+
+function blankStats(): LieStats {
+  return { truths: 0, fooled: 0, likes: 0, house: 0, fell: 0 }
+}
+
+/** Players who pick (and lie) this round: everyone but the subject. */
+export function pickersFor(item: Pick<LieItem, 'subject'>, players: string[]): string[] {
+  return item.subject ? players.filter((id) => id !== item.subject) : players
+}
+
+/** Is the current round an About Us round? */
+export function isAbout(s: Pick<LieState, 'cur'>): boolean {
+  return !!s.cur.item.subject
 }
 
 function newRound(item: LieItem, factor: number, random: () => number): LieRound {
@@ -283,6 +346,8 @@ function slim(item: LieItem): LieItem {
   if (item.pos) out.pos = item.pos
   if (item.alt?.length) out.alt = [...item.alt]
   if (item.source) out.source = item.source
+  if (item.cat) out.cat = item.cat
+  if (item.subject) out.subject = item.subject
   return out
 }
 
@@ -292,7 +357,21 @@ function ids(ctx: GameCtx) {
 
 function toPick(s: LieState, ctx: GameCtx): LieState {
   const cur = s.cur
+  const subject = cur.item.subject
+  // About Us with no truth from the subject: nothing to find, so the round is skipped.
+  if (subject && !cur.item.truth) {
+    return {
+      ...s,
+      stage: 'reveal',
+      cur: { ...cur, skipped: true, answers: [], steps: [{ kind: 'tally', ms: SKIP_MS }], step: 0, gains: Object.fromEntries(ids(ctx).map((id) => [id, blankGain()])) },
+      before: { ...s.scores },
+      endsAt: ctx.now + SKIP_MS,
+      stageStartedAt: ctx.now,
+      stageTotal: SKIP_MS,
+    }
+  }
   const lies: Record<string, PlayerLie> = { ...cur.lies }
+  if (subject) delete lies[subject]
   // Out of time: the House lies for you (a cop-out).
   // Spares nobody has used yet go first, so two sleepy players don't share one.
   const spares = cur.spares.length ? cur.spares : [cur.decoy]
@@ -302,7 +381,7 @@ function toPick(s: LieState, ctx: GameCtx): LieState {
   ]
   let k = 0
   for (const id of ids(ctx)) {
-    if (lies[id]) continue
+    if (lies[id] || id === subject) continue
     lies[id] = { text: pool[k % pool.length], copout: true, auto: true }
     k++
   }
@@ -310,6 +389,7 @@ function toPick(s: LieState, ctx: GameCtx): LieState {
   const groups: Answer[] = []
   for (const id of ids(ctx)) {
     const l = lies[id]
+    if (!l) continue
     const g = groups.find((x) => sameAnswer(x.text, l.text))
     if (g) {
       g.by.push(id)
@@ -319,7 +399,7 @@ function toPick(s: LieState, ctx: GameCtx): LieState {
     }
   }
   // The House's lie: its decoy, unless a player already wrote that, then a spare.
-  const houseText = [cur.decoy, ...cur.spares].find((h) => !groups.some((g) => sameAnswer(g.text, h)))
+  const houseText = [cur.decoy, ...cur.spares].find((h) => !groups.some((g) => sameAnswer(g.text, h)) && !sameAnswer(h, cur.item.truth))
   if (houseText) groups.push({ id: '', text: houseText, by: [], copout: [], house: true, truth: false })
   else {
     const g = groups.find((x) => sameAnswer(x.text, cur.decoy))
@@ -331,7 +411,7 @@ function toPick(s: LieState, ctx: GameCtx): LieState {
   return {
     ...s,
     stage: 'pick',
-    cur: { ...cur, lies, answers, picks: {} },
+    cur: { ...cur, lies: subject ? { ...lies, [subject]: cur.lies[subject] } : lies, answers, picks: {} },
     endsAt: ctx.now + PICK_MS,
     stageStartedAt: ctx.now,
     stageTotal: PICK_MS,
@@ -343,11 +423,17 @@ function toReveal(s: LieState, ctx: GameCtx): LieState {
   const cur = s.cur
   const f = cur.factor
   const gains: Record<string, Gain> = Object.fromEntries(ids(ctx).map((id) => [id, blankGain()]))
+  const stats = { ...s.stats }
+  const subject = cur.item.subject
   for (const id of ids(ctx)) {
     const a = cur.answers.find((x) => x.id === cur.picks[id])
     if (!a) continue
-    if (a.truth) gains[id].truth += TRUTH_POINTS * f
+    if (a.truth) {
+      gains[id].truth += TRUTH_POINTS * f
+      if (subject && gains[subject]) gains[subject].told += TOLD_POINTS * f
+    }
     if (a.house) gains[id].house -= HOUSE_PENALTY
+    if (a.by.length) stats[id] = { ...(stats[id] ?? blankStats()), fell: (stats[id]?.fell ?? 0) + 1 }
     for (const author of a.by) {
       if (author === id || !gains[author]) continue
       const full = FOOL_POINTS * f
@@ -357,13 +443,12 @@ function toReveal(s: LieState, ctx: GameCtx): LieState {
   }
   const before = { ...s.scores }
   const scores = { ...s.scores }
-  const stats = { ...s.stats }
   for (const id of ids(ctx)) {
     const g = gains[id]
-    const after = Math.max(0, (before[id] ?? 0) + g.truth + g.fooled + g.house)
+    const after = Math.max(0, (before[id] ?? 0) + g.truth + g.fooled + g.house + g.told)
     g.net = after - (before[id] ?? 0)
     scores[id] = after
-    const st = stats[id] ?? { truths: 0, fooled: 0, likes: 0, house: 0 }
+    const st = stats[id] ?? blankStats()
     stats[id] = {
       ...st,
       truths: st.truths + (g.truth ? 1 : 0),
@@ -405,34 +490,69 @@ function bestAfterRound(s: LieState): LieState['best'] {
 }
 
 function finishRound(s: LieState, ctx: GameCtx): LieState {
-  const best = bestAfterRound(s)
+  const best = s.cur.skipped ? s.best : bestAfterRound(s)
   const round = s.round + 1
   if (round >= s.items.length) {
-    return { ...s, best, stage: 'final', endsAt: ctx.now + FINAL_MS, stageStartedAt: ctx.now, stageTotal: FINAL_MS }
+    return { ...s, best, stage: 'final', choose: null, endsAt: ctx.now + FINAL_MS, stageStartedAt: ctx.now, stageTotal: FINAL_MS }
   }
-  return {
-    ...s,
-    best,
-    round,
-    stage: 'lie',
-    cur: newRound(s.items[round], s.factors[round], ctx.random),
-    before: { ...s.scores },
-    endsAt: ctx.now + LIE_MS,
-    stageStartedAt: ctx.now,
-    stageTotal: LIE_MS,
-  }
+  return startRound({ ...s, best, round }, ctx)
 }
 
 // ---------------- the game ----------------
 
+/** Open round `s.round`: a category pick first when that is on, otherwise straight to writing. */
+function startRound(s: LieState, ctx: GameCtx): LieState {
+  const round = s.round
+  const item = s.items[round]
+  const base: LieState = { ...s, cur: newRound(item, s.factors[round], ctx.random), before: { ...s.scores }, stageStartedAt: ctx.now }
+  if (s.pool && s.catNames && !item.subject) {
+    const players = ids(ctx)
+    const cats = catChoices(s, ctx.random)
+    if (cats.length > 1) {
+      return { ...base, stage: 'category', choose: { by: players[round % players.length], cats }, endsAt: ctx.now + CATEGORY_MS, stageTotal: CATEGORY_MS }
+    }
+  }
+  const ms = item.subject ? ABOUT_LIE_MS : LIE_MS
+  return { ...base, stage: 'lie', choose: null, endsAt: ctx.now + ms, stageTotal: ms }
+}
+
+/** Fact ids already in this game (played or queued), so a category never repeats one. */
+function inGame(s: LieState): Set<string> {
+  return new Set(s.items.slice(0, s.round).map((i) => i.id))
+}
+
+/** Three categories that still have an unplayed fact, picked at random. */
+function catChoices(s: LieState, random: () => number): string[] {
+  const seen = inGame(s)
+  const open = Object.keys(s.catNames ?? {}).filter((c) => (s.pool ?? []).some((id) => !seen.has(id) && id.split('|')[1] === c))
+  return shuffle(open, random).slice(0, 3)
+}
+
 export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
+  const byId = new Map(bank.map((b) => [b.id, b]))
+
   function setup(ctx: GameCtx, opts: Record<string, string | number>): LieState {
     const length = opts.length === 'short' ? 'short' : 'normal'
-    const factors = [...LENGTHS[length]]
+    const players = ids(ctx)
+    const about = cfg.about?.length ? cfg.about : null
+    const factFactors: number[] = [...(about ? ABOUT_LENGTHS : LENGTHS)[length]]
     const deck = freshFirst(bank, (b) => b.id, ctx.used, ctx.random)
-    const items = factors.map((_, i) => slim(deck[i % deck.length]))
-    const zero = Object.fromEntries(ids(ctx).map((id) => [id, 0]))
-    return {
+    const items = factFactors.map((_, i) => slim(deck[i % deck.length]))
+    const factors = [...factFactors]
+    const aboutFrom = items.length
+    if (about) {
+      // One About Us round per player (a random few when the room is big), the last one triple.
+      const subjects = shuffle(players, ctx.random).slice(0, ABOUT_MAX)
+      const qs = freshFirst(about, (q) => `about:${q.id}`, ctx.used, ctx.random)
+      subjects.forEach((id, i) => {
+        const q = qs[i % qs.length]
+        const name = ctx.players.find((p) => p.id === id)?.name ?? 'They'
+        items.push({ id: `about:${q.id}`, prompt: q.prompt.split('{name}').join(name), truth: '', house: [...q.house], subject: id })
+        factors.push(i === subjects.length - 1 ? 3 : 2)
+      })
+    }
+    const zero = Object.fromEntries(players.map((id) => [id, 0]))
+    const s: LieState = {
       stage: 'lie',
       length,
       items,
@@ -445,9 +565,27 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
       maxLen: cfg.maxLen,
       scores: { ...zero },
       before: { ...zero },
-      stats: Object.fromEntries(ids(ctx).map((id) => [id, { truths: 0, fooled: 0, likes: 0, house: 0 }])),
+      stats: Object.fromEntries(players.map((id) => [id, blankStats()])),
       best: null,
+      aboutFrom,
     }
+    if (cfg.cats) {
+      // Pool entries are "id|cat" so screens and choices never need the bank.
+      s.pool = deck.filter((b) => b.cat && cfg.cats?.[b.cat]).map((b) => `${b.id}|${b.cat}`)
+      s.catNames = { ...cfg.cats }
+    }
+    return startRound(s, ctx)
+  }
+
+  /** Swap this round's fact for the freshest one in the chosen category. */
+  function chooseCat(s: LieState, cat: string, ctx: GameCtx): LieState {
+    const seen = inGame(s)
+    const hit = (s.pool ?? []).find((e) => e.split('|')[1] === cat && !seen.has(e.split('|')[0]))
+    const item = hit ? byId.get(hit.split('|')[0]) : undefined
+    const items = [...s.items]
+    if (item) items[s.round] = slim(item)
+    const next: LieState = { ...s, items, choose: null }
+    return { ...next, stage: 'lie', cur: newRound(items[s.round], s.factors[s.round], ctx.random), endsAt: ctx.now + LIE_MS, stageStartedAt: ctx.now, stageTotal: LIE_MS }
   }
 
   function reduce(s: LieState, a: PlayerAction, ctx: GameCtx): LieState {
@@ -456,11 +594,26 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
     const payload = (a.payload && typeof a.payload === 'object' ? a.payload : {}) as Record<string, unknown>
     const cur = s.cur
     switch (a.type) {
+      case 'cat': {
+        if (s.stage !== 'category' || s.choose?.by !== me) return s
+        const cat = String(payload.cat ?? '')
+        if (!s.choose.cats.includes(cat)) return s
+        return chooseCat(s, cat, ctx)
+      }
       case 'lie': {
         if (s.stage !== 'lie' || cur.lies[me]) return s
         const text = cleanText(payload.text, cfg.maxLen)
         if (!text) return s
-        if (isTruth(text, cur.item, cfg.kind)) {
+        if (cur.item.subject === me) {
+          // The subject's answer is the truth. House lies that match it are retired.
+          const house = [cur.decoy, ...cur.spares].filter((h) => !sameAnswer(h, text))
+          const item = { ...cur.item, truth: text }
+          const lies = { ...cur.lies, [me]: { text, copout: false } }
+          const items = s.items.map((it, i) => (i === s.round ? { ...it, truth: text } : it))
+          const next = { ...s, items, cur: { ...cur, item, lies, decoy: house[0] ?? cur.decoy, spares: house.slice(1) } }
+          return ids(ctx).every((id) => lies[id]) ? toPick(next, ctx) : next
+        }
+        if (cur.item.truth && isTruth(text, cur.item, cfg.kind)) {
           if (cur.rejected[me] === text) return s
           return { ...s, cur: { ...cur, rejected: { ...cur.rejected, [me]: text } } }
         }
@@ -471,12 +624,12 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
         return ids(ctx).every((id) => lies[id]) ? toPick(next, ctx) : next
       }
       case 'pick': {
-        if (s.stage !== 'pick' || cur.picks[me]) return s
+        if (s.stage !== 'pick' || cur.picks[me] || cur.item.subject === me) return s
         const ans = cur.answers.find((x) => x.id === payload.answerId)
         if (!ans || ans.by.includes(me)) return s
         const picks = { ...cur.picks, [me]: ans.id }
         const next = { ...s, cur: { ...cur, picks } }
-        return ids(ctx).every((id) => picks[id]) ? toReveal(next, ctx) : next
+        return pickersFor(cur.item, ids(ctx)).every((id) => picks[id]) ? toReveal(next, ctx) : next
       }
       case 'like': {
         if (s.stage !== 'reveal') return s
@@ -493,7 +646,7 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
           scores[author] = Math.max(0, (scores[author] ?? 0) + delta)
           const g = gains[author] ?? blankGain()
           gains[author] = { ...g, likes: g.likes + delta, net: g.net + delta }
-          const st = stats[author] ?? { truths: 0, fooled: 0, likes: 0, house: 0 }
+          const st = stats[author] ?? blankStats()
           stats[author] = { ...st, likes: st.likes + (on ? 1 : -1) }
         }
         return { ...s, scores, stats, cur: { ...cur, likes, gains } }
@@ -504,6 +657,10 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
 
   function tick(s: LieState, ctx: GameCtx): LieState {
     if (s.stage === 'done' || ctx.now < s.endsAt) return s
+    if (s.stage === 'category') {
+      const cats = s.choose?.cats ?? []
+      return cats.length ? chooseCat(s, cats[Math.floor(ctx.random() * cats.length)], ctx) : startRound({ ...s, pool: undefined }, ctx)
+    }
     if (s.stage === 'lie') return toPick(s, ctx)
     if (s.stage === 'pick') return toReveal(s, ctx)
     if (s.stage === 'reveal') {
@@ -537,7 +694,7 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
       highlights: best
         ? [{ playerId: best.playerId, kind: 'answer', label: best.prompt.slice(0, 200), content: { text: best.text, likes: best.likes } }]
         : [],
-      details: { length: s.length, questions: s.items.map((i) => i.id), stats: s.stats },
+      details: { length: s.length, questions: s.items.map((i) => i.id), stats: s.stats, ...(s.aboutFrom !== undefined && s.aboutFrom < s.items.length ? { about: s.items.slice(s.aboutFrom).map((i) => ({ q: i.id, subject: i.subject, truth: i.truth })) } : {}) },
       used: s.items.map((i) => i.id),
     }
   }
@@ -547,8 +704,8 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
   /** A lie for a bot: a House lie the House isn't playing and nobody wrote, else one borrowed from another question. */
   function botLie(s: LieState, random: () => number): string {
     const cur = s.cur
-    const taken = [cur.decoy, cur.item.truth, ...Object.values(cur.lies).map((l) => l.text)]
-    const fits = (t: string) => t.length <= cfg.maxLen && !taken.some((x) => sameAnswer(x, t)) && !isTruth(t, cur.item, cfg.kind)
+    const taken = [cur.decoy, cur.item.truth, ...Object.values(cur.lies).map((l) => l.text)].filter(Boolean)
+    const fits = (t: string) => t.length <= cfg.maxLen && !taken.some((x) => sameAnswer(x, t)) && !(cur.item.truth && isTruth(t, cur.item, cfg.kind))
     const spare = cur.spares.filter(fits)
     if (spare.length) return spare[Math.floor(random() * spare.length)]
     // Borrow: sample other questions' House lies, keep the one shaped most like the truth
@@ -576,12 +733,19 @@ export function createLieGame(bank: readonly LieItem[], cfg: LieConfig) {
     const cur = s.cur
     const elapsed = ctx.now - s.stageStartedAt
     const ready = (min: number, max: number, chance: number) => elapsed >= min && (elapsed >= max || ctx.random() < chance)
+    if (s.stage === 'category') {
+      if (s.choose?.by !== id || !ready(1500, 5000, 0.08)) return null
+      const cats = s.choose.cats
+      return { type: 'cat', payload: { cat: cats[Math.floor(ctx.random() * cats.length)] } }
+    }
     if (s.stage === 'lie') {
       if (cur.lies[id] || !ready(6000, 25_000, 0.03)) return null
+      // A bot under questioning tells "the truth": one of the House lies, which then leaves the House's hand.
+      if (cur.item.subject === id) return { type: 'lie', payload: { text: cur.spares[0] ?? cur.decoy } }
       return { type: 'lie', payload: { text: botLie(s, ctx.random) } }
     }
     if (s.stage === 'pick') {
-      if (cur.picks[id] || !ready(4000, 15_000, 0.05)) return null
+      if (cur.picks[id] || cur.item.subject === id || !ready(4000, 15_000, 0.05)) return null
       const open = cur.answers.filter((a) => !a.by.includes(id))
       const truth = open.find((a) => a.truth)
       const lies = open.filter((a) => !a.truth)

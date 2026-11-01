@@ -140,12 +140,12 @@ export default async function ({ tv, phones, shot, wait }) {
     await wait(7000)
   }
 
-  await until(async () => phones[0].getByRole('button', { name: 'Next game' }).isVisible().catch(() => false), 15000)
+  await until(async () => phones[0].getByRole('button', { name: 'Pick another' }).isVisible().catch(() => false), 15000)
   await wait(1000)
   await shot('results')
-  await phones[0].getByRole('button', { name: 'Next game' }).click()
+  await phones[0].getByRole('button', { name: 'Pick another' }).click()
   await wait(800)
-  await phones[0].getByRole('button', { name: 'End the night' }).click()
+  await phones[0].getByRole('button', { name: 'End the night' }).click(); await phones[0].getByRole('button', { name: 'End the night' }).click()
   await wait(1200)
   await shot('summary')
 }

@@ -1,7 +1,9 @@
 import type { GameDef } from '../../engine/types'
 import { createLieGame, type LieItem, type LieState } from '../_lie/logic'
 import { createLieViews } from '../_lie/make'
-import { FACTS } from './facts'
+import { FACTS, type FactCat } from './facts'
+import { ABOUT } from './about'
+import BluffStage from './show/Stage'
 
 export const BLUFF_MAX_LEN = 60
 
@@ -12,9 +14,27 @@ export const BLUFF_BANK: LieItem[] = FACTS.map((f) => ({
   ...(f.alt?.length ? { alt: f.alt } : {}),
   house: [...f.house],
   source: f.source,
+  cat: f.cat,
 }))
 
-const engine = createLieGame(BLUFF_BANK, { kind: 'blank', maxLen: BLUFF_MAX_LEN })
+/** What the category pick shows. */
+export const BLUFF_CATS: Record<FactCat, string> = {
+  history: 'History',
+  inventions: 'Inventions',
+  animals: 'Animals',
+  science: 'Science',
+  food: 'Food',
+  laws: 'Weird laws',
+  florida: 'Florida',
+  disney: 'Disney',
+  broadway: 'Broadway',
+  dance: 'Dance',
+  music: 'Music',
+  sports: 'Sports',
+  wildcard: 'Wild card',
+}
+
+const engine = createLieGame(BLUFF_BANK, { kind: 'blank', maxLen: BLUFF_MAX_LEN, cats: BLUFF_CATS, about: ABOUT })
 const views = createLieViews({
   kind: 'blank',
   maxLen: BLUFF_MAX_LEN,
@@ -40,7 +60,7 @@ const bluff: GameDef<LieState> = {
   reduce: engine.reduce,
   tick: engine.tick,
   outcome: engine.outcome,
-  Stage: views.Stage,
+  Stage: BluffStage,
   Controller: views.Controller,
   bot: engine.bot,
 }

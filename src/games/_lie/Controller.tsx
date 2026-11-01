@@ -40,11 +40,15 @@ function Bar({ s, now }: { s: LieState; now: () => number }) {
 function Top({ s, now, t }: { s: LieState; now: () => number; t: LieTheme }) {
   const last = s.round === s.items.length - 1
   const label = last && s.cur.factor === 3 ? 'Final. Triple points' : s.cur.factor === 3 ? 'Triple points' : s.cur.factor === 2 ? 'Double points' : ''
+  const about = s.aboutFrom !== undefined && s.round >= s.aboutFrom
+  const count = about
+    ? `About Us ${s.round - s.aboutFrom! + 1} of ${s.items.length - s.aboutFrom!}`
+    : `${t.id === 'word' ? 'Entry' : t.id === 'bluff' && s.aboutFrom !== undefined && s.aboutFrom < s.items.length ? 'Case' : 'Question'} ${s.round + 1} of ${s.aboutFrom ?? s.items.length}`
   return (
     <div className="grid gap-2">
       <div className="flex items-center justify-between gap-2">
-        <span className={cx('leading-none', t.id === 'word' ? 'l-entry text-2xl font-black italic' : 'l-logo text-2xl text-[#FFC83D]')}>{t.title}</span>
-        <span className="l-label">{t.id === 'word' ? 'Entry' : 'Question'} {s.round + 1} of {s.items.length}</span>
+        <span className={cx('leading-none', t.id === 'word' ? 'l-entry text-2xl font-black italic' : 'l-logo text-2xl text-[var(--l-accent)]')}>{t.title}</span>
+        <span className="l-label">{count}</span>
       </div>
       {label && <span className="l-factor justify-self-start text-sm">{label}</span>}
       <Bar s={s} now={now} />
@@ -61,7 +65,9 @@ function LieEntry({ s, room, me, send, view, t, showPrompt }: { s: LieState; roo
   const mine = s.cur.lies[me]
   const rejected = s.cur.rejected[me]
   const sending = sent !== null && sent === text.trim() && rejected !== sent
-  const copout = text.trim() !== '' && isCopout(text, s.cur.item)
+  const subject = s.cur.item.subject
+  const sworn = subject === me
+  const copout = !sworn && text.trim() !== '' && isCopout(text, s.cur.item)
   const word = t.id === 'word'
 
   useEffect(() => { if (!mine) box.current?.focus() }, [mine])
@@ -74,13 +80,14 @@ function LieEntry({ s, room, me, send, view, t, showPrompt }: { s: LieState; roo
   if (mine) {
     return (
       <div className="grid gap-4">
-        <div className={cx('l-card l-zoom relative grid gap-2 overflow-hidden', !word && 'border-[#FFC83D]')}>
+        <div className={cx('l-card l-zoom relative grid gap-2 overflow-hidden', !word && 'border-[var(--l-accent)]')}>
           <div className="flex items-center justify-between gap-3">
-            <div className="l-label">{mine.auto ? 'Out of time. The House lied for you' : word ? 'Entry filed' : 'Locked in'}</div>
-            <span className="l-stamp inline-block shrink-0" style={{ fontSize: 18, ['--l-rot' as string]: '-8deg' }}>{word ? 'FILED' : 'SEALED'}</span>
+            <div className="l-label">{mine.auto ? 'Out of time. The House lied for you' : sworn ? 'Your truth is on file' : word ? 'Entry filed' : 'Locked in'}</div>
+            <span className={cx('l-stamp inline-block shrink-0', sworn && 'l-truth')} style={{ fontSize: 18, ['--l-rot' as string]: '-8deg' }}>{sworn ? 'SWORN' : word ? 'FILED' : 'SEALED'}</span>
           </div>
           <div className={cx('text-2xl font-bold leading-snug [overflow-wrap:anywhere]', word && 'l-entry italic')}>{mine.text}</div>
           {mine.copout && <div className="text-sm l-ink-3">Cop-out: half points if it fools anyone.</div>}
+          {sworn && <div className="text-sm l-ink-2">Your friends are lying about you right now. You score for each one who finds this.</div>}
         </div>
         <Waiting s={s} room={room} me={me} />
         <div className="flex justify-center pt-2"><HostArt theme={t.id} mood="smug" size={92} /></div>
@@ -118,7 +125,14 @@ function LieEntry({ s, room, me, send, view, t, showPrompt }: { s: LieState; roo
           )}
         </div>
       )}
-      <div className="l-label">{view.writeLabel}</div>
+      {sworn ? (
+        <div className="l-card grid gap-1 border-[var(--l-hot)]">
+          <div className="l-label l-hot">You are under questioning</div>
+          <div className="text-lg font-bold">Tell the truth. Your friends will lie about you, then try to spot the real answer.</div>
+        </div>
+      ) : (
+        <div className="l-label">{subject ? `Lie about ${nameOf(room, subject)}` : view.writeLabel}</div>
+      )}
       <textarea
         ref={box}
         value={text}
@@ -131,8 +145,8 @@ function LieEntry({ s, room, me, send, view, t, showPrompt }: { s: LieState; roo
         autoCapitalize="none"
         spellCheck
         enterKeyHint="done"
-        placeholder={view.placeholder}
-        aria-label={view.placeholder}
+        placeholder={sworn ? 'The real answer' : view.placeholder}
+        aria-label={sworn ? 'The real answer' : view.placeholder}
         className={cx('l-input', rejected && 'l-bad-edge')}
       />
       <div className="flex items-start justify-between gap-3 text-sm">
@@ -145,9 +159,34 @@ function LieEntry({ s, room, me, send, view, t, showPrompt }: { s: LieState; roo
           <span>That's actually the truth. Write a lie.</span>
         </div>
       )}
-      <button type="submit" className="l-btn l-btn-go" disabled={!text.trim() || sending}>{sending ? 'Sending' : 'Lock it in'}</button>
-      <button type="button" className="l-btn l-btn-alt" onClick={lieForMe}>Lie for me</button>
+      <button type="submit" className="l-btn l-btn-go" disabled={!text.trim() || sending}>{sending ? 'Sending' : sworn ? 'Swear to it' : 'Lock it in'}</button>
+      {!sworn && <button type="button" className="l-btn l-btn-alt" onClick={lieForMe}>Lie for me</button>}
     </form>
+  )
+}
+
+function CategoryPick({ s, room, me, send, t }: { s: LieState; room: RoomView; me: string; send: Send; t: LieTheme }) {
+  const [sent, setSent] = useState<string | null>(null)
+  const by = s.choose?.by ?? ''
+  const mine = by === me
+  return (
+    <div className="grid gap-3">
+      <div className="l-label">{mine ? 'Pick the line of questioning' : `${nameOf(room, by)} is picking the topic`}</div>
+      {(s.choose?.cats ?? []).map((c, i) => (
+        <button
+          key={c}
+          type="button"
+          disabled={!mine || !!sent}
+          onClick={() => { setSent(c); send('cat', { cat: c }) }}
+          className={cx('l-choice l-deal', sent === c && 'l-picked', !mine && 'opacity-60')}
+          style={{ animationDelay: `${i * 60}ms` }}
+        >
+          <span className="l-num h-9 w-9 text-lg">{'ABC'[i]}</span>
+          <span className="l-display min-w-0 flex-1 text-2xl">{s.catNames?.[c] ?? c}</span>
+        </button>
+      ))}
+      {!mine && <div className="flex justify-center pt-2"><HostArt theme={t.id} mood="idle" size={92} /></div>}
+    </div>
   )
 }
 
@@ -161,6 +200,19 @@ function PickList({ s, room, me, send, view, t, showPrompt }: { s: LieState; roo
   }, [pending])
   const myPick = s.cur.picks[me] ?? pending
   const word = t.id === 'word'
+  if (s.cur.item.subject === me) {
+    return (
+      <div className="grid gap-4">
+        <div className="l-card grid gap-2 border-[var(--l-hot)]">
+          <div className="l-label l-hot">Sit tight</div>
+          <div className="text-xl font-bold">Your friends are deciding which answer is really you.</div>
+          <div className="text-sm l-ink-2">Your truth: {s.cur.item.truth}</div>
+        </div>
+        <Waiting s={s} room={room} me={me} />
+        <div className="flex justify-center pt-2"><HostArt theme={t.id} mood="nervous" size={92} /></div>
+      </div>
+    )
+  }
   return (
     <div className="grid gap-3">
       {showPrompt && (
@@ -200,6 +252,19 @@ function PickList({ s, room, me, send, view, t, showPrompt }: { s: LieState; roo
 
 function MyRound({ s, room, me, t }: { s: LieState; room: RoomView; me: string; t: LieTheme }) {
   const g = s.cur.gains[me]
+  if (s.cur.item.subject === me) {
+    const found = s.cur.answers.find((a) => a.truth)
+    const n = found ? Object.values(s.cur.picks).filter((x) => x === found.id).length : 0
+    return (
+      <div className="l-card l-zoom relative grid gap-1 overflow-hidden">
+        <div className="flex items-start justify-between gap-3">
+          <div className="text-xl font-bold">{n ? `${n} ${n === 1 ? 'friend' : 'friends'} spotted the real you.` : 'Nobody believed the real you.'}</div>
+          <span className={cx('l-stamp inline-block shrink-0', n > 0 && 'l-truth')} style={{ fontSize: 16, ['--l-rot' as string]: '8deg' }}>{n ? 'KNOWN' : 'MYSTERY'}</span>
+        </div>
+        {g && <div className={cx('font-mono text-3xl font-bold tabular', g.net > 0 ? 'l-good' : 'l-ink-3')}>{g.net > 0 ? '+' : ''}{g.net} this round</div>}
+      </div>
+    )
+  }
   const pick = s.cur.answers.find((a) => a.id === s.cur.picks[me])
   let text = 'You did not pick in time.'
   if (pick?.truth) text = 'You found the truth.'
@@ -251,6 +316,15 @@ function Likes({ s, me, send, t }: { s: LieState; me: string; send: Send; t: Lie
 }
 
 function Reveal({ s, room, me, send, apart, t }: { s: LieState; room: RoomView; me: string; send: Send; apart: boolean; t: LieTheme }) {
+  if (s.cur.skipped) {
+    const subject = s.cur.item.subject ?? ''
+    return (
+      <div className="l-card grid gap-1 text-center">
+        <div className="text-xl font-bold">{subject === me ? 'You pleaded the fifth.' : `${nameOf(room, subject)} pleaded the fifth.`}</div>
+        <div className="l-ink-2">No answer, no round. Next case.</div>
+      </div>
+    )
+  }
   const step = s.cur.steps[s.cur.step]
   const told = step?.kind === 'truth' || step?.kind === 'tally'
   return (
@@ -274,7 +348,7 @@ function FinalMine({ s, room, me, apart, t }: { s: LieState; room: RoomView; me:
     <div className="grid justify-items-center gap-2 p-2 text-center">
       {!apart && <div className="l-label">That's the game</div>}
       {!apart && <HostArt theme={t.id} mood={place === 1 ? 'cheer' : 'smug'} size={110} />}
-      <div className={cx('l-zoom leading-none', word ? 'l-entry text-6xl font-black italic' : 'l-logo text-6xl text-[#FFC83D]')}>{ordinal(place)}</div>
+      <div className={cx('l-zoom leading-none', word ? 'l-entry text-6xl font-black italic' : 'l-logo text-6xl text-[var(--l-accent)]')}>{ordinal(place)}</div>
       <div className="text-2xl font-bold">{s.scores[me] ?? 0} points</div>
       <div className="l-ink-2">
         You fooled people {st?.fooled ?? 0} {st?.fooled === 1 ? 'time' : 'times'} and found the truth {st?.truths ?? 0} {st?.truths === 1 ? 'time' : 'times'}.
@@ -300,7 +374,8 @@ export function LieControllerView({ state: s, room, me, now, send, view }: Props
   }
   return (
     <div className={cx('l-phone grid content-start gap-4 p-4', `lie-${t.id}`)}>
-      {(s.stage === 'lie' || s.stage === 'pick') && !apart && <Top s={s} now={now} t={t} />}
+      {(s.stage === 'category' || s.stage === 'lie' || s.stage === 'pick') && !apart && <Top s={s} now={now} t={t} />}
+      {s.stage === 'category' && <CategoryPick key={`cat-${s.round}`} s={s} room={room} me={me} send={send} t={t} />}
       {s.stage === 'lie' && <LieEntry key={`lie-${s.round}`} s={s} room={room} me={me} send={send} view={view} t={t} showPrompt={!apart} />}
       {s.stage === 'pick' && <PickList key={`pick-${s.round}`} s={s} room={room} me={me} send={send} view={view} t={t} showPrompt={!apart} />}
       {s.stage === 'reveal' && <Reveal s={s} room={room} me={me} send={send} apart={apart} t={t} />}

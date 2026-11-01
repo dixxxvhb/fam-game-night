@@ -77,7 +77,7 @@ export default async function ({ phones, shot, wait }) {
   const p0 = phones[0]
   let lastLabel = ''
   for (let beat = 0; beat < 40; beat++) {
-    if (await p0.getByRole('button', { name: 'Next game' }).count()) break
+    if (await p0.getByRole('button', { name: 'Pick another' }).count()) break
     let label = ''
     for (let i = 0; i < 30 && !label; i++) {
       if (await p0.getByText('Your favorites').count()) label = 'tally'
@@ -87,7 +87,7 @@ export default async function ({ phones, shot, wait }) {
         const l = p0.getByText(/^(Step )?\d+ of \d+$/).first()
         if (await l.count()) label = 'step-' + (await l.innerText()).replace(/^Step /, '').replace(/\s+/g, '-').toLowerCase() + `-${beat}`
       }
-      if (await p0.getByRole('button', { name: 'Next game' }).count()) break
+      if (await p0.getByRole('button', { name: 'Pick another' }).count()) break
       if (!label) await wait(300)
     }
     if (!label) break
@@ -120,12 +120,12 @@ export default async function ({ phones, shot, wait }) {
     await wait(700)
   }
 
-  await p0.getByRole('button', { name: 'Next game' }).waitFor({ timeout: 30000 })
+  await p0.getByRole('button', { name: 'Pick another' }).waitFor({ timeout: 30000 })
   await wait(1000)
   await shot('results')
-  await p0.getByRole('button', { name: 'Next game' }).click()
+  await p0.getByRole('button', { name: 'Pick another' }).click()
   await wait(800)
-  await p0.getByRole('button', { name: 'End the night' }).click()
+  await p0.getByRole('button', { name: 'End the night' }).click(); await p0.getByRole('button', { name: 'End the night' }).click()
   await wait(1200)
   await shot('summary')
 }

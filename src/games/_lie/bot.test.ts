@@ -48,8 +48,16 @@ describe('lie engine bots', () => {
       expect(out!.placements).toHaveLength(3)
       expect(rounds).toHaveLength(s.items.length)
       for (const cur of rounds) {
+        // About Us with the silent human under questioning: skipped, nothing to check.
+        if (cur.skipped) { expect(cur.item.subject).toBe('dixxx'); continue }
         for (const id of BOTS) {
           const l = cur.lies[id]
+          if (cur.item.subject === id) {
+            // A bot under questioning answers (that is the truth) and does not pick.
+            expect(cur.item.truth).toBe(l.text)
+            expect(cur.picks[id]).toBeUndefined()
+            continue
+          }
           expect(l.auto).toBeUndefined() // wrote its own, the House never had to
           expect(l.text).not.toBe(cur.decoy)
           expect(cur.picks[id]).toBeDefined()
@@ -57,7 +65,7 @@ describe('lie engine bots', () => {
           expect(picked.by).not.toContain(id)
         }
         // The two bots never share one lie.
-        expect(cur.lies['bot-gator'].text).not.toBe(cur.lies['bot-pigeon'].text)
+        if (!cur.item.subject) expect(cur.lies['bot-gator'].text).not.toBe(cur.lies['bot-pigeon'].text)
       }
       expect(Math.min(...lieAt)).toBeGreaterThanOrEqual(6000)
       expect(Math.max(...lieAt)).toBeLessThanOrEqual(25_200)
@@ -74,6 +82,7 @@ describe('lie engine bots', () => {
       hearts += likes
       for (const cur of rounds) {
         for (const id of BOTS) {
+          if (!cur.picks[id]) continue
           total++
           if (cur.answers.find((a) => a.id === cur.picks[id])?.truth) truths++
         }

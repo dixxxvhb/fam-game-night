@@ -13,7 +13,7 @@ export default async function ({ tv, phones, shot, wait }) {
   const watcher = tv ?? phones[0]
 
   const resultsUp = async () => {
-    for (const p of phones) if (await p.getByRole('button', { name: 'Next game' }).count()) return true
+    for (const p of phones) if (await p.getByRole('button', { name: 'Pick another' }).count()) return true
     return false
   }
   const padOn = async (p) => (await p.locator('[data-bowl-pad]').count()) > 0
@@ -241,9 +241,9 @@ export default async function ({ tv, phones, shot, wait }) {
     const text = (await watcher.locator('main').innerText()).replace(/\s+/g, ' ').slice(0, 300)
     log('results:', text)
     if (await resultsUp()) {
-      await phones[0].getByRole('button', { name: 'Next game' }).click()
+      await phones[0].getByRole('button', { name: 'Pick another' }).click()
       await wait(800)
-      await phones[0].getByRole('button', { name: 'End the night' }).click()
+      await phones[0].getByRole('button', { name: 'End the night' }).click(); await phones[0].getByRole('button', { name: 'End the night' }).click()
       await wait(1200)
       await shot('summary')
     }

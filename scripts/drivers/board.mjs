@@ -37,7 +37,7 @@ export default async function ({ tv, phones, shot, wait }) {
     } catch { return null }
   }
   const resultsUp = async () => {
-    for (const p of phones) if (await vis(p, 'button:has-text("Next game")')) return true
+    for (const p of phones) if (await vis(p, 'button:has-text("Pick another")')) return true
     return false
   }
 
@@ -324,10 +324,10 @@ export default async function ({ tv, phones, shot, wait }) {
   log('inputs:', JSON.stringify(counts))
   log(`took ${Math.round((Date.now() - T0) / 1000)} s`)
 
-  if (await phones[0].getByRole('button', { name: 'Next game' }).count()) {
-    await phones[0].getByRole('button', { name: 'Next game' }).click()
+  if (await phones[0].getByRole('button', { name: 'Pick another' }).count()) {
+    await phones[0].getByRole('button', { name: 'Pick another' }).click()
     await wait(800)
-    await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {})
+    await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {}); await phones[0].getByRole('button', { name: 'End the night' }).click().catch(() => {})
     await wait(1200)
     await shot('summary')
   }

@@ -39,16 +39,16 @@ export default async function ({ tv, phones, shot, wait }) {
     await wait(800)
     await shot(`turn${turn}-reveal`)
     await wait(5200)
-    if (await phones[0].getByText('Next game').count()) break
+    if (await phones[0].getByText('Pick another').count()) break
   }
   await wait(1500)
   await shot('gallery')
-  await phones[0].getByRole('button', { name: 'Next game' }).waitFor({ timeout: 30000 })
+  await phones[0].getByRole('button', { name: 'Pick another' }).waitFor({ timeout: 30000 })
   await wait(1000)
   await shot('results')
-  await phones[0].getByRole('button', { name: 'Next game' }).click()
+  await phones[0].getByRole('button', { name: 'Pick another' }).click()
   await wait(800)
-  await phones[0].getByRole('button', { name: 'End the night' }).click()
+  await phones[0].getByRole('button', { name: 'End the night' }).click(); await phones[0].getByRole('button', { name: 'End the night' }).click()
   await wait(1200)
   await shot('summary')
 }

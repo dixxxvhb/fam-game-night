@@ -48,7 +48,7 @@ const BLUFF: LieTheme = {
   stampTruth: 'TRUE',
   truthName: 'The truth',
   cues: { lie: 'bluff-lie', pick: 'bluff-pick', reveal: 'bluff-reveal', final: 'bluff-final' },
-  fonts: 'https://fonts.googleapis.com/css2?family=Bungee+Inline&family=Bungee+Shade&display=swap',
+  fonts: 'https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&display=swap',
   lines: {
     intro: (r, total, f) =>
       r === total - 1 ? 'Last one. Triple points. I am calibrated and ready to judge.'
