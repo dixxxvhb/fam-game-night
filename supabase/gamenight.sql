@@ -264,3 +264,118 @@ grant execute on function public.gn_end_night(uuid, jsonb, text[]) to anon, auth
 grant execute on function public.gn_add_guest(text, text) to anon, authenticated;
 grant execute on function public.gn_data(int) to anon, authenticated;
 grant execute on function public.gn_hall(int) to anon, authenticated;
+
+
+-- 2026-11-09: hardening, live as figgg migration 110_gn_end_night_guard (see that file for the why).
+-- These three replace the definitions above; kept here so a rebuild from this file ends in the live state.
+
+create or replace function public.gn_end_night(p_night_id uuid, p_standings jsonb, p_winner_ids text[])
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  -- Each test stands on the one before it (an array before its length, a
+  -- number before its size), so they are separate steps and a CASE: SQL does
+  -- not promise to stop at the first true OR.
+  if p_standings is null or jsonb_typeof(p_standings) is distinct from 'array' then
+    raise exception 'bad standings';
+  end if;
+  if jsonb_array_length(p_standings) > 12 then
+    raise exception 'bad standings';
+  end if;
+  if exists (
+    select 1 from jsonb_array_elements(p_standings) as e(value)
+    where case
+      when jsonb_typeof(e.value) is distinct from 'object' then true
+      when jsonb_typeof(e.value -> 'player_id') is distinct from 'string' then true
+      when char_length(e.value ->> 'player_id') not between 1 and 40 then true
+      when jsonb_typeof(e.value -> 'points') is distinct from 'number' then true
+      else (e.value ->> 'points')::numeric not between -100000 and 100000
+    end
+  ) then
+    raise exception 'bad standings';
+  end if;
+  if coalesce(array_length(p_winner_ids, 1), 0) > 12
+     or array_ndims(p_winner_ids) > 1
+     or exists (
+       select 1 from unnest(coalesce(p_winner_ids, '{}')) as w(id)
+       where w.id is null or char_length(w.id) not between 1 and 40
+     ) then
+    raise exception 'bad winners';
+  end if;
+
+  update gamenight.nights
+     set status = 'done', ended_at = now(), standings = p_standings, winner_ids = p_winner_ids
+   where id = p_night_id and status = 'live' and started_at > now() - interval '18 hours';
+end;
+$$;
+
+-- Everything the season, history and records screens need, in one call.
+-- Body as live, with one change: 12 hours -> 18 hours (see b above).
+create or replace function public.gn_data(p_season int default null)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with s as (
+    select coalesce(p_season, (select max(id) from gamenight.seasons)) as id
+  )
+  select jsonb_build_object(
+    'season_id', (select id from s),
+    'seasons', coalesce((select jsonb_agg(to_jsonb(x) order by x.id) from gamenight.seasons x), '[]'::jsonb),
+    'players', coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'color', p.color, 'is_core', p.is_core) order by p.is_core desc, p.created_at) from gamenight.players p), '[]'::jsonb),
+    'nights', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', n.id, 'room_code', n.room_code, 'mode', n.mode, 'status', n.status,
+        'started_at', n.started_at, 'ended_at', n.ended_at, 'player_ids', n.player_ids,
+        'standings', n.standings, 'winner_ids', n.winner_ids,
+        'results', coalesce((
+          select jsonb_agg(jsonb_build_object('id', r.id, 'game_id', r.game_id, 'played_at', r.played_at, 'placements', r.placements) order by r.played_at)
+          from gamenight.results r where r.night_id = n.id
+        ), '[]'::jsonb)
+      ) order by n.started_at desc)
+      from gamenight.nights n
+      where n.season_id = (select id from s)
+        and (n.status = 'done' or n.started_at <= now() - interval '18 hours')
+        and exists (select 1 from gamenight.results r where r.night_id = n.id)
+    ), '[]'::jsonb)
+  );
+$$;
+
+-- The Hall of Fame, newest first. Body as live, with one change: night_id is
+-- withheld while its night can still be written to (see a above).
+create or replace function public.gn_hall(p_limit int default 60)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(to_jsonb(h) order by h.created_at desc), '[]'::jsonb)
+  from (
+    select x.id,
+           case when exists (
+             select 1 from gamenight.nights n
+             where n.id = x.night_id and n.status = 'live' and n.started_at > now() - interval '18 hours'
+           ) then null else x.night_id end as night_id,
+           x.game_id, x.player_id, x.kind, x.label, x.content, x.created_at
+    from gamenight.hall x
+    order by x.created_at desc
+    limit least(greatest(coalesce(p_limit, 60), 1), 100)
+  ) h;
+$$;
+
+-- CREATE OR REPLACE keeps each function's ACL, owner and settings. Stated
+-- again anyway, so this file is right on its own: no PUBLIC, the two API
+-- roles only (game night has no sign-in; see the header).
+revoke all on function public.gn_end_night(uuid, jsonb, text[]) from public;
+revoke all on function public.gn_data(int) from public;
+revoke all on function public.gn_hall(int) from public;
+grant execute on function public.gn_end_night(uuid, jsonb, text[]) to anon, authenticated;
+grant execute on function public.gn_data(int) to anon, authenticated;
+grant execute on function public.gn_hall(int) to anon, authenticated;
+
